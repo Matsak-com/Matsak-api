@@ -23,6 +23,11 @@ export class User extends Document {
     @IsString()
     @MinLength(8)
     password: string;
+
+    // @Prop({ required: false })
+    // @IsString()
+    // @IsNotEmpty()
+    // jwt: Object;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
