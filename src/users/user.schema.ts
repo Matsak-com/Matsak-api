@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, isString, IsString, MinLength } from 'class-validator';
 
 export type UserDocument = User & Document;
 @Schema()
@@ -24,10 +24,16 @@ export class User extends Document {
     @MinLength(8)
     password: string;
 
-    // @Prop({ required: false })
-    // @IsString()
-    // @IsNotEmpty()
-    // jwt: Object;
+    @Prop({ required: false, default: false })
+    isResettingPassword: boolean;
+
+    @Prop({ required: false, unique: true })
+    @IsString()
+    resetPasswordToken?: string;
+
+    @Prop({ required: false, unique: true })
+    @IsString()
+    avatarFileKey?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
