@@ -9,12 +9,20 @@ export class CreateUserDto {
     @IsNotEmpty()
     firstname: string;
 
-    @IsEmail()
+    @IsEmail({},
+        {
+          message: 'You must provide a valid email address.',
+        },)
     @IsNotEmpty()
     email: string;
 
-    @IsString()
     @IsNotEmpty()
-    @MinLength(8)
+    @MinLength(8, {
+        message: 'Your password must be more than 8 characters long.',
+      })
     password: string;
+
+    isResettingPassword?: boolean;
+    resetPasswordToken?: string;
+    avatarFileKey?: string;
 }
