@@ -101,10 +101,8 @@ export class AuthService {
 
   async verifyResetPasswordToken({ token }: { token: string }) {
     try {
-      const existingUser = await this.prisma.user.findUnique({
-        where: {
-          resetPasswordToken: token,
-        },
+      const existingUser = await this.usersService.findOne({
+        resetPasswordToken: token,
       });
 
       if (!existingUser) {
@@ -136,10 +134,8 @@ export class AuthService {
   }) {
     try {
       const { password, token } = resetPasswordDto;
-      const existingUser = await this.prisma.user.findUnique({
-        where: {
-          resetPasswordToken: token,
-        },
+      const existingUser = await this.usersService.findOne({
+        resetPasswordToken: token,
       });
 
       if (!existingUser) {
@@ -155,11 +151,11 @@ export class AuthService {
       const hashedPassword = await this.hashPassword({
         password,
       });
-      await this.prisma.user.update({
-        where: {
+      await this.usersService.update({
+        query: {
           resetPasswordToken: token,
         },
-        data: {
+        update: {
           isResettingPassword: false,
           password: hashedPassword,
         },

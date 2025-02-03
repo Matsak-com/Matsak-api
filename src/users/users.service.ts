@@ -9,8 +9,40 @@ import * as bcrypt from 'bcrypt';
 export class UsersService {
   constructor(@InjectModel(User.name) private userModel: Model<User>) {}
 
-  async findOne(id: string): Promise<User | undefined> {
-    return this.userModel.findOne({ _id: id }).exec();
+  async getUsers() {
+    const users = await this.userModel.find({
+        id: true,
+        email: true,
+        firstName: true,
+        avatarFileKey: true,
+    });
+
+    // const usersWithAvatar = await Promise.all(
+    //   users.map(async (user) => {
+    //     let avatarUrl = '';
+    //     if (user.avatarFileKey) {
+    //       avatarUrl = await this.awsS3Service.getFileUrl({
+    //         fileKey: user.avatarFileKey,
+    //       });
+    //     }
+    //     return { ...user, avatarUrl };
+    //   }),
+    // );
+
+    // return usersWithAvatar;
+    return users;
+  }
+
+  async getUser({ userId }: { userId: string }) {
+    const user = await this.userModel.findOne(
+      {id: userId},
+      'id email firstName avatarFileKey'
+    );
+    return user;
+  }
+
+  async findOne(query: Partial<User>): Promise<User | undefined> {
+    return this.userModel.findOne({query}).exec();
   }
 
   async findByEmail(email: string): Promise<User | undefined> {
@@ -32,7 +64,7 @@ export class UsersService {
   }
 
   async update(id: string, updateUserDto: Partial<CreateUserDto>): Promise<User> {
-    const user = await this.findOne(id);
+    const user = await this.findOne({id});
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
@@ -44,7 +76,7 @@ export class UsersService {
   }
 
   async delete(id: string): Promise<void> {
-    const user = await this.findOne(id);
+    const user = await this.findOne({id});
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }

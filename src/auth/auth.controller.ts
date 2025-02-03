@@ -1,10 +1,11 @@
 import { Controller, Post, Body, ConflictException, UseGuards, Get, Request, Query } from '@nestjs/common';
-import { AuthGuard } from './auth.guard';
+import { JwtAuthGuard  } from './jwt-auth.guard';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LogUserDto } from './dto/log-user.dto';
 import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
+import { RequestWithUser } from './jwt/jwt.strategy';
 
 @Controller('auth')
 export class AuthController {
@@ -53,7 +54,7 @@ export class AuthController {
     });
   }
 
-  @UseGuards(AuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Get()
   async getAuthenticatedUser(@Request() request: RequestWithUser) {
     return await this.usersService.getUser({
