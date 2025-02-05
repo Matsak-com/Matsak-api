@@ -102,7 +102,7 @@ export class AuthService {
   async verifyResetPasswordToken({ token }: { token: string }) {
     try {
       const existingUser = await this.usersService.findOne({
-        resetPasswordToken: token,
+        query:{resetPasswordToken: token}
       });
 
       if (!existingUser) {
@@ -135,7 +135,7 @@ export class AuthService {
     try {
       const { password, token } = resetPasswordDto;
       const existingUser = await this.usersService.findOne({
-        resetPasswordToken: token,
+        query: {resetPasswordToken: token}
       });
 
       if (!existingUser) {

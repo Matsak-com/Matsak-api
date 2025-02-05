@@ -1,47 +1,58 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { User, UserDocument } from './user.schema';
+import { User } from './user.schema';
 import { Model } from 'mongoose';
 import { CreateUserDto } from '../auth/dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
+import { fileSchema } from './utils/file-utils';
+import { AwsS3Service } from '../aws/aws-s3.service';
+import { z } from 'zod';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<User>) {}
+  constructor(
+    @InjectModel(User.name) 
+    private userModel: Model<User>,
+    private awsS3Service: AwsS3Service,
+  ) {}
 
-  async getUsers() {
-    const users = await this.userModel.find({
-        id: true,
-        email: true,
-        firstName: true,
-        avatarFileKey: true,
-    });
+  async getUsers(): Promise<any> {
+    const users = await this.userModel.find(
+      {},
+      'id email firstName avatarFileKey',
+    );
 
-    // const usersWithAvatar = await Promise.all(
-    //   users.map(async (user) => {
-    //     let avatarUrl = '';
-    //     if (user.avatarFileKey) {
-    //       avatarUrl = await this.awsS3Service.getFileUrl({
-    //         fileKey: user.avatarFileKey,
-    //       });
-    //     }
-    //     return { ...user, avatarUrl };
-    //   }),
-    // );
+    const usersWithAvatar = await Promise.all(
+      users.map(async (user) => {
+        let avatarUrl = '';
+        if (user.avatarFileKey) {
+          avatarUrl = await this.awsS3Service.getFileUrl({
+            fileKey: user.avatarFileKey,
+          });
+        }
+        return { ...user, avatarUrl };
+      }),
+    );
 
-    // return usersWithAvatar;
-    return users;
+    return usersWithAvatar;
   }
 
-  async getUser({ userId }: { userId: string }) {
+  async getUser({ userId }: { userId: string }): Promise<any> {
     const user = await this.userModel.findOne(
       {id: userId},
       'id email firstName avatarFileKey'
     );
-    return user;
+
+    let avatarUrl = '';
+    if (user.avatarFileKey) {
+      avatarUrl = await this.awsS3Service.getFileUrl({
+        fileKey: user.avatarFileKey,
+      });
+    }
+    return { ...user, avatarUrl };
   }
 
-  async findOne(query: Partial<User>): Promise<User | undefined> {
+  async findOne({query}:{query: Partial<User>}): Promise<User | undefined> {
     return this.userModel.findOne({query}).exec();
   }
 
@@ -63,8 +74,54 @@ export class UsersService {
     return createdUser.save();
   }
 
-  async update(id: string, updateUserDto: Partial<CreateUserDto>): Promise<User> {
-    const user = await this.findOne({id});
+  async updateUser({
+    userId,
+    submittedFile,
+  }: {
+    userId: string;
+    submittedFile: z.infer<typeof fileSchema>;
+  }) {
+    try {
+      const existingUser = await this.userModel.findOne(
+       { _id: userId },
+        'avatarFileKey',
+      );
+      if (!existingUser) {
+        throw new HttpException('User not exists', HttpStatus.BAD_REQUEST);
+      }
+
+      const { fileKey } = await this.awsS3Service.uploadFile({
+        file: submittedFile,
+      });
+
+      await this.prisma.user.update({
+        where: {
+          id: userId,
+        },
+        data: {
+          avatarFileKey: fileKey,
+        },
+      });
+
+      if (existingUser.avatarFileKey) {
+        await this.awsS3Service.deleteFile({
+          fileKey: existingUser.avatarFileKey,
+        });
+      }
+      return {
+        error: false,
+        message: "L'avatar a bien été mis à jour",
+      };
+    } catch (error) {
+      if (error instanceof Error) {
+        return { error: true, message: error.message };
+      }
+      return { error: true, message: 'Une erreur inattendue est survenue' };
+    }
+  }
+
+  async update(query: Partial<User>, updateUserDto: Partial<CreateUserDto>): Promise<User> {
+    const user = await this.findOne({query});
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
@@ -76,7 +133,7 @@ export class UsersService {
   }
 
   async delete(id: string): Promise<void> {
-    const user = await this.findOne({id});
+    const user = await this.findOne({query:{_id: id}});
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
