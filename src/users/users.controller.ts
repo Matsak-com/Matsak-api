@@ -11,7 +11,7 @@ import {
   import { FileInterceptor } from '@nestjs/platform-express';
   import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
   import { RequestWithUser } from 'src/auth/jwt/jwt.strategy';
-  import { fileSchema } from 'src/file-utils';
+  import { fileSchema } from './utils/file-utils';
   import { UsersService } from './users.service';
   
   @Controller('users')
