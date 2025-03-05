@@ -11,7 +11,7 @@ import { z } from 'zod';
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectModel(User.name) 
+    @InjectModel(User.name)
     private userModel: Model<User>,
     private awsS3Service: AwsS3Service,
   ) {}
@@ -39,8 +39,8 @@ export class UsersService {
 
   async getUser({ userId }: { userId: string }): Promise<any> {
     const user = await this.userModel.findOne(
-      {id: userId},
-      'id email firstName avatarFileKey'
+      { id: userId },
+      'id email firstName avatarFileKey',
     );
 
     let avatarUrl = '';
@@ -52,8 +52,12 @@ export class UsersService {
     return { ...user, avatarUrl };
   }
 
-  async findOne({query}:{query: Partial<User>}): Promise<User | undefined> {
-    return this.userModel.findOne({query}).exec();
+  async findOne({
+    query,
+  }: {
+    query: Partial<User>;
+  }): Promise<User | undefined> {
+    return this.userModel.findOne({ query }).exec();
   }
 
   async findByEmail(email: string): Promise<User | undefined> {
@@ -83,7 +87,7 @@ export class UsersService {
   }) {
     try {
       const existingUser = await this.userModel.findOne(
-       { _id: userId },
+        { _id: userId },
         'avatarFileKey',
       );
       if (!existingUser) {
@@ -94,13 +98,9 @@ export class UsersService {
         file: submittedFile,
       });
 
-      await this.prisma.user.update({
-        where: {
-          id: userId,
-        },
-        data: {
-          avatarFileKey: fileKey,
-        },
+      await this.userModel.updateOne({
+        _id: userId,
+        avatarFileKey: fileKey,
       });
 
       if (existingUser.avatarFileKey) {
@@ -120,8 +120,11 @@ export class UsersService {
     }
   }
 
-  async update(query: Partial<User>, updateUserDto: Partial<CreateUserDto>): Promise<User> {
-    const user = await this.findOne({query});
+  async update(
+    query: Partial<User>,
+    updateUserDto: Partial<CreateUserDto>,
+  ): Promise<User> {
+    const user = await this.findOne({ query });
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
@@ -133,7 +136,7 @@ export class UsersService {
   }
 
   async delete(id: string): Promise<void> {
-    const user = await this.findOne({query:{_id: id}});
+    const user = await this.findOne({ query: { _id: id } });
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }

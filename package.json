@@ -29,6 +29,7 @@
     "@nestjs/mongoose": "^10.1.0",
     "@nestjs/passport": "^11.0.1",
     "@nestjs/platform-express": "^10.0.0",
+    "@types/multer": "^1.4.12",
     "bcrypt": "^5.1.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
@@ -81,5 +82,15 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
+  },
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "@nestjs/core",
+      "@nestjs/core",
+      "bcrypt"
+    ],
+    "onlyBuiltDependencies": [
+      "bcrypt"
+    ]
   }
 }

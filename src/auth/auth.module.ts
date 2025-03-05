@@ -13,7 +13,7 @@ import { UsersService } from 'src/users/users.service';
       signOptions: { expiresIn: '30d' },
     }),
   ],
-  providers: [AuthService, JwtStrategy, UsersService, MailerService],
+  providers: [AuthService, JwtStrategy, UsersService],
   controllers: [AuthController],
 })
 export class AuthModule {}
