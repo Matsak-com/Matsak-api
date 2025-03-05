@@ -1,4 +1,9 @@
-import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { v4 as uuidv4 } from 'uuid';
 import { UsersService } from '../users/users.service';
@@ -15,10 +20,16 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async login({loginDto}: {loginDto: LogUserDto}): Promise<{ accessToken: string }> {
-    try
-    {
-      const user = await this.usersService.validateUser(loginDto.email, loginDto.password);
+  async login({
+    loginDto,
+  }: {
+    loginDto: LogUserDto;
+  }): Promise<{ accessToken: string }> {
+    try {
+      const user = await this.usersService.validateUser(
+        loginDto.email,
+        loginDto.password,
+      );
       if (!user) {
         throw new UnauthorizedException('Invalid credentials');
       }
@@ -31,36 +42,43 @@ export class AuthService {
     }
   }
 
-  async register({createUserDto} : {createUserDto: CreateUserDto}) {
-      try {
-        const existingUser = await this.usersService.findByEmail(createUserDto.email);
-        if (existingUser) {
+  async register({ createUserDto }: { createUserDto: CreateUserDto }) {
+    try {
+      const existingUser = await this.usersService.findByEmail(
+        createUserDto.email,
+      );
+      if (existingUser) {
         if (existingUser.name === createUserDto.name)
           throw new HttpException('user already exists', HttpStatus.CONFLICT);
         if (existingUser.email === createUserDto.email)
           throw new HttpException('Email already exists', HttpStatus.CONFLICT);
-        }
-        const hashedPassword = await this.hashPassword({password: createUserDto.password});
-        const createdUser = await this.usersService.create({...createUserDto, password: hashedPassword});
-        
-        // await this.mailerService.sendCreatedAccountEmail({
-        //   firstName,
-        //   recipient: email,
-        // });
-
-        return this.authenticateUser({
-        userId: createdUser.id,
-        });
-      } catch (error) {
-        throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
       }
+      const hashedPassword = await this.hashPassword({
+        password: createUserDto.password,
+      });
+      const createdUser = await this.usersService.create({
+        ...createUserDto,
+        password: hashedPassword,
+      });
+
+      // await this.mailerService.sendCreatedAccountEmail({
+      //   firstName,
+      //   recipient: email,
+      // });
+
+      return this.authenticateUser({
+        userId: createdUser.id,
+      });
+    } catch (error) {
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+  }
 
   private async hashPassword({ password }: { password: string }) {
     const hashedPassword = await hash(password, 10);
     return hashedPassword;
   }
-  
+
   private async authenticateUser({ userId }: UserPayload) {
     const payload = { userId };
     return { accessToken: await this.jwtService.signAsync(payload) };
@@ -75,7 +93,9 @@ export class AuthService {
       }
 
       if (existingUser.isResettingPassword === true) {
-        throw new Error('A password reset request is already in progress. Please check your emails.');
+        throw new Error(
+          'A password reset request is already in progress. Please check your emails.',
+        );
       }
 
       const createdId = uuidv4();
@@ -91,8 +111,7 @@ export class AuthService {
 
       return {
         error: false,
-        message:
-          'Please check your email to reset your password.',
+        message: 'Please check your email to reset your password.',
       };
     } catch (error) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
@@ -102,7 +121,7 @@ export class AuthService {
   async verifyResetPasswordToken({ token }: { token: string }) {
     try {
       const existingUser = await this.usersService.findOne({
-        query:{resetPasswordToken: token}
+        query: { resetPasswordToken: token },
       });
 
       if (!existingUser) {
@@ -135,7 +154,7 @@ export class AuthService {
     try {
       const { password, token } = resetPasswordDto;
       const existingUser = await this.usersService.findOne({
-        query: {resetPasswordToken: token}
+        query: { resetPasswordToken: token },
       });
 
       if (!existingUser) {
@@ -151,15 +170,13 @@ export class AuthService {
       const hashedPassword = await this.hashPassword({
         password,
       });
-      await this.usersService.update({
-        query: {
-          resetPasswordToken: token,
-        },
-        update: {
+      await this.usersService.update(
+        { resetPasswordToken: token },
+        {
           isResettingPassword: false,
           password: hashedPassword,
         },
-      });
+      );
 
       return {
         error: false,
