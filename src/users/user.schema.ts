@@ -3,10 +3,16 @@ import { Document } from 'mongoose';
 import {
   IsEmail,
   IsNotEmpty,
-  isString,
   IsString,
   MinLength,
+  IsEnum,
 } from 'class-validator';
+
+// Définition des types de rôles
+export enum UserRole {
+  USER = 'user',
+  ADMIN = 'admin',
+}
 
 export type UserDocument = User & Document;
 @Schema()
@@ -40,6 +46,11 @@ export class User extends Document {
   @Prop({ required: false, unique: true })
   @IsString()
   avatarFileKey?: string;
+
+  // Champ pour définir le rôle de l'utilisateur (user ou admin)
+  @Prop({ required: true, enum: UserRole, default: UserRole.USER })
+  @IsEnum(UserRole)
+  role: UserRole;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
