@@ -32,7 +32,7 @@ export class AuthService {
         loginDto.password,
       );
       if (!user) {
-        throw new UnauthorizedException('Email ou mot de passe incorrect');
+        throw new UnauthorizedException('Invalid credentials');
       }
       const authResponse = await this.authenticateUser({
         userId: user._doc._id,
