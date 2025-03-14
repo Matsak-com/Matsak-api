@@ -39,7 +39,7 @@ export class User extends Document {
   @Prop({ required: false, default: false })
   isResettingPassword: boolean;
 
-  @Prop({ required: false, unique: true })
+  @Prop({ required: false, unique: true, sparse: true  })
   @IsString()
   resetPasswordToken?: string;
 

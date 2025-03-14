@@ -9,7 +9,8 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+// import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RequestWithUser } from 'src/auth/jwt/jwt.strategy';
 import { fileSchema } from './utils/file-utils';
 import { UsersService } from './users.service';
