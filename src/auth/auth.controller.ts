@@ -1,11 +1,21 @@
-import { Controller, Post, Body, ConflictException, UseGuards, Get, Request, Query } from '@nestjs/common';
-import { JwtAuthGuard  } from './jwt-auth.guard';
+import {
+  Controller,
+  Post,
+  Body,
+  ConflictException,
+  UseGuards,
+  Get,
+  Request,
+  Query,
+} from '@nestjs/common';
+import { JwtAuthGuard } from './jwt-auth.guard';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LogUserDto } from './dto/log-user.dto';
 import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
 import { RequestWithUser } from './jwt/jwt.strategy';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('auth')
 export class AuthController {
@@ -17,21 +27,19 @@ export class AuthController {
   @Post('register')
   async register(@Body() createUserDto: CreateUserDto) {
     try {
-        const user = await this.authService.register({createUserDto});
-        return { message: 'User registered successfully', user };
-      } catch (error) {
-        if (error.status === 409) {
-          throw new ConflictException(error.message);
-        }
-        throw error;
+      const user = await this.authService.register({ createUserDto });
+      return { message: 'User registered successfully', user };
+    } catch (error) {
+      if (error.status === 409) {
+        throw new ConflictException(error.message);
       }
+      throw error;
+    }
   }
 
   @Post('login')
-  async login(
-    @Body() loginDto: LogUserDto
-  ) {
-    return this.authService.login({loginDto});
+  async login(@Body() loginDto: LogUserDto) {
+    return this.authService.login({ loginDto });
   }
 
   @Post('request-reset-password')
@@ -60,5 +68,19 @@ export class AuthController {
     return await this.usersService.getUser({
       userId: request.user.userId,
     });
+  }
+
+  @UseGuards(AuthGuard('google'))
+  @Get('google/login')
+  async googleAuth(@Request() req) {
+    // Initiates the Google OAuth2 login flow
+  }
+
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleAuthRedirect(@Request() req) {
+    // Handles the Google OAuth2 callback
+    console.log(req.user);
+    return req.user;
   }
 }

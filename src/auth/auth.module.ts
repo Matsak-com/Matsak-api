@@ -5,6 +5,7 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt/jwt.strategy';
 import { AwsS3Service } from 'src/aws/aws-s3.service';
 import { UsersModule } from 'src/users/users.module';
+import { GoogleStrategy } from './sso/google/google.strategy';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { UsersModule } from 'src/users/users.module';
     }),
     UsersModule,
   ],
-  providers: [AuthService, JwtStrategy, AwsS3Service],
+  providers: [AuthService, JwtStrategy, AwsS3Service, GoogleStrategy],
   controllers: [AuthController],
 })
 export class AuthModule {}
