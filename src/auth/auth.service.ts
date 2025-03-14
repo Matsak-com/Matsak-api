@@ -12,6 +12,7 @@ import { LogUserDto } from './dto/log-user.dto';
 import { UserPayload } from './jwt/jwt.strategy';
 import { hash } from 'bcrypt';
 import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
+import { UserRole } from 'src/users/user.schema';
 
 @Injectable()
 export class AuthService {
@@ -24,7 +25,7 @@ export class AuthService {
     loginDto,
   }: {
     loginDto: LogUserDto;
-  }): Promise<{ accessToken: string }> {
+  }): Promise<{ accessToken: string; role: UserRole }> {
     try {
       const user = await this.usersService.validateUser(
         loginDto.email,
@@ -33,10 +34,14 @@ export class AuthService {
       if (!user) {
         throw new UnauthorizedException('Invalid credentials');
       }
-
-      return this.authenticateUser({
+      const authResponse = await this.authenticateUser({
         userId: user._doc._id,
       });
+  
+      return {
+        ...authResponse, 
+        role: user._doc.role, // Ajoute le rôle de l'utilisateur
+      };
     } catch (error) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
@@ -44,35 +49,29 @@ export class AuthService {
 
   async register({ createUserDto }: { createUserDto: CreateUserDto }) {
     try {
-      const existingUser = await this.usersService.findByEmail(
-        createUserDto.email,
-      );
+      const existingUser = await this.usersService.findByEmail(createUserDto.email);
+
       if (existingUser) {
-        if (existingUser.name === createUserDto.name)
-          throw new HttpException('user already exists', HttpStatus.CONFLICT);
-        if (existingUser.email === createUserDto.email)
+        if (existingUser.name === createUserDto.name) {
+          throw new HttpException('User already exists', HttpStatus.CONFLICT);
+        }
+        if (existingUser.email === createUserDto.email) {
           throw new HttpException('Email already exists', HttpStatus.CONFLICT);
+        }
       }
-      const hashedPassword = await this.hashPassword({
-        password: createUserDto.password,
-      });
+
+      // On ne hache pas le mot de passe ici
       const createdUser = await this.usersService.create({
         ...createUserDto,
-        password: hashedPassword,
+        password: createUserDto.password, // Stockage direct du mot de passe sans hash
       });
 
-      // await this.mailerService.sendCreatedAccountEmail({
-      //   firstName,
-      //   recipient: email,
-      // });
-
-      return this.authenticateUser({
-        userId: createdUser.id,
-      });
+      return createdUser;
     } catch (error) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
-  }
+}
+
 
   private async hashPassword({ password }: { password: string }) {
     const hashedPassword = await hash(password, 10);

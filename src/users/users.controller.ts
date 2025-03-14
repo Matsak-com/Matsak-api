@@ -9,7 +9,8 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+// import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RequestWithUser } from 'src/auth/jwt/jwt.strategy';
 import { fileSchema } from './utils/file-utils';
 import { UsersService } from './users.service';
@@ -18,13 +19,13 @@ import { UsersService } from './users.service';
 export class UserController {
   constructor(private readonly usersService: UsersService) {}
   @Get()
-  // localhost:3000/users
+  // localhost:8080/users
   getUsers() {
     return this.usersService.getUsers();
   }
 
   @Get('/:userId')
-  // localhost:3000/users/3000
+  // localhost:8080/users/3000
   getUser(@Param('userId') userId: string) {
     return this.usersService.getUser({
       userId,

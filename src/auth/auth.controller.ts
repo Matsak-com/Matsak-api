@@ -49,12 +49,15 @@ export class AuthController {
     });
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('reset-password')
   async resetUserPassword(@Body() resetPasswordDto: ResetUserPasswordDto) {
     return await this.authService.resetUserPassword({
       resetPasswordDto,
     });
   }
+
+  @UseGuards(JwtAuthGuard)
   @Get('verify-reset-password-token')
   async verifyResetPasswordToken(@Query('token') token: string) {
     return await this.authService.verifyResetPasswordToken({
