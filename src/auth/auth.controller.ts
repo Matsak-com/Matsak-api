@@ -86,4 +86,18 @@ export class AuthController {
     console.log(req.user);
     return req.user;
   }
+
+  @UseGuards(AuthGuard('facebook'))
+  @Get('facebook/login')
+  async facebookAuth(@Request() req) {
+    // Initiates the Facebook OAuth2 login flow
+  }
+
+  @Get('facebook/callback')
+  @UseGuards(AuthGuard('facebook'))
+  async facebookAuthRedirect(@Request() req) {
+    // Handles the Facebook OAuth2 callback
+    console.log(req.user);
+    return req.user;
+  }
 }
