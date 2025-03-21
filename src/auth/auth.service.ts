@@ -36,6 +36,7 @@ export class AuthService {
       }
       const authResponse = await this.authenticateUser({
         userId: user._doc._id,
+        role : user._doc.role
       });
   
       return {
@@ -78,8 +79,8 @@ export class AuthService {
     return hashedPassword;
   }
 
-  private async authenticateUser({ userId }: UserPayload) {
-    const payload = { userId };
+  private async authenticateUser({ userId, role }: UserPayload) {
+    const payload = { userId, role};
     return { accessToken: await this.jwtService.signAsync(payload) };
   }
 
