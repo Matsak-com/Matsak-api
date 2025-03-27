@@ -1,4 +1,4 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from './user.schema';
 import { Model } from 'mongoose';
@@ -7,6 +7,8 @@ import * as bcrypt from 'bcrypt';
 import { fileSchema } from './utils/file-utils';
 import { AwsS3Service } from '../aws/aws-s3.service';
 import { z } from 'zod';
+import { UpdateUserDto } from 'src/auth/dto/update-user.dto';
+import { UpdatePasswordDto } from 'src/auth/dto/update-password.dto';
 
 @Injectable()
 export class UsersService {
@@ -39,18 +41,30 @@ export class UsersService {
 
   async getUser({ userId }: { userId: string }): Promise<any> {
     const user = await this.userModel.findOne(
-      { id: userId },
-      'id email firstName avatarFileKey',
+      { _id: userId },
+      'id name firstname email password firstName avatarFileKey',
     );
-
+  
+    // Check if the user was found
+    if (!user) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
+  
     let avatarUrl = '';
     if (user.avatarFileKey) {
-      avatarUrl = await this.awsS3Service.getFileUrl({
-        fileKey: user.avatarFileKey,
-      });
+      try {
+        avatarUrl = await this.awsS3Service.getFileUrl({
+          fileKey: user.avatarFileKey,
+        });
+      } catch (error) {
+        console.error(`Error fetching avatar for user ${userId}:`, error);
+      }
     }
-    return { ...user, avatarUrl };
+  
+    // Return the user with the avatarUrl
+    return { ...user.toObject(), avatarUrl };
   }
+  
 
   async findOne({
     query,
@@ -78,47 +92,85 @@ export class UsersService {
     return createdUser.save();
   }
 
-  async updateUser({
-    userId,
-    submittedFile,
-  }: {
-    userId: string;
-    submittedFile: z.infer<typeof fileSchema>;
-  }) {
-    try {
-      const existingUser = await this.userModel.findOne(
-        { _id: userId },
-        'avatarFileKey',
-      );
-      if (!existingUser) {
-        throw new HttpException('User not exists', HttpStatus.BAD_REQUEST);
-      }
+  // MISE A JOUR AVATAR DE L'USER
 
-      const { fileKey } = await this.awsS3Service.uploadFile({
-        file: submittedFile,
-      });
+  // async updateUser({
+  //   userId,
+  //   submittedFile,
+  // }: {
+  //   userId: string;
+  //   submittedFile: z.infer<typeof fileSchema>;
+  // }) {
+  //   try {
+  //     const existingUser = await this.userModel.findOne(
+  //       { _id: userId },
+  //       'avatarFileKey',
+  //     );
+  //     if (!existingUser) {
+  //       throw new HttpException('User not exists', HttpStatus.BAD_REQUEST);
+  //     }
 
-      await this.userModel.updateOne({
-        _id: userId,
-        avatarFileKey: fileKey,
-      });
+  //     const { fileKey } = await this.awsS3Service.uploadFile({
+  //       file: submittedFile,
+  //     });
 
-      if (existingUser.avatarFileKey) {
-        await this.awsS3Service.deleteFile({
-          fileKey: existingUser.avatarFileKey,
-        });
-      }
-      return {
-        error: false,
-        message: "L'avatar a bien été mis à jour",
-      };
-    } catch (error) {
-      if (error instanceof Error) {
-        return { error: true, message: error.message };
-      }
-      return { error: true, message: 'Une erreur inattendue est survenue' };
+  //     await this.userModel.updateOne({
+  //       _id: userId,
+  //       avatarFileKey: fileKey,
+  //     });
+
+  //     if (existingUser.avatarFileKey) {
+  //       await this.awsS3Service.deleteFile({
+  //         fileKey: existingUser.avatarFileKey,
+  //       });
+  //     }
+  //     return {
+  //       error: false,
+  //       message: "L'avatar a bien été mis à jour",
+  //     };
+  //   } catch (error) {
+  //     if (error instanceof Error) {
+  //       return { error: true, message: error.message };
+  //     }
+  //     return { error: true, message: 'Une erreur inattendue est survenue' };
+  //   }
+  // }
+
+  async updateUser(
+    userId: string,
+    updateUserDto: UpdateUserDto & UpdatePasswordDto,
+  ): Promise<any> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new Error('User not found');
     }
+
+    // Mise à jour du profil (name, firstname, email)
+    if (updateUserDto.name || updateUserDto.firstname || updateUserDto.email) {
+      user.name = updateUserDto.name || user.name;
+      user.firstname = updateUserDto.firstname || user.firstname;
+      user.email = updateUserDto.email || user.email;
+    }
+
+    // Mise à jour du mot de passe (si un mot de passe est fourni)
+    if (updateUserDto.currentPassword && updateUserDto.newPassword) {
+      // Vérifier si le mot de passe actuel est correct
+      const isPasswordValid = await bcrypt.compare(updateUserDto.currentPassword, user.password);
+      if (!isPasswordValid) {
+        throw new Error('Current password is incorrect');
+      }
+
+      // Hash du nouveau mot de passe
+      user.password = await bcrypt.hash(updateUserDto.newPassword, 10);
+    }
+
+    // Sauvegarde des informations mises à jour
+    await user.save();
+    return {
+      message: 'Profile and/or password updated successfully',
+    };
   }
+
 
   async update(
     query: Partial<User>,
