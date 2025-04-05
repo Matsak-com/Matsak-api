@@ -25,7 +25,7 @@ export class AuthService {
     loginDto,
   }: {
     loginDto: LogUserDto;
-  }): Promise<{ accessToken: string; role: UserRole }> {
+  }): Promise<{ accessToken: string; user: any; role: UserRole }> {
     try {
       const user = await this.usersService.validateUser(
         loginDto.email,
@@ -36,11 +36,12 @@ export class AuthService {
       }
       const authResponse = await this.authenticateUser({
         userId: user._doc._id,
-        role : user._doc.role
+        role: user._doc.role,
       });
-  
+
       return {
-        ...authResponse, 
+        ...authResponse,
+        user: user._doc._id,
         role: user._doc.role, // Ajoute le rôle de l'utilisateur
       };
     } catch (error) {
@@ -50,7 +51,9 @@ export class AuthService {
 
   async register({ createUserDto }: { createUserDto: CreateUserDto }) {
     try {
-      const existingUser = await this.usersService.findByEmail(createUserDto.email);
+      const existingUser = await this.usersService.findByEmail(
+        createUserDto.email,
+      );
 
       if (existingUser) {
         if (existingUser.name === createUserDto.name) {
@@ -71,8 +74,7 @@ export class AuthService {
     } catch (error) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
-}
-
+  }
 
   private async hashPassword({ password }: { password: string }) {
     const hashedPassword = await hash(password, 10);
@@ -80,7 +82,7 @@ export class AuthService {
   }
 
   private async authenticateUser({ userId, role }: UserPayload) {
-    const payload = { userId, role};
+    const payload = { userId, role };
     return { accessToken: await this.jwtService.signAsync(payload) };
   }
 
