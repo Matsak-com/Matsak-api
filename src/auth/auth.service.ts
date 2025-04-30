@@ -27,10 +27,15 @@ export class AuthService {
     loginDto: LogUserDto;
   }): Promise<{ accessToken: string; user: any; role: UserRole }> {
     try {
-      const user = await this.usersService.validateUser(
-        loginDto.email,
-        loginDto.password,
-      );
+      let user = null;
+      if (loginDto.provider) {
+        user = await this.usersService.findByEmail(loginDto.email);
+      } else {
+        user = await this.usersService.validateUser(
+          loginDto.email,
+          loginDto.password,
+        );
+      }
       if (!user) {
         throw new UnauthorizedException('Invalid credentials');
       }
