@@ -14,9 +14,8 @@ export enum UserRole {
   ADMIN = 'admin',
 }
 
-@Schema({ timestamps: true })
 export type UserDocument = User & Document;
-@Schema()
+@Schema({ timestamps: true })
 export class User extends Document {
   @Prop({ required: false })
   @IsString()
