@@ -1,0 +1,29 @@
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
+import { DetailProduct } from '../detail-product/detail-product.schema';
+import { SubCategory } from '../sub-categories/sub-category.schema';
+// import { Team } from '../team/team.schema';
+import { ImageProduct } from '../image-product/image-product.schema';
+
+export type ProductDocument = Product & Document;
+
+@Schema({ timestamps: true })
+export class Product {
+  // Reference to DetailProduct
+  @Prop({ type: Types.ObjectId, ref: DetailProduct.name })
+  detail: Types.ObjectId;
+
+  // Reference to SubCategory
+  @Prop({ type: Types.ObjectId, ref: SubCategory.name })
+  subcategory: Types.ObjectId;
+
+  // Reference to Team
+  // @Prop({ type: Types.ObjectId, ref: Team.name })
+  // team: Types.ObjectId;
+
+  // Array of references to ImageProduct
+  @Prop({ type: [{ type: Types.ObjectId, ref: ImageProduct.name }] })
+  images: Types.ObjectId[];
+}
+
+export const ProductSchema = SchemaFactory.createForClass(Product);

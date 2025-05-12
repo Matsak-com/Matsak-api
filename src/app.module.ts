@@ -3,11 +3,17 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { CategoriesModule } from './categories/categories.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 import { TeamsModule } from './teams/teams.module';
 import { MembersModule } from './members/members.module';
 import { RolesModule } from './roles/roles.module';
+import { SubCategoriesModule } from './sub-categories/sub-categories.module';
+import { DetailProductModule } from './detail-product/detail-product.module';
+import { ImageProductModule } from './image-product/image-product.module';
+import { ProductDecondModule } from './product-decond/product-decond.module';
+import { ProductModule } from './product/product.module';
 
 @Module({
   imports: [
@@ -17,7 +23,14 @@ import { RolesModule } from './roles/roles.module';
     ConfigModule.forRoot(),
     TeamsModule,
     MembersModule,
-    RolesModule
+    RolesModule,
+    CategoriesModule,
+    ConfigModule.forRoot(),
+    SubCategoriesModule,
+    DetailProductModule,
+    ImageProductModule,
+    ProductDecondModule,
+    ProductModule
   ],
   controllers: [AppController],
   providers: [AppService],
