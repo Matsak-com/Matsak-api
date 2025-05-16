@@ -1,49 +1,66 @@
+import { CategoryRepository } from './../categories/categories.repository';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { SubCategory, SubCategoryDocument } from './sub-category.schema';
+import { SubCategory } from './sub-category.schema';
 import { CreateSubCategoryDto } from './dto/create-sub-category.dto';
 import { UpdateSubCategoryDto } from './dto/update-sub-category.dto';
-import { Category, CategoryDocument } from '../categories/category.schema'; // Assure-toi que le chemin est correct
+import { SubCategoryRepository } from './sub-categories.repository';
 
 @Injectable()
 export class SubCategoriesService {
   constructor(
-    @InjectModel(SubCategory.name)
-    private readonly subCategoryModel: Model<SubCategoryDocument>,
+    private readonly subCategoryRepo: SubCategoryRepository,
 
-    @InjectModel(Category.name)
-    private readonly categoryModel: Model<CategoryDocument>,
+    private readonly categoryRepo: CategoryRepository,
   ) {}
 
-  async create(createSubCategoryDto: CreateSubCategoryDto): Promise<SubCategory> {
+  async create(
+    createSubCategoryDto: CreateSubCategoryDto,
+  ): Promise<SubCategory> {
     // Vérifie que la catégorie existe
-    const category = await this.categoryModel.findById(createSubCategoryDto.categoryId);
+    const category = await this.categoryRepo.findById(
+      createSubCategoryDto.categoryId.toString(),
+    );
     if (!category) {
-      throw new NotFoundException(`Category with ID '${createSubCategoryDto.categoryId}' not found`);
+      throw new NotFoundException(
+        `Category with ID '${createSubCategoryDto.categoryId}' not found`,
+      );
     }
 
-    const created = new this.subCategoryModel(createSubCategoryDto);
-    return created.save();
+    const created = await this.subCategoryRepo.create(createSubCategoryDto);
+    return created;
   }
 
+  /**
+   * Retrieves all subcategories from the repository.
+   *
+   * @returns {Promise<SubCategory[]>} A promise that resolves to an array of SubCategory entities.
+   * @remarks
+   * This method populates the `categoryId` field for each subcategory.
+   */
   async findAll(): Promise<SubCategory[]> {
-    return this.subCategoryModel.find().populate('categoryId').exec();
+    const results = await this.subCategoryRepo.findAll(null, {
+      populate: [{ path: 'categoryId' }],
+    });
+    return results;
   }
 
   async findOne(id: string): Promise<SubCategory> {
-    const subCategory = await this.subCategoryModel.findById(id).populate('categoryId').exec();
+    const subCategory = await this.subCategoryRepo.findById(id, {
+      populate: [{ path: 'categoryId' }],
+    });
     if (!subCategory) {
       throw new NotFoundException(`SubCategory with ID '${id}' not found`);
     }
     return subCategory;
   }
 
-  async update(id: string, updateDto: UpdateSubCategoryDto): Promise<SubCategory> {
-    const updated = await this.subCategoryModel
-      .findByIdAndUpdate(id, updateDto, { new: true })
-      .populate('categoryId')
-      .exec();
+  async update(
+    id: string,
+    updateDto: UpdateSubCategoryDto,
+  ): Promise<SubCategory> {
+    const updated = await this.subCategoryRepo.update(id, updateDto, {
+      populate: [{ path: 'categoryId' }],
+    });
 
     if (!updated) {
       throw new NotFoundException(`SubCategory with ID '${id}' not found`);
@@ -52,7 +69,7 @@ export class SubCategoriesService {
   }
 
   async remove(id: string): Promise<{ deleted: boolean }> {
-    const result = await this.subCategoryModel.findByIdAndDelete(id).exec();
+    const result = await this.subCategoryRepo.delete(id);
     if (!result) {
       throw new NotFoundException(`SubCategory with ID '${id}' not found`);
     }
@@ -60,17 +77,11 @@ export class SubCategoriesService {
   }
 
   async findByCategory(categoryId: string): Promise<SubCategory[]> {
-    // Vérifie que la catégorie existe
-    const category = await this.categoryModel.findById(categoryId);
-    if (!category) {
-      throw new NotFoundException(`Category with ID '${categoryId}' not found`);
-    }
-
     // Récupère les sous-catégories associées
-    return this.subCategoryModel
-      .find({ categoryId })
-      .populate('categoryId')
-      .exec();
+    const results = await this.subCategoryRepo.findAll(
+      { categoryId },
+      { populate: [{ path: 'categoryId' }] },
+    );
+    return results;
   }
-
 }

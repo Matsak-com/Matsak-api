@@ -77,6 +77,9 @@ export class Team extends Document {
   @IsString()
   @IsNotEmpty()
   name: string;
+
+  @Prop({ required: false })
+  deleted_at?: Date;
 }
 
 export const TeamSchema = SchemaFactory.createForClass(Team);

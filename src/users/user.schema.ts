@@ -55,6 +55,9 @@ export class User extends Document {
   @Prop({ required: false, default: null })
   @IsString()
   provider?: string | null;
+
+  @Prop({ required: false })
+  deleted_at?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

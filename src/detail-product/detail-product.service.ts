@@ -1,40 +1,42 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { DetailProduct, DetailProductDocument } from './detail-product.schema';
 import { CreateDetailProductDto } from './dto/create-detail-product.dto';
 import { UpdateDetailProductDto } from './dto/update-detail-product.dto';
+import { DetailProductRepository } from './detail-product.repository';
+import { DetailProduct } from './detail-product.schema';
 
 @Injectable()
 export class DetailProductService {
   constructor(
-    @InjectModel(DetailProduct.name)
-    private readonly detailProductModel: Model<DetailProductDocument>,
+    private readonly detailProductRepository: DetailProductRepository,
   ) {}
 
   async create(dto: CreateDetailProductDto): Promise<DetailProduct> {
-    const created = new this.detailProductModel(dto);
-    return created.save();
+    const created = await this.detailProductRepository.create(dto);
+    return created;
   }
 
   async findAll(): Promise<DetailProduct[]> {
-    return this.detailProductModel.find().exec();
+    const results = await this.detailProductRepository.findAll();
+    return results;
   }
 
   async findOne(id: string): Promise<DetailProduct> {
-    const item = await this.detailProductModel.findById(id).exec();
+    const item = await this.detailProductRepository.findById(id);
     if (!item) throw new NotFoundException(`DetailProduct ${id} not found`);
     return item;
   }
 
-  async update(id: string, dto: UpdateDetailProductDto): Promise<DetailProduct> {
-    const updated = await this.detailProductModel.findByIdAndUpdate(id, dto, { new: true }).exec();
+  async update(
+    id: string,
+    dto: UpdateDetailProductDto,
+  ): Promise<DetailProduct> {
+    const updated = await this.detailProductRepository.update(id, dto);
     if (!updated) throw new NotFoundException(`DetailProduct ${id} not found`);
     return updated;
   }
 
   async remove(id: string): Promise<{ deleted: boolean }> {
-    const result = await this.detailProductModel.findByIdAndDelete(id).exec();
+    const result = await this.detailProductRepository.delete(id);
     if (!result) throw new NotFoundException(`DetailProduct ${id} not found`);
     return { deleted: true };
   }

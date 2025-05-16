@@ -36,9 +36,11 @@ export class DetailProduct {
   @Prop()
   manufacturer: string;
 
-
   @Prop({ default: false })
   isRepackaged: boolean; // true si déconditionné, false sinon
+
+  @Prop({ required: false })
+  deleted_at?: Date;
 }
 
 export const DetailProductSchema = SchemaFactory.createForClass(DetailProduct);

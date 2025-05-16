@@ -1,23 +1,18 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { Category } from 'src/categories/category.schema';
 
 export type SubCategoryDocument = SubCategory & Document;
 
-@Schema()
+@Schema({ timestamps: true })
 export class SubCategory {
-  @Prop({ required: true })
+  @Prop({ required: true, trim: true })
   name: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Category', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'Category', required: true, index: true })
   categoryId: Types.ObjectId;
 
-  @ManyToOne(() => Category, (category) => category.subCategories, { onDelete: 'CASCADE' })
-  category: Category;
+  @Prop({ required: false })
+  deleted_at?: Date;
 }
 
 export const SubCategorySchema = SchemaFactory.createForClass(SubCategory);
-function ManyToOne(arg0: () => typeof Category, arg1: (category: any) => any, arg2: { onDelete: string; }): (target: SubCategory, propertyKey: "category") => void {
-  throw new Error('Function not implemented.');
-}
-
