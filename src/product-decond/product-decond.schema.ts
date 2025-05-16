@@ -5,7 +5,7 @@ import { ImageProduct } from '../image-product/image-product.schema';
 
 export type ProductDecondDocument = ProductDecond & Document;
 
-@Schema()
+@Schema({ timestamps: true })
 export class ProductDecond {
   @Prop({ type: Types.ObjectId, ref: 'DetailProduct', required: true })
   detailProduct: DetailProduct | Types.ObjectId;
@@ -18,6 +18,9 @@ export class ProductDecond {
 
   @Prop()
   description: string;
+
+  @Prop({ required: false })
+  deleted_at?: Date;
 }
 
 export const ProductDecondSchema = SchemaFactory.createForClass(ProductDecond);

@@ -1,4 +1,5 @@
 import { IsMongoId, IsNotEmpty, IsString } from 'class-validator';
+import { Types } from 'mongoose';
 
 export class CreateSubCategoryDto {
   @IsString()
@@ -7,5 +8,5 @@ export class CreateSubCategoryDto {
 
   @IsMongoId()
   @IsNotEmpty()
-  categoryId: string;
+  categoryId: Types.ObjectId;
 }

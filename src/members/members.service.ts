@@ -1,39 +1,37 @@
 import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { Member } from './member.schema';
+import { MemberRepository } from './member.repository';
 
 @Injectable()
 export class MembersService {
-  constructor(
-    @InjectModel(Member.name) private readonly memberModel: Model<Member>,
-  ) {}
+  constructor(private readonly memberRepository: MemberRepository) {}
 
   async create(createMemberDto: CreateMemberDto): Promise<Member> {
-    const newMember = new this.memberModel(createMemberDto);
-    return await newMember.save();
+    const newMember = await this.memberRepository.create(createMemberDto);
+    return await newMember;
   }
 
   async findAll(): Promise<Member[]> {
-    return await this.memberModel.find();
+    const results = await this.memberRepository.findAll();
+    return results;
   }
 
   async findOne(id: string): Promise<Member | null> {
-    return await this.memberModel.findById(id);
+    const result = await this.memberRepository.findById(id);
+    return result;
   }
 
   async update(
     id: string,
     updateMemberDto: UpdateMemberDto,
   ): Promise<Member | null> {
-    return await this.memberModel.findByIdAndUpdate(id, updateMemberDto, {
-      new: true,
-    });
+    const result = await this.memberRepository.update(id, updateMemberDto);
+    return result;
   }
 
   async remove(id: string): Promise<Member | null> {
-    return await this.memberModel.findByIdAndDelete(id);
+    return await this.memberRepository.delete(id);
   }
 }

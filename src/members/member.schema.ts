@@ -1,8 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 import { Types } from 'mongoose';
-import { Role } from '../roles/role.schema';
-import { Team } from '../teams/team.schema';
 
 export type MemberDocument = Member & Document;
 
@@ -17,6 +15,9 @@ export class Member {
 
   @Prop({ type: Types.ObjectId, ref: 'Team', required: true })
   team: Types.ObjectId;
+
+  @Prop({ required: false })
+  deleted_at?: Date;
 }
 
 export const MemberSchema = SchemaFactory.createForClass(Member);

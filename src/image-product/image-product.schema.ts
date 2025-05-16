@@ -6,16 +6,19 @@ export type ImageProductDocument = ImageProduct & Document;
 @Schema({ timestamps: true })
 export class ImageProduct {
   @Prop({ required: true })
-  url: string; 
+  url: string;
 
   @Prop({ required: true })
   filename: string;
 
   @Prop()
-  altText: string; 
+  altText: string;
 
   @Prop({ enum: ['product', 'decond'], required: true })
-  type: 'product' | 'decond'; 
+  type: 'product' | 'decond';
+
+  @Prop({ required: false })
+  deleted_at?: Date;
 }
 
 export const ImageProductSchema = SchemaFactory.createForClass(ImageProduct);

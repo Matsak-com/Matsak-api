@@ -1,4 +1,11 @@
-import { IsString, IsNotEmpty, IsOptional, IsEmail } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsEmail,
+  IsMongoId,
+} from 'class-validator';
+import { Types } from 'mongoose';
 
 export class CreateMemberDto {
   @IsString()
@@ -9,11 +16,11 @@ export class CreateMemberDto {
   @IsNotEmpty()
   email: string;
 
-  @IsString()
+  @IsMongoId()
   @IsOptional()
-  role?: string;
+  role?: Types.ObjectId;
 
-  @IsString()
+  @IsMongoId()
   @IsOptional()
-  teamId?: string;
+  teamId?: Types.ObjectId;
 }
