@@ -6,6 +6,9 @@ import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './categories/categories.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
+import { TeamsModule } from './teams/teams.module';
+import { MembersModule } from './members/members.module';
+import { RolesModule } from './roles/roles.module';
 import { SubCategoriesModule } from './sub-categories/sub-categories.module';
 import { DetailProductModule } from './detail-product/detail-product.module';
 import { ImageProductModule } from './image-product/image-product.module';
@@ -17,6 +20,10 @@ import { ProductModule } from './product/product.module';
     MongooseModule.forRoot(process.env.MONGO_URI || 'mongodb://localhost:27017/matsak'),
     UsersModule, 
     AuthModule,
+    ConfigModule.forRoot(),
+    TeamsModule,
+    MembersModule,
+    RolesModule,
     CategoriesModule,
     ConfigModule.forRoot(),
     SubCategoriesModule,

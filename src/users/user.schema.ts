@@ -15,7 +15,7 @@ export enum UserRole {
 }
 
 export type UserDocument = User & Document;
-@Schema()
+@Schema({ timestamps: true })
 export class User extends Document {
   @Prop({ required: false })
   @IsString()
@@ -39,18 +39,22 @@ export class User extends Document {
   @Prop({ required: false, default: false })
   isResettingPassword: boolean;
 
-  @Prop({ required: false, unique: true, sparse: true  })
+  @Prop({ required: false, unique: true, sparse: true })
   @IsString()
-  resetPasswordToken?: string;
+  resetPasswordToken?: string | null;
 
-  @Prop({ required: false, unique: true })
+  @Prop({ required: false, default: null })
   @IsString()
-  avatarFileKey?: string;
+  avatarFileKey?: string | null;
 
   // Champ pour définir le rôle de l'utilisateur (user ou admin)
   @Prop({ required: true, enum: UserRole, default: UserRole.USER })
   @IsEnum(UserRole)
   role: UserRole;
+
+  @Prop({ required: false, default: null })
+  @IsString()
+  provider?: string | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

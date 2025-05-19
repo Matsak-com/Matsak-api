@@ -14,4 +14,6 @@ export class LogUserDto {
     message: 'Your password must be more than 8 characters long.',
   })
   password: string;
+  provider?: string; // Optional field for provider (e.g., 'facebook', 'google')
+  accessToken?: string; // Optional field for access token (e.g., from Facebook or Google)
 }
