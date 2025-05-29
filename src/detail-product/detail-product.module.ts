@@ -13,5 +13,6 @@ import { DetailProductRepository } from './detail-product.repository';
   ],
   controllers: [DetailProductController],
   providers: [DetailProductService, DetailProductRepository],
+  exports: [DetailProductService, DetailProductRepository],
 })
 export class DetailProductModule {}
