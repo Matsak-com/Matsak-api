@@ -7,6 +7,7 @@ import { AwsS3Service } from 'src/aws/aws-s3.service';
 import { UsersModule } from 'src/users/users.module';
 import { GoogleStrategy } from '../sso/google/google.strategy';
 import { FacebookStrategy } from '../sso/facebook/facebook.strategy';
+import { GoogleService } from 'src/sso/google/google.service';
 @Module({
   imports: [
     JwtModule.register({
@@ -22,6 +23,7 @@ import { FacebookStrategy } from '../sso/facebook/facebook.strategy';
     AwsS3Service,
     GoogleStrategy,
     FacebookStrategy,
+    GoogleService,
   ],
   controllers: [AuthController],
 })

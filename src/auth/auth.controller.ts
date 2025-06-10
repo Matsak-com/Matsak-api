@@ -19,12 +19,14 @@ import { AuthGuard } from '@nestjs/passport';
 import { UserRole } from 'src/users/user.schema';
 import { FacebookProvider } from 'src/sso/facebook/facebook.provider';
 import { generateRandomPassword } from 'src/users/utils/password.utils';
+import { GoogleService } from 'src/sso/google/google.service';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private authService: AuthService,
     private usersService: UsersService,
+    private googleService: GoogleService,
   ) {}
 
   @Post('register')
@@ -74,48 +76,59 @@ export class AuthController {
     return await this.usersService.getUser(request.user.userId); 
   }
 
+<<<<<<< HEAD
 
   @UseGuards(AuthGuard('google'))
   @Get('google/login')
   async googleAuth(@Request() req) {
     // Initiates the Google OAuth2 login flow
   }
+=======
+  /**
+   * Handles the Google OAuth2 callback by processing the access token to retrieve user information.
+   * If the user does not exist in the database, a new user is created with the provided details.
+   * Issues a JWT token for the authenticated user and returns the user information along with the token.
+   *
+   * @param accessToken - The access token received from Google OAuth2.
+   * @returns An object containing a success message, the authenticated user, and the JWT token.
+   * @throws ConflictException if Google authentication fails.
+   */
+  @Post('google/callback')
+  async googleAuthCallback(@Body('accessToken') accessToken: string) {
+    try {
+      // Handle Google OAuth2 callback and get user info
+      const user = await this.googleService.googleCallback(accessToken);
+>>>>>>> 36feb6f88173d33ef35a91f1ad5e11837bf16aa9
 
-  @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
-  async googleAuthRedirect(@Request() req) {
-    // Handles the Google OAuth2 callback
-    const user = req.user;
+      // Find or create user
+      let existingUser = await this.usersService.findByEmail(user.email);
+      if (!existingUser) {
+        existingUser = await this.usersService.create({
+          email: user.email,
+          name: user.lastName,
+          firstname: user.firstName,
+          password: generateRandomPassword(),
+          role: UserRole.USER,
+          provider: 'google',
+        });
+      }
 
-    // Check if the user exists in the database
-    let existingUser = await this.usersService.findByEmail(user.email);
-    if (!existingUser) {
-      // If the user does not exist, save them to the database
-      const randomPassword = generateRandomPassword();
-      existingUser = await this.usersService.create({
-        email: user.email,
-        name: user.lastName,
-        firstname: user.firstName,
-        password: randomPassword,
-        role: UserRole.USER,
-        provider: 'google',
+      // Issue JWT token
+      const token = await this.authService.login({
+        loginDto: {
+          email: existingUser.email,
+          provider: 'google',
+          accessToken,
+          password: '', // Password is not used for OAuth providers
+        },
       });
+
+      return token;
+    } catch (error) {
+      throw new ConflictException(
+        error.message || 'Google authentication failed',
+      );
     }
-
-    const token = await this.authService.login({
-      loginDto: {
-        email: existingUser.email,
-        password: '',
-        provider: 'google',
-        accessToken: user.accessToken,
-      },
-    });
-
-    return {
-      message: 'User authenticated successfully',
-      user: existingUser,
-      token,
-    };
   }
 
   @UseGuards(AuthGuard('facebook'))
