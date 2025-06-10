@@ -1,22 +1,25 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Category } from './category.schema';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Category, CategoryDocument } from './category.schema';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CategoryRepository } from './categories.repository';
 
 @Injectable()
 export class CategoriesService {
-  constructor(private readonly categoryRepository: CategoryRepository) {}
+  constructor(
+    private readonly categoryRepository: CategoryRepository,
+    @InjectModel(Category.name)
+    private readonly categoryModel: Model<CategoryDocument>,
+  ) {}
 
   async create(createCategoryDto: CreateCategoryDto): Promise<Category> {
-    const createdCategory =
-      await this.categoryRepository.create(createCategoryDto);
-    return createdCategory;
+    return this.categoryRepository.create(createCategoryDto);
   }
 
   async findAll(): Promise<Category[]> {
-    const results = await this.categoryRepository.findAll();
-    return results;
+    return this.categoryRepository.findAll();
   }
 
   async findOne(id: string): Promise<Category> {
@@ -27,19 +30,11 @@ export class CategoriesService {
     return category;
   }
 
-  async update(
-    id: string,
-    updateCategoryDto: UpdateCategoryDto,
-  ): Promise<Category> {
-    const updatedCategory = await this.categoryRepository.update(
-      id,
-      updateCategoryDto,
-    );
-
+  async update(id: string, updateCategoryDto: UpdateCategoryDto): Promise<Category> {
+    const updatedCategory = await this.categoryRepository.update(id, updateCategoryDto);
     if (!updatedCategory) {
       throw new NotFoundException(`Category with ID '${id}' not found`);
     }
-
     return updatedCategory;
   }
 
@@ -51,8 +46,24 @@ export class CategoriesService {
     return { deleted: true };
   }
 
-  // async findAllWithSubCategories(): Promise<Category[]> {
-  //   // Suppose que subCategories est une référence => on utilise `.populate()`
-  //   const results = await this.categoryModel.find().populate('subCategories').exec();
-  // }
+  async getCategoriesWithSubCategories(): Promise<any[]> {
+    return this.categoryModel.aggregate([
+      {
+        $lookup: {
+          from: 'subcategories',
+          let: { category_id: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: [{ $toObjectId: '$categoryId' }, '$$category_id'],
+                },
+              },
+            },
+          ],
+          as: 'subCategories',
+        },
+      },
+    ]);
+  }
 }

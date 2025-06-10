@@ -19,13 +19,13 @@ type QueryOptionsExtended<T> = {
 export class BaseRepository<T extends { deleted_at?: Date }> {
   constructor(protected readonly model: Model<T>) {}
 
-  private withNotDeleted(filter: FilterQuery<T> = {}): FilterQuery<T> {
-    // Only add deleted_at filter if not already present
-    if (filter.deleted_at === undefined) {
-      return { ...filter, deleted_at: { $exists: false } };
-    }
-    return filter;
+  withNotDeleted(filter?: FilterQuery<T>) {
+    return {
+      ...(filter ?? {}),
+      deleted_at: null,
+    };
   }
+
 
   async create(doc: Partial<T>): Promise<T> {
     const created = new this.model(doc);

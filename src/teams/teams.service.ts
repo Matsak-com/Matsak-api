@@ -1,36 +1,30 @@
 import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { TeamsRepository } from './teams.repository';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
 import { Team } from './team.schema';
 
 @Injectable()
 export class TeamsService {
-  constructor(
-    @InjectModel(Team.name) private readonly teamModel: Model<Team>,
-  ) {}
+  constructor(private readonly teamsRepository: TeamsRepository) {}
 
   async create(createTeamDto: CreateTeamDto): Promise<Team> {
-    const newTeam = new this.teamModel(createTeamDto);
-    return await newTeam.save();
+    return this.teamsRepository.create(createTeamDto);
   }
 
   async findAll(): Promise<Team[]> {
-    return await this.teamModel.find();
+    return this.teamsRepository.findAll();
   }
 
   async findOne(id: string): Promise<Team | null> {
-    return await this.teamModel.findById(id);
+    return this.teamsRepository.findById(id);
   }
 
   async update(id: string, updateTeamDto: UpdateTeamDto): Promise<Team | null> {
-    return await this.teamModel.findByIdAndUpdate(id, updateTeamDto, {
-      new: true,
-    });
+    return this.teamsRepository.update(id, updateTeamDto);
   }
 
   async remove(id: string): Promise<Team | null> {
-    return await this.teamModel.findByIdAndDelete(id);
+    return this.teamsRepository.delete(id); // ici soft delete via deleted_at
   }
 }

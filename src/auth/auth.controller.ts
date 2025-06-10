@@ -71,10 +71,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get()
   async getAuthenticatedUser(@Request() request: RequestWithUser) {
-    return await this.usersService.getUser({
-      userId: request.user.userId,
-    });
+    return await this.usersService.getUser(request.user.userId); 
   }
+
 
   @UseGuards(AuthGuard('google'))
   @Get('google/login')

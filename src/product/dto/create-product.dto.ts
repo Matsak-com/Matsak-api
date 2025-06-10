@@ -3,33 +3,29 @@ import {
   IsNumber,
   IsOptional,
   IsBoolean,
-  IsArray,
+  ValidateNested,
   IsMongoId,
 } from 'class-validator';
-import { Types } from 'mongoose';
+import { Type } from 'class-transformer';
+import { CreateDetailProductDto } from '../../detail-product/dto/create-detail-product.dto';
+import { CreateImageProductDto } from '../../image-product/dto/create-image-product.dto';
 
 export class CreateProductDto {
-  @IsString()
-  name: string;
+  @ValidateNested()
+  @Type(() => CreateDetailProductDto)
+  detailData: CreateDetailProductDto;
 
-  @IsNumber()
-  price: number;
+  @ValidateNested()
+  @Type(() => CreateImageProductDto)
+  imageData: CreateImageProductDto;
+
+  @IsMongoId()
+  subcategoryId: string;
+
+  @IsMongoId()
+  teamId: string;
 
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
-
-  @IsMongoId()
-  detail: Types.ObjectId;
-
-  @IsMongoId()
-  subcategory: Types.ObjectId;
-
-  @IsMongoId()
-  team: Types.ObjectId;
-
-  @IsOptional()
-  @IsArray()
-  @IsMongoId({ each: true })
-  images?: Types.ObjectId[];
 }

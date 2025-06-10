@@ -6,6 +6,8 @@ import {
   Delete,
   Param,
   Body,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 
 import { RolesService } from './roles.service';
@@ -18,26 +20,31 @@ export class RolesController {
 
   @Get()
   async findAll() {
-    return await this.rolesService.findAll();
+    return this.rolesService.findAll();
   }
 
   @Get(':id')
   async findOne(@Param('id') id: string) {
-    return await this.rolesService.findOne(id);
+    return this.rolesService.findOne(id);
   }
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   async create(@Body() createRoleDto: CreateRoleDto) {
-    return await this.rolesService.create(createRoleDto);
+    return this.rolesService.create(createRoleDto);
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() updateRoleDto: UpdateRoleDto) {
-    return await this.rolesService.update(id, updateRoleDto);
+  async update(
+    @Param('id') id: string,
+    @Body() updateRoleDto: UpdateRoleDto,
+  ) {
+    return this.rolesService.update(id, updateRoleDto);
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    return await this.rolesService.remove(id);
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(@Param('id') id: string): Promise<void> {
+    await this.rolesService.remove(id);
   }
 }

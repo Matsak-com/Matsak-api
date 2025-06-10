@@ -31,4 +31,13 @@ export class ProductController {
   remove(@Param('id') id: string) {
     return this.productService.remove(id);
   }
+
+  @Patch(':id/subcategory/:subcategoryId')
+  updateSubcategory(
+    @Param('id') id: string,
+    @Param('subcategoryId') subcategoryId: string,
+  ) {
+    return this.productService.updateSubcategory(id, subcategoryId);
+  }
 }
+
