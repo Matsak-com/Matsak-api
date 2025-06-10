@@ -40,5 +40,11 @@ export class CategoriesController {
   async remove(@Param('id') id: string): Promise<{ deleted: boolean }> {
     return this.categoriesService.remove(id);
   }
+
+  @Get('/categories/sub-categories')
+  async findAllWithSubCategories() {
+    return this.categoriesService.getCategoriesWithSubCategories();
+  }
+
   
 }
