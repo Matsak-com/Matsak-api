@@ -35,12 +35,8 @@
     "@nestjs/mapped-types": "^2.1.0",
     "@nestjs/mongoose": "^10.1.0",
     "@nestjs/passport": "^11.0.5",
-<<<<<<< HEAD
-    "@nestjs/platform-express": "^10.4.17",
-=======
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/swagger": "^11.2.0",
->>>>>>> 7745e39a26d7746d88cc29acb2cc33af319f7b26
     "@types/multer": "^1.4.12",
     "axios": "^1.9.0",
     "bcrypt": "^5.1.1",

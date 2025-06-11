@@ -76,14 +76,6 @@ export class AuthController {
     return await this.usersService.getUser(request.user.userId); 
   }
 
-<<<<<<< HEAD
-
-  @UseGuards(AuthGuard('google'))
-  @Get('google/login')
-  async googleAuth(@Request() req) {
-    // Initiates the Google OAuth2 login flow
-  }
-=======
   /**
    * Handles the Google OAuth2 callback by processing the access token to retrieve user information.
    * If the user does not exist in the database, a new user is created with the provided details.
@@ -98,7 +90,6 @@ export class AuthController {
     try {
       // Handle Google OAuth2 callback and get user info
       const user = await this.googleService.googleCallback(accessToken);
->>>>>>> 36feb6f88173d33ef35a91f1ad5e11837bf16aa9
 
       // Find or create user
       let existingUser = await this.usersService.findByEmail(user.email);
