@@ -1,4 +1,10 @@
-import { Injectable, HttpException, HttpStatus, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  HttpException,
+  HttpStatus,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from './user.schema';
 import { Model } from 'mongoose';
@@ -44,12 +50,12 @@ export class UsersService {
       { _id: userId },
       'id name firstname email password firstName avatarFileKey',
     );
-  
+
     // Check if the user was found
     if (!user) {
       throw new Error(`User with ID ${userId} not found`);
     }
-  
+
     let avatarUrl = '';
     if (user.avatarFileKey) {
       try {
@@ -60,11 +66,12 @@ export class UsersService {
         console.error(`Error fetching avatar for user ${userId}:`, error);
       }
     }
-  
+
     // Return the user with the avatarUrl
-    return { ...user.toObject(), avatarUrl };
+    const userObj = user.toObject();
+    delete userObj.password;
+    return { ...userObj, avatarUrl };
   }
-  
 
   async findOne({
     query,
@@ -155,7 +162,10 @@ export class UsersService {
     // Mise à jour du mot de passe (si un mot de passe est fourni)
     if (updateUserDto.currentPassword && updateUserDto.newPassword) {
       // Vérifier si le mot de passe actuel est correct
-      const isPasswordValid = await bcrypt.compare(updateUserDto.currentPassword, user.password);
+      const isPasswordValid = await bcrypt.compare(
+        updateUserDto.currentPassword,
+        user.password,
+      );
       if (!isPasswordValid) {
         throw new Error('Current password is incorrect');
       }
@@ -170,7 +180,6 @@ export class UsersService {
       message: 'Profile and/or password updated successfully',
     };
   }
-
 
   async update(
     query: Partial<User>,
