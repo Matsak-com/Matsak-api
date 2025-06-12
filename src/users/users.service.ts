@@ -41,6 +41,19 @@ export class UsersService {
     );
   }
 
+<<<<<<< HEAD
+  async getUser(userId: string): Promise<any> {
+    const user = await this.userRepository.findById(userId, {
+      projection: {
+        _id: 1,
+        name: 1,
+        firstName: 1,
+        email: 1,
+        avatarFileKey: 1,
+      },
+    });
+
+=======
   async getUser({ userId }: { userId: string }): Promise<any> {
     const user = await this.userModel.findOne(
       { _id: userId },
@@ -48,6 +61,7 @@ export class UsersService {
     );
 
     // Check if the user was found
+>>>>>>> d0c436653a4b9fcfd99f49cfa4b789eabded6c9b
     if (!user) {
       throw new NotFoundException(`User with ID ${userId} not found`);
     }
@@ -61,10 +75,14 @@ export class UsersService {
       }
     }
 
+<<<<<<< HEAD
+    return { ...user.toObject(), avatarUrl };
+=======
     // Return the user with the avatarUrl
     const userObj = user.toObject();
     delete userObj.password;
     return { ...userObj, avatarUrl };
+>>>>>>> d0c436653a4b9fcfd99f49cfa4b789eabded6c9b
   }
 
   async findOne(query: FilterQuery<User>): Promise<User | null> {
@@ -117,11 +135,8 @@ export class UsersService {
     };
   }
 
-  async update(
-    query: Partial<User>,
-    updateUserDto: Partial<CreateUserDto>,
-  ): Promise<User> {
-    const user = await this.findOne({ query });
+  async update(query: FilterQuery<User>, updateUserDto: Partial<CreateUserDto>): Promise<User> {
+    const user = await this.userRepository.findOne(query);
     if (!user) {
       throw new NotFoundException('User not found');
     }
