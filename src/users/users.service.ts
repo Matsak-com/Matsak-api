@@ -41,6 +41,7 @@ export class UsersService {
     );
   }
 
+<<<<<<< HEAD
   async getUser(userId: string): Promise<any> {
     const user = await this.userRepository.findById(userId, {
       projection: {
@@ -52,6 +53,15 @@ export class UsersService {
       },
     });
 
+=======
+  async getUser({ userId }: { userId: string }): Promise<any> {
+    const user = await this.userModel.findOne(
+      { _id: userId },
+      'id name firstname email password firstName avatarFileKey',
+    );
+
+    // Check if the user was found
+>>>>>>> d0c436653a4b9fcfd99f49cfa4b789eabded6c9b
     if (!user) {
       throw new NotFoundException(`User with ID ${userId} not found`);
     }
@@ -65,7 +75,14 @@ export class UsersService {
       }
     }
 
+<<<<<<< HEAD
     return { ...user.toObject(), avatarUrl };
+=======
+    // Return the user with the avatarUrl
+    const userObj = user.toObject();
+    delete userObj.password;
+    return { ...userObj, avatarUrl };
+>>>>>>> d0c436653a4b9fcfd99f49cfa4b789eabded6c9b
   }
 
   async findOne(query: FilterQuery<User>): Promise<User | null> {
@@ -103,7 +120,15 @@ export class UsersService {
     }
 
     if (updateUserDto.currentPassword && updateUserDto.newPassword) {
+<<<<<<< HEAD
       const isPasswordValid = await bcrypt.compare(updateUserDto.currentPassword, user.password);
+=======
+      // Vérifier si le mot de passe actuel est correct
+      const isPasswordValid = await bcrypt.compare(
+        updateUserDto.currentPassword,
+        user.password,
+      );
+>>>>>>> d0c436653a4b9fcfd99f49cfa4b789eabded6c9b
       if (!isPasswordValid) {
         throw new UnauthorizedException('Current password is incorrect');
       }
@@ -118,8 +143,11 @@ export class UsersService {
     };
   }
 
-  async update(query: FilterQuery<User>, updateUserDto: Partial<CreateUserDto>): Promise<User> {
-    const user = await this.userRepository.findOne(query);
+  async update(
+    query: Partial<User>,
+    updateUserDto: Partial<CreateUserDto>,
+  ): Promise<User> {
+    const user = await this.findOne({ query });
     if (!user) {
       throw new NotFoundException('User not found');
     }
