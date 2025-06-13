@@ -24,16 +24,12 @@ export class CategoriesService {
 
   
   async findOne(id: string): Promise<Category> {
-<<<<<<< HEAD
-    const category = await this.categoryRepository.findById(id);
-=======
     
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException(`Category with ID '${id}' is not a valid ObjectId`);
     }
 
     const category = await this.categoryModel.findById(id).exec();
->>>>>>> 7745e39a26d7746d88cc29acb2cc33af319f7b26
     if (!category) {
       throw new NotFoundException(`Category with ID '${id}' not found`);
     }
@@ -56,34 +52,21 @@ export class CategoriesService {
     }
     return { deleted: true };
   }
-<<<<<<< HEAD
 
   async getCategoriesWithSubCategories(): Promise<any[]> {
-=======
-  
-  async getCategoriesWithSubCategories() {
->>>>>>> 7745e39a26d7746d88cc29acb2cc33af319f7b26
     return this.categoryModel.aggregate([
       {
         $lookup: {
           from: 'subcategories',
-<<<<<<< HEAD
           let: { category_id: '$_id' },
-=======
-          let: { category_id: '$_id' }, // _id est un ObjectId
->>>>>>> 7745e39a26d7746d88cc29acb2cc33af319f7b26
           pipeline: [
             {
               $match: {
                 $expr: {
-<<<<<<< HEAD
-                  $eq: [{ $toObjectId: '$categoryId' }, '$$category_id'],
-=======
                   $eq: [
                     { $toObjectId: '$categoryId' }, // string → ObjectId
                     '$$category_id'
                   ],
->>>>>>> 7745e39a26d7746d88cc29acb2cc33af319f7b26
                 },
               },
             },
