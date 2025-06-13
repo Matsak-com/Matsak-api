@@ -18,6 +18,11 @@ export class CategoriesController {
     return this.categoriesService.findAll();
   }
 
+  @Get('with-subcategories')
+  async getCategoriesWithSubCategories(): Promise<any[]> {
+    return this.categoriesService.getCategoriesWithSubCategories();
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string): Promise<Category> {
     return this.categoriesService.findOne(id);
@@ -35,5 +40,11 @@ export class CategoriesController {
   async remove(@Param('id') id: string): Promise<{ deleted: boolean }> {
     return this.categoriesService.remove(id);
   }
+
+  @Get('/categories/sub-categories')
+  async findAllWithSubCategories() {
+    return this.categoriesService.getCategoriesWithSubCategories();
+  }
+
   
 }

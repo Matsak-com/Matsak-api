@@ -1,5 +1,14 @@
-import { Controller } from '@nestjs/common';
-import { Body, Delete, Get, Param, Post, Put } from '@nestjs/common';
+import {
+  Controller,
+  Body,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
 import { TeamsService } from './teams.service';
@@ -9,27 +18,32 @@ export class TeamsController {
   constructor(private readonly teamsService: TeamsService) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   async create(@Body() createTeamDto: CreateTeamDto) {
-    return await this.teamsService.create(createTeamDto);
+    return this.teamsService.create(createTeamDto);
   }
 
   @Get()
   async findAll() {
-    return await this.teamsService.findAll();
+    return this.teamsService.findAll();
   }
 
   @Get(':id')
   async findOne(@Param('id') id: string) {
-    return await this.teamsService.findOne(id);
+    return this.teamsService.findOne(id);
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() updateTeamDto: UpdateTeamDto) {
-    return await this.teamsService.update(id, updateTeamDto);
+  async update(
+    @Param('id') id: string,
+    @Body() updateTeamDto: UpdateTeamDto,
+  ) {
+    return this.teamsService.update(id, updateTeamDto);
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Param('id') id: string) {
-    return await this.teamsService.remove(id);
+    await this.teamsService.remove(id);
   }
 }

@@ -75,7 +75,7 @@ export class AuthController {
   async getAuthenticatedUser(@Request() request: RequestWithUser) {
     return await this.usersService.getUser({
       userId: request.user.userId,
-    });
+    }); 
   }
 
   /**

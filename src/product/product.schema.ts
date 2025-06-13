@@ -21,9 +21,9 @@ export class Product {
   @Prop({ type: Types.ObjectId, ref: Team.name })
   team: Types.ObjectId;
 
-  // Array of references to ImageProduct
-  @Prop({ type: [{ type: Types.ObjectId, ref: ImageProduct.name }] })
-  images: Types.ObjectId[];
+  //references to ImageProduct
+  @Prop({ type:Types.ObjectId, ref: ImageProduct.name  })
+  images: Types.ObjectId;
 
   @Prop({ required: false })
   deleted_at?: Date;

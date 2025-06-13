@@ -2,42 +2,48 @@ import {
   Controller,
   Get,
   Param,
-  Post,
-  Body,
   Patch,
-  Req,
-  UploadedFile,
+  Body,
   UseGuards,
-  UseInterceptors,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-// import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RequestWithUser } from 'src/auth/jwt/jwt.strategy';
-import { fileSchema } from './utils/file-utils';
-import { UsersService } from './users.service';
-import { CreateUserDto } from '../auth/dto/create-user.dto';
 import { UpdateUserDto } from 'src/auth/dto/update-user.dto';
 import { UpdatePasswordDto } from 'src/auth/dto/update-password.dto';
+import { UsersService } from './users.service';
 
 @Controller('users')
 export class UserController {
   constructor(private readonly usersService: UsersService) {}
+
   @Get()
-  // localhost:8080/users
   getUsers() {
     return this.usersService.getUsers();
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('/:userId')
-  // localhost:8080/users/3000
   getUser(@Param('userId') userId: string) {
-    return this.usersService.getUser({
-      userId,
-    });
+    return this.usersService.getUser(userId);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('/:userId')
+  async updateUser(
+    @Param('userId') userId: string,
+    @Body() updateUserDto: UpdateUserDto & UpdatePasswordDto,
+  ) {
+    try {
+      return await this.usersService.updateUser(userId, updateUserDto);
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Error updating user',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+}
 
   // MISE A JOUR AVATAR USER 
 
@@ -54,21 +60,3 @@ export class UserController {
   //     submittedFile,
   //   });
   // }
-
-
-  @UseGuards(JwtAuthGuard)
-  @Patch('/:userId')
-  async updateUser(
-    @Param('userId') userId: string,
-    @Body() updateUserDto: UpdateUserDto & UpdatePasswordDto,
-  ) {
-    try {
-      return await this.usersService.updateUser(userId, updateUserDto);
-    } catch (error) {
-      throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
-    }
-  }
-
-
-  
-}
