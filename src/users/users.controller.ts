@@ -25,7 +25,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @Get('/:userId')
   getUser(@Param('userId') userId: string) {
-    return this.usersService.getUser(userId);
+    return this.usersService.getUser({ userId });
   }
 
   @UseGuards(JwtAuthGuard)
@@ -45,18 +45,18 @@ export class UserController {
   }
 }
 
-  // MISE A JOUR AVATAR USER 
+// MISE A JOUR AVATAR USER
 
-  // @UseGuards(JwtAuthGuard)
-  // @UseInterceptors(FileInterceptor('avatar'))
-  // @Post()
-  // async updateUser(
-  //   @Req() requestWithUser: RequestWithUser,
-  //   @UploadedFile() file: Express.Multer.File,
-  // ) {
-  //   const submittedFile = fileSchema.parse(file);
-  //   return this.usersService.updateUser({
-  //     userId: requestWithUser.user.userId,
-  //     submittedFile,
-  //   });
-  // }
+// @UseGuards(JwtAuthGuard)
+// @UseInterceptors(FileInterceptor('avatar'))
+// @Post()
+// async updateUser(
+//   @Req() requestWithUser: RequestWithUser,
+//   @UploadedFile() file: Express.Multer.File,
+// ) {
+//   const submittedFile = fileSchema.parse(file);
+//   return this.usersService.updateUser({
+//     userId: requestWithUser.user.userId,
+//     submittedFile,
+//   });
+// }
