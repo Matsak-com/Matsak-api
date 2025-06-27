@@ -1,9 +1,19 @@
 import { CorsOptions } from 'cors';
 
+const allowedOrigins = ['http://localhost:3000'];
+
 export const corsConfig: CorsOptions = {
-  origin: '*', //['http://localhost:3000'], // Update with your allowed origins
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-matsak-web'],
+  optionsSuccessStatus: 204,
 };
 
 export default corsConfig;

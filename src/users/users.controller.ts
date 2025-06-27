@@ -30,12 +30,12 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @Patch('/:userId')
-  async updateUser(
+  updateUser(
     @Param('userId') userId: string,
     @Body() updateUserDto: UpdateUserDto & UpdatePasswordDto,
   ) {
     try {
-      return await this.usersService.updateUser(userId, updateUserDto);
+      return this.usersService.updateUser(userId, updateUserDto);
     } catch (error) {
       throw new HttpException(
         error.message || 'Error updating user',
