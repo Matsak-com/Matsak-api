@@ -39,15 +39,20 @@ export class AuthService {
       if (!user) {
         throw new UnauthorizedException('Invalid credentials');
       }
+
+      console.log('user', user);
+
       const authResponse = await this.authenticateUser({
-        userId: user._doc._id,
-        role: user._doc.role,
+        userId: user._id,
+        role: user.role,
       });
+
+      console.log('authResponse', authResponse);
 
       return {
         ...authResponse,
-        user: user._doc._id,
-        role: user._doc.role, // Ajoute le rôle de l'utilisateur
+        user: user._id,
+        role: user.role, // Ajoute le rôle de l'utilisateur
       };
     } catch (error) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
