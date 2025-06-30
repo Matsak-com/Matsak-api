@@ -1,10 +1,12 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { join } from 'path';
+import { corsConfig } from './configs/cors/cors.config';
 import * as express from 'express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { cors: true });
+  const app = await NestFactory.create(AppModule, { cors: corsConfig });
+  app.setGlobalPrefix('api');
 
   app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
 

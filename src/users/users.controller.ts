@@ -30,12 +30,12 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @Patch('/:userId')
-  async updateUser(
+  updateUser(
     @Param('userId') userId: string,
     @Body() updateUserDto: UpdateUserDto & UpdatePasswordDto,
   ) {
     try {
-      return await this.usersService.updateUser(userId, updateUserDto);
+      return this.usersService.updateUser(userId, updateUserDto);
     } catch (error) {
       throw new HttpException(
         error.message || 'Error updating user',
@@ -45,18 +45,18 @@ export class UserController {
   }
 }
 
-  // MISE A JOUR AVATAR USER 
+// MISE A JOUR AVATAR USER
 
-  // @UseGuards(JwtAuthGuard)
-  // @UseInterceptors(FileInterceptor('avatar'))
-  // @Post()
-  // async updateUser(
-  //   @Req() requestWithUser: RequestWithUser,
-  //   @UploadedFile() file: Express.Multer.File,
-  // ) {
-  //   const submittedFile = fileSchema.parse(file);
-  //   return this.usersService.updateUser({
-  //     userId: requestWithUser.user.userId,
-  //     submittedFile,
-  //   });
-  // }
+// @UseGuards(JwtAuthGuard)
+// @UseInterceptors(FileInterceptor('avatar'))
+// @Post()
+// async updateUser(
+//   @Req() requestWithUser: RequestWithUser,
+//   @UploadedFile() file: Express.Multer.File,
+// ) {
+//   const submittedFile = fileSchema.parse(file);
+//   return this.usersService.updateUser({
+//     userId: requestWithUser.user.userId,
+//     submittedFile,
+//   });
+// }

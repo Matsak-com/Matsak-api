@@ -27,9 +27,12 @@ export class UsersService {
   ) {}
 
   async getUsers(): Promise<any[]> {
-    const users = await this.userRepository.findAll({}, {
-      projection: { _id: 1, email: 1, firstName: 1, avatarFileKey: 1 },
-    });
+    const users = await this.userRepository.findAll(
+      {},
+      {
+        projection: { _id: 1, email: 1, firstName: 1, avatarFileKey: 1 },
+      },
+    );
 
     return Promise.all(
       users.map(async (user) => {
@@ -42,9 +45,19 @@ export class UsersService {
   }
 
   async getUser({ userId }: { userId: string }): Promise<any> {
-    const user = await this.userModel.findOne(
+    const user = await this.userRepository.findOne(
       { _id: userId },
-      'id name firstname email password firstName avatarFileKey',
+      {
+        projection: {
+          _id: 1,
+          name: 1,
+          firstname: 1,
+          email: 1,
+          password: 1,
+          firstName: 1,
+          avatarFileKey: 1,
+        },
+      },
     );
 
     // Check if the user was found
@@ -55,7 +68,9 @@ export class UsersService {
     let avatarUrl = '';
     if (user.avatarFileKey) {
       try {
-        avatarUrl = await this.awsS3Service.getFileUrl({ fileKey: user.avatarFileKey });
+        avatarUrl = await this.awsS3Service.getFileUrl({
+          fileKey: user.avatarFileKey,
+        });
       } catch (error) {
         console.error(`Error fetching avatar for user ${userId}:`, error);
       }
@@ -83,7 +98,10 @@ export class UsersService {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    return this.userRepository.create({ ...createUserDto, password: hashedPassword });
+    return this.userRepository.create({
+      ...createUserDto,
+      password: hashedPassword,
+    });
   }
 
   async updateUser(
@@ -102,7 +120,10 @@ export class UsersService {
     }
 
     if (updateUserDto.currentPassword && updateUserDto.newPassword) {
-      const isPasswordValid = await bcrypt.compare(updateUserDto.currentPassword, user.password);
+      const isPasswordValid = await bcrypt.compare(
+        updateUserDto.currentPassword,
+        user.password,
+      );
       if (!isPasswordValid) {
         throw new UnauthorizedException('Current password is incorrect');
       }
@@ -117,7 +138,10 @@ export class UsersService {
     };
   }
 
-  async update(query: FilterQuery<User>, updateUserDto: Partial<CreateUserDto>): Promise<User> {
+  async update(
+    query: FilterQuery<User>,
+    updateUserDto: Partial<CreateUserDto>,
+  ): Promise<User> {
     const user = await this.userRepository.findOne(query);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -130,7 +154,6 @@ export class UsersService {
     Object.assign(user, updateUserDto);
     return user.save();
   }
-
 
   async delete(id: string): Promise<void> {
     const user = await this.findOne({ _id: id });
