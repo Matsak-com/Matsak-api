@@ -41,7 +41,7 @@ export class CategoriesController {
     return this.categoriesService.remove(id);
   }
 
-  @Get('/categories/sub-categories')
+  @Get('with-subcategories')
   async findAllWithSubCategories() {
     return this.categoriesService.getCategoriesWithSubCategories();
   }

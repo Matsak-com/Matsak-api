@@ -48,12 +48,39 @@ export class ProductService {
   }
 
   async update(id: string, updateProductDto: UpdateProductDto): Promise<Product> {
-    const updatedProduct = await this.productRepo.update(id, updateProductDto);
-    if (!updatedProduct) {
+    
+    const existingProduct = await this.productRepo.findById(id);
+    if (!existingProduct) {
       throw new NotFoundException(`Product with id ${id} not found`);
     }
+
+    
+    if (updateProductDto.detailData) {
+      await this.detailRepo.update(existingProduct.detail.toString(), updateProductDto.detailData);
+    }
+
+    
+    if (updateProductDto.imageData) {
+      await this.imageRepo.update(existingProduct.images.toString(), updateProductDto.imageData);
+    }
+
+    
+    const updatedProduct = await this.productRepo.update(id, {
+      ...(updateProductDto.subcategoryId && {
+        subcategory: new Types.ObjectId(updateProductDto.subcategoryId),
+      }),
+      ...(updateProductDto.teamId && {
+        team: new Types.ObjectId(updateProductDto.teamId),
+      }),
+      ...(typeof updateProductDto.isActive !== "undefined" && {
+        isActive: updateProductDto.isActive,
+      }),
+      updatedAt: new Date(),
+    });
+
     return updatedProduct;
   }
+
 
   async remove(id: string): Promise<void> {
     const result = await this.productRepo.delete(id);

@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, UseGuards, NotFoundException } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { Product } from './product.schema'; 
 
 @Controller('products')
 export class ProductController {
@@ -26,10 +27,17 @@ export class ProductController {
     return this.productService.findOne(id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  // @UseGuards(JwtAuthGuard) // Ajouté pour sécuriser cette route
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
-    return this.productService.update(id, updateProductDto);
+  async update(
+    @Param('id') id: string,
+    @Body() updateProductDto: UpdateProductDto,
+  ): Promise<Product> {
+    const updatedProduct = await this.productService.update(id, updateProductDto);
+    if (!updatedProduct) {
+      throw new NotFoundException(`Product with id ${id} not found`);
+    }
+    return updatedProduct;
   }
 
   @UseGuards(JwtAuthGuard)
@@ -47,4 +55,3 @@ export class ProductController {
     return this.productService.updateSubcategory(id, subcategoryId);
   }
 }
-
