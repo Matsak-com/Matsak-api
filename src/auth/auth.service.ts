@@ -40,14 +40,10 @@ export class AuthService {
         throw new UnauthorizedException('Invalid credentials');
       }
 
-      console.log('user', user);
-
       const authResponse = await this.authenticateUser({
         userId: user._id,
         role: user.role,
       });
-
-      console.log('authResponse', authResponse);
 
       return {
         ...authResponse,

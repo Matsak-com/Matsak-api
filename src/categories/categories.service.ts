@@ -52,7 +52,6 @@ export class CategoriesService {
     }
     return { deleted: true };
   }
-<<<<<<< Updated upstream
 
   async getCategoriesWithSubCategories(): Promise<any[]> {
     return this.categoryModel.aggregate([
@@ -72,15 +71,6 @@ export class CategoriesService {
               },
             },
           ],
-=======
-  async getCategoriesWithSubCategories() {
-    return this.categoryModel.aggregate([
-      {
-        $lookup: {
-          from: 'subcategories', // nom de la collection en base
-          localField: '_id',
-          foreignField: 'categoryId',
->>>>>>> Stashed changes
           as: 'subCategories',
         },
       },
