@@ -39,6 +39,7 @@ export class AuthService {
       if (!user) {
         throw new UnauthorizedException('Invalid credentials');
       }
+
       const authResponse = await this.authenticateUser({
         userId: user._id,
         role: user.role,
