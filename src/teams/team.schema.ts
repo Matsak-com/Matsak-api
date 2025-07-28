@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 import { IsEmail, IsNotEmpty, IsString, IsOptional } from 'class-validator';
 
+export type TeamDocument = Team & Document;
 @Schema({ timestamps: true })
 export class Team extends Document {
   @Prop({ required: false })
