@@ -10,6 +10,53 @@ export class CreateTeamDto {
   description?: string;
 
   @IsString()
+  @IsNotEmpty()
+  phone: string;
+
+  @IsString()
+  @IsNotEmpty()
+  email: string;
+
+  @IsString()
   @IsOptional()
-  logoUrl?: string;
+  address?: string;
+
+  @IsString()
+  @IsOptional()
+  additional_address?: string;
+
+  @IsString()
+  @IsOptional()
+  city?: string;
+
+  @IsString()
+  @IsOptional()
+  country?: string;
+
+  @IsString()
+  @IsOptional()
+  postalCode?: string;
+
+  @IsString()
+  @IsOptional()
+  region?: string;
+
+  @IsString()
+  @IsOptional()
+  timezone?: string;
+
+  @IsString()
+  @IsOptional()
+  countryCode?: string;
+
+  @IsOptional()
+  coordinates?: { lat: number; lng: number };
+
+  @IsString()
+  @IsOptional()
+  logoUrl?: Express.Multer.File;
+
+  @IsString()
+  @IsNotEmpty()
+  language: string;
 }

@@ -8,10 +8,13 @@ import {
   Put,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
 import { TeamsService } from './teams.service';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('teams')
 export class TeamsController {
@@ -19,8 +22,14 @@ export class TeamsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createTeamDto: CreateTeamDto) {
-    return this.teamsService.create(createTeamDto);
+  @UseInterceptors(FileInterceptor('logoUrl'))
+  async create(
+    @Body() createTeamDto: CreateTeamDto,
+    @UploadedFile() logoUrl: Express.Multer.File,
+  ) {
+    console.log('Creating team with data:', createTeamDto);
+    console.log('Received file:', logoUrl);
+    return this.teamsService.create({ ...createTeamDto, logoUrl });
   }
 
   @Get()
@@ -34,10 +43,7 @@ export class TeamsController {
   }
 
   @Put(':id')
-  async update(
-    @Param('id') id: string,
-    @Body() updateTeamDto: UpdateTeamDto,
-  ) {
+  async update(@Param('id') id: string, @Body() updateTeamDto: UpdateTeamDto) {
     return this.teamsService.update(id, updateTeamDto);
   }
 
