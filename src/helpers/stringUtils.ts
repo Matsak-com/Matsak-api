@@ -449,7 +449,7 @@ function escapeStringRegexp(string: any) {
  * @returns {string} - The slugified string.
  */
 const slugify = (str: any) => {
-  const cleanStr = remove(str)
+  const cleanStr = remove(str.toLowerCase().trim())
     .replace(/[-'`~!@#$%^&*()_|+=?;·:",.<>{}[\]\\/]/gi, '-')
     .replace(/\s+/g, '-') // collapse whitespace and replace by -
     .replace(/-+/g, '-');

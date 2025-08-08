@@ -27,8 +27,6 @@ export class TeamsController {
     @Body() createTeamDto: CreateTeamDto,
     @UploadedFile() logoUrl: Express.Multer.File,
   ) {
-    console.log('Creating team with data:', createTeamDto);
-    console.log('Received file:', logoUrl);
     return this.teamsService.create({ ...createTeamDto, logoUrl });
   }
 
