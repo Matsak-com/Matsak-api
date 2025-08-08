@@ -15,7 +15,7 @@ export class TeamsService {
 
   async create(createTeamDto: CreateTeamDto): Promise<Team> {
     let picture = null;
-    if (createTeamDto.logoUrl && createTeamDto.logoUrl instanceof File) {
+    if (createTeamDto.logoUrl) {
       picture = (
         await this.awsS3Service.uploadFile({ file: createTeamDto.logoUrl })
       ).fileKey;
@@ -36,16 +36,36 @@ export class TeamsService {
       coordinates: createTeamDto.coordinates,
       slug: slugify(createTeamDto.name),
       picture,
+      language: createTeamDto.language || 'fr',
     };
     return this.teamsRepository.create(teamData);
   }
 
-  async findAll(): Promise<Team[]> {
-    return this.teamsRepository.findAll();
+  async findAll(): Promise<Team[] | null> {
+    const teams = await this.teamsRepository.findAll();
+    teams.sort((a, b) => a.name.localeCompare(b.name));
+    await Promise.all(
+      teams.map(async (team) => {
+        if (team.picture) {
+          team.picture = await this.awsS3Service.getFileUrl({
+            fileKey: team.picture,
+          });
+        } else {
+          team.picture = null;
+        }
+      }),
+    );
+    return teams;
   }
 
   async findOne(id: string): Promise<Team | null> {
-    return this.teamsRepository.findById(id);
+    const team = await this.teamsRepository.findById(id);
+    if (team && team.picture) {
+      team.picture = await this.awsS3Service.getFileUrl({
+        fileKey: team.picture,
+      });
+    }
+    return team;
   }
 
   async update(id: string, updateTeamDto: UpdateTeamDto): Promise<Team | null> {
@@ -53,6 +73,14 @@ export class TeamsService {
   }
 
   async remove(id: string): Promise<Team | null> {
-    return this.teamsRepository.delete(id); // ici soft delete via deleted_at
+    const team = await this.teamsRepository.findById(id, {
+      projection: { picture: 1 },
+      lean: true,
+    });
+    if (team && team.picture) {
+      await this.awsS3Service.deleteFile({ fileKey: team.picture });
+    }
+    const result = await this.teamsRepository.delete(id); // ici soft delete via deleted_at
+    return result;
   }
 }
