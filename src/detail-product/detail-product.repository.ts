@@ -13,5 +13,4 @@ export class DetailProductRepository extends BaseRepository<DetailProductDocumen
     super(detailProductModel);
   }
 
-  // You can add custom methods here if needed
 }

@@ -46,7 +46,6 @@ export class CartService {
           populate: [
             { path: 'detail' },
             { path: 'subcategory' },
-            { path: 'team' },
             { path: 'images' },
           ],
         },

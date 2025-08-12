@@ -6,16 +6,16 @@ export type ImageProductDocument = ImageProduct & Document;
 @Schema({ timestamps: true })
 export class ImageProduct {
   @Prop({ required: true })
-  url: string;
+  data: string; // base64 string
 
   @Prop({ required: true })
-  filename: string;
+  name: string; // original file name, e.g., 'image.png'
+
+  @Prop({ required: true })
+  mimeType: string; // ex: image/png, image/jpeg
 
   @Prop()
   altText: string;
-
-  @Prop({ enum: ['product', 'decond'], required: true })
-  type: 'product' | 'decond';
 
   @Prop({ required: false })
   deleted_at?: Date;

@@ -5,10 +5,11 @@ import {
   Body,
   Param,
   Delete,
-  Put,
   UploadedFile,
   UseInterceptors,
   BadRequestException,
+  Patch,
+  NotFoundException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -17,6 +18,8 @@ import { ImageProductService } from './image-product.service';
 import { ImageProduct } from './image-product.schema';
 import * as fs from 'fs';
 import * as path from 'path';
+import { CreateImageProductDto } from './dto/create-image-product.dto';
+import { UpdateImageProductDto } from './dto/update-image-product.dto';
 
 @Controller('image-product')
 export class ImageProductController {
@@ -28,9 +31,8 @@ export class ImageProductController {
       storage: diskStorage({
         destination: './uploads/image-products',
         filename: (req, file, callback) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname);
-          callback(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
+          const uniqueName = `${Date.now()}-${file.originalname}`;
+          callback(null, uniqueName);
         },
       }),
       fileFilter: (req, file, callback) => {
@@ -47,27 +49,17 @@ export class ImageProductController {
   )
   async create(
     @UploadedFile() file: Express.Multer.File,
-    @Body() body: any,
-  ): Promise<ImageProduct> {
-    if (!file) {
-      throw new BadRequestException('Aucun fichier valide n’a été fourni');
-    }
+    @Body('altText') altText: string,
+      ) {
+        const filePath = path.resolve('uploads', 'image-products', file.filename);
 
-    // Vérification des champs body
-    if (!body.altText || !body.type) {
-      // Supprimer le fichier uploadé si les champs sont invalides
-      fs.unlinkSync(path.join(__dirname, '..', '..', 'uploads', 'image-products', file.filename));
-      throw new BadRequestException('altText et type sont requis');
-    }
+        // Crée le DTO manuellement
+        const createImageDto: CreateImageProductDto = {
+          filename: filePath,
+          altText,
+        };
 
-    const image = {
-      filename: file.filename,
-      url: `/uploads/image-products/${file.filename}`,
-      altText: body.altText,
-      type: body.type,
-    };
-
-    return this.imageProductService.create(image);
+    return this.imageProductService.create(createImageDto);
   }
 
   @Get()
@@ -80,12 +72,16 @@ export class ImageProductController {
     return this.imageProductService.findOne(id);
   }
 
-  @Put(':id')
-  async update(
-    @Param('id') id: string,
-    @Body() updateImageDto: any,
-  ): Promise<ImageProduct> {
-    return this.imageProductService.update(id, updateImageDto);
+  @Patch(':id')
+    async update(
+      @Param('id') id: string,
+      @Body() updateImageDto: UpdateImageProductDto,
+    ) {
+      const updatedImage = await this.imageProductService.update(id, updateImageDto);
+      if (!updatedImage) {
+        throw new NotFoundException(`Image with ID ${id} not found`);
+      }
+      return updatedImage;
   }
 
   @Delete(':id')
