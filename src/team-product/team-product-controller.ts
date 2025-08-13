@@ -12,7 +12,7 @@ import { TeamProductService } from './team-product.service';
 import { CreateTeamProductDto } from './dto/create-team-product.dto';
 import { UpdateTeamProductDto } from './dto/update-team-product.dto';
 import { ParseObjectIdPipe } from '../common/pipes/parseObjectId.pipe';
-import { TeamProduct } from './team-product.shema';
+import { TeamProduct } from './team-product.schema';
 
 @Controller('team-products')
 export class TeamProductController {

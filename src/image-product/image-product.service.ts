@@ -18,7 +18,6 @@ export class ImageProductService {
       console.log('> Chemin absolu de l\'image :', filePath);
 
       const { mimeType, data } = encodeImageToBase64(filePath);
-      console.log('> Image encodée. MimeType:', mimeType, 'Data (truncated):', data?.substring(0, 50));
 
     const imageToSave = {
       mimeType,
@@ -30,7 +29,7 @@ export class ImageProductService {
     const savedImage = await this.imageProductRepo.create(imageToSave);
     console.log('> Image enregistrée avec ID :', savedImage.id);
 
-    return savedImage.id;
+    return savedImage
   }
 
   async findAll(): Promise<ImageProduct[]> {
@@ -58,7 +57,6 @@ export class ImageProductService {
       if (fs.existsSync(oldFilePath)) {
         try {
           fs.unlinkSync(oldFilePath);
-          console.log(`Ancien fichier supprimé : ${oldFilePath}`);
         } catch (error) {
           console.warn(`Erreur de suppression de l'ancien fichier : ${error.message}`);
         }

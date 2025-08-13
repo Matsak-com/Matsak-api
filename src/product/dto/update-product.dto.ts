@@ -6,15 +6,17 @@ import { CreateDetailProductDto } from 'src/detail-product/dto/create-detail-pro
 import { UpdateImageProductDto } from 'src/image-product/dto/update-image-product.dto';
 
 export class UpdateProductDto {
+      @IsOptional()
       @ValidateNested()
       @Type(() => CreateDetailProductDto)
-      detailData: CreateDetailProductDto;
+      detailData?: CreateDetailProductDto;
     
+      @IsOptional()
       @ValidateNested()
       @Type(() => UpdateImageProductDto)
-      imageData: UpdateImageProductDto;
+      imageData?: UpdateImageProductDto;
 
-    
+      @IsOptional()
       @IsMongoId()
       subcategoryId: string;
     
