@@ -15,15 +15,11 @@ export class CreateProductDto {
   @Type(() => CreateDetailProductDto)
   detailData: CreateDetailProductDto;
 
-  @ValidateNested()
-  @Type(() => CreateImageProductDto)
-  imageData: CreateImageProductDto;
+  @IsMongoId()
+  imageId: string;
 
   @IsMongoId()
   subcategoryId: string;
-
-  @IsMongoId()
-  teamId: string;
 
   @IsOptional()
   @IsBoolean()
