@@ -45,7 +45,11 @@ export class AwsS3Service {
     file: z.infer<typeof fileSchema>;
     fileKey: string;
   }) {
-    const extension = file.originalname.split('.').pop();
+    let extension: string | undefined;
+    const lastDotIndex = file.originalname.lastIndexOf('.');
+    if (lastDotIndex > 0 && lastDotIndex < file.originalname.length - 1) {
+      extension = file.originalname.substring(lastDotIndex + 1);
+    }
     if (extension && !fileKey.endsWith(`.${extension}`)) {
       fileKey = `${fileKey}.${extension}`;
     }

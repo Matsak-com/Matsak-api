@@ -93,18 +93,26 @@ export class TeamsService {
    */
   async update(id: string, updateTeamDto: UpdateTeamDto): Promise<Team | null> {
     let picture = null;
+    let lastPicture: string | null = null;
+
     if (updateTeamDto.logoUrl) {
+      const team = await this.teamsRepository.findById(id, {
+        projection: { picture: 1 },
+        lean: true,
+      });
+      lastPicture = team?.picture ?? null;
+
       picture = (
         await this.awsS3Service.uploadFile({
           file: updateTeamDto.logoUrl,
           fileKey: `teams/${id}/logo`,
         })
       ).fileKey;
+
+      if (lastPicture) {
+        await this.awsS3Service.deleteFile({ fileKey: lastPicture });
+      }
     }
-    const lastPicture = await this.teamsRepository.findById(id, {
-      projection: { picture: 1 },
-      lean: true,
-    });
 
     const teamData = {
       name: updateTeamDto.name,
@@ -123,11 +131,7 @@ export class TeamsService {
       picture,
       language: updateTeamDto.language || 'fr',
     };
-    const team = await this.teamsRepository.update(id, teamData);
-    if (lastPicture && lastPicture.picture) {
-      await this.awsS3Service.deleteFile({ fileKey: lastPicture.picture });
-    }
-    return team;
+    return await this.teamsRepository.update(id, teamData);
   }
 
   /**

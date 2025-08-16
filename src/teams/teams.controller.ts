@@ -32,8 +32,9 @@ export class TeamsController {
       new ParseFilePipe({
         validators: [
           new FileTypeValidator({ fileType: 'image/*' }),
-          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
+          new MaxFileSizeValidator({ maxSize: 3 * 1024 * 1024 }),
         ],
+        fileIsRequired: false,
       }),
     )
     logoUrl: Express.Multer.File,
@@ -60,8 +61,9 @@ export class TeamsController {
       new ParseFilePipe({
         validators: [
           new FileTypeValidator({ fileType: 'image/*' }),
-          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
+          new MaxFileSizeValidator({ maxSize: 3 * 1024 * 1024 }),
         ],
+        fileIsRequired: false,
       }),
     )
     logoUrl: Express.Multer.File,
