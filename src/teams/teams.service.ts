@@ -92,46 +92,65 @@ export class TeamsService {
    * @returns The updated team if found, otherwise null.
    */
   async update(id: string, updateTeamDto: UpdateTeamDto): Promise<Team | null> {
-    let picture = null;
-    let lastPicture: string | null = null;
+    const existingTeam = await this.teamsRepository.findById(id);
+    if (!existingTeam) return null;
+
+    const updateData: any = {};
+    let newPicture: string | null = null;
+
+    // Only update fields that are present and different
+    const fields: (keyof UpdateTeamDto)[] = [
+      'name',
+      'phone',
+      'email',
+      'address',
+      'additional_address',
+      'city',
+      'country',
+      'postalCode',
+      'region',
+      'timezone',
+      'countryCode',
+      'coordinates',
+      'language',
+    ];
+
+    for (const field of fields) {
+      const dtoValue = updateTeamDto[field];
+      if (typeof dtoValue !== 'undefined') {
+        const schemaField =
+          field === 'additional_address' ? 'additionalAddress' : field;
+        if (existingTeam[schemaField] !== dtoValue) {
+          updateData[schemaField] = dtoValue;
+        }
+      }
+    }
+
+    if (
+      typeof updateTeamDto.name === 'string' &&
+      updateTeamDto.name !== existingTeam.name
+    ) {
+      updateData.slug = slugify(updateTeamDto.name);
+    }
 
     if (updateTeamDto.logoUrl) {
-      const team = await this.teamsRepository.findById(id, {
-        projection: { picture: 1 },
-        lean: true,
-      });
-      lastPicture = team?.picture ?? null;
-
-      picture = (
+      if (existingTeam.picture) {
+        await this.awsS3Service.deleteFile({ fileKey: existingTeam.picture });
+      }
+      newPicture = (
         await this.awsS3Service.uploadFile({
           file: updateTeamDto.logoUrl,
           fileKey: `teams/${id}/logo`,
         })
       ).fileKey;
-
-      if (lastPicture) {
-        await this.awsS3Service.deleteFile({ fileKey: lastPicture });
-      }
+      updateData.picture = newPicture;
     }
 
-    const teamData = {
-      name: updateTeamDto.name,
-      phone: updateTeamDto.phone,
-      email: updateTeamDto.email,
-      address: updateTeamDto.address,
-      additionalAddress: updateTeamDto.additional_address,
-      city: updateTeamDto.city,
-      country: updateTeamDto.country,
-      postalCode: updateTeamDto.postalCode,
-      region: updateTeamDto.region,
-      timezone: updateTeamDto.timezone,
-      countryCode: updateTeamDto.countryCode,
-      coordinates: updateTeamDto.coordinates,
-      slug: slugify(updateTeamDto.name),
-      picture,
-      language: updateTeamDto.language || 'fr',
-    };
-    return await this.teamsRepository.update(id, teamData);
+    if (Object.keys(updateData).length === 0) {
+      return existingTeam;
+    }
+
+    return await this.teamsRepository.update(id, updateData);
   }
 
   /**
