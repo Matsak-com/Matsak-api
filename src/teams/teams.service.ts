@@ -6,21 +6,28 @@ import { AwsS3Service } from '../aws/aws-s3.service';
 import { Team } from './team.schema';
 import { slugify } from 'src/helpers/stringUtils';
 
+/**
+ * Service for managing teams, including creation, retrieval, updating, and deletion.
+ * Handles team data persistence and logo file management via AWS S3.
+ */
 @Injectable()
 export class TeamsService {
+  /**
+   * Constructs the TeamsService.
+   * @param teamsRepository - Repository for team data operations.
+   * @param awsS3Service - Service for AWS S3 file operations.
+   */
   constructor(
     private readonly teamsRepository: TeamsRepository,
     private readonly awsS3Service: AwsS3Service,
   ) {}
 
+  /**
+   * Creates a new team with the provided data and uploads the team logo if provided.
+   * @param createTeamDto - Data Transfer Object containing team creation data.
+   * @returns The created team.
+   */
   async create(createTeamDto: CreateTeamDto): Promise<Team> {
-    let picture = null;
-    if (createTeamDto.logoUrl) {
-      picture = (
-        await this.awsS3Service.uploadFile({ file: createTeamDto.logoUrl })
-      ).fileKey;
-    }
-
     const teamData = {
       name: createTeamDto.name,
       phone: createTeamDto.phone,
@@ -35,29 +42,38 @@ export class TeamsService {
       countryCode: createTeamDto.countryCode,
       coordinates: createTeamDto.coordinates,
       slug: slugify(createTeamDto.name),
-      picture,
       language: createTeamDto.language || 'fr',
     };
-    return this.teamsRepository.create(teamData);
+    const team = await this.teamsRepository.create(teamData, { save: false });
+    let picture = null;
+    if (createTeamDto.logoUrl) {
+      picture = (
+        await this.awsS3Service.uploadFile({
+          file: createTeamDto.logoUrl,
+          fileKey: `teams/${team._id}/logo`,
+        })
+      ).fileKey;
+    }
+    team.picture = picture;
+    return await this.teamsRepository.create(team);
   }
 
+  /**
+   * Retrieves all teams, sorted by name.
+   * @returns An array of teams or null if none found.
+   */
   async findAll(): Promise<Team[] | null> {
-    const teams = await this.teamsRepository.findAll();
-    teams.sort((a, b) => a.name.localeCompare(b.name));
-    await Promise.all(
-      teams.map(async (team) => {
-        if (team.picture) {
-          team.picture = await this.awsS3Service.getFileUrl({
-            fileKey: team.picture,
-          });
-        } else {
-          team.picture = null;
-        }
-      }),
-    );
+    const teams = await this.teamsRepository.findAll(null, {
+      sort: { name: 1 },
+    });
     return teams;
   }
 
+  /**
+   * Retrieves a single team by its ID, including the logo URL if available.
+   * @param id - The ID of the team to retrieve.
+   * @returns The team if found, otherwise null.
+   */
   async findOne(id: string): Promise<Team | null> {
     const team = await this.teamsRepository.findById(id);
     if (team && team.picture) {
@@ -68,10 +84,57 @@ export class TeamsService {
     return team;
   }
 
+  /**
+   * Updates an existing team with the provided data and updates the team logo if provided.
+   * Deletes the previous logo from S3 if a new one is uploaded.
+   * @param id - The ID of the team to update.
+   * @param updateTeamDto - Data Transfer Object containing updated team data.
+   * @returns The updated team if found, otherwise null.
+   */
   async update(id: string, updateTeamDto: UpdateTeamDto): Promise<Team | null> {
-    return this.teamsRepository.update(id, updateTeamDto);
+    let picture = null;
+    if (updateTeamDto.logoUrl) {
+      picture = (
+        await this.awsS3Service.uploadFile({
+          file: updateTeamDto.logoUrl,
+          fileKey: `teams/${id}/logo`,
+        })
+      ).fileKey;
+    }
+    const lastPicture = await this.teamsRepository.findById(id, {
+      projection: { picture: 1 },
+      lean: true,
+    });
+
+    const teamData = {
+      name: updateTeamDto.name,
+      phone: updateTeamDto.phone,
+      email: updateTeamDto.email,
+      address: updateTeamDto.address,
+      additionalAddress: updateTeamDto.additional_address,
+      city: updateTeamDto.city,
+      country: updateTeamDto.country,
+      postalCode: updateTeamDto.postalCode,
+      region: updateTeamDto.region,
+      timezone: updateTeamDto.timezone,
+      countryCode: updateTeamDto.countryCode,
+      coordinates: updateTeamDto.coordinates,
+      slug: slugify(updateTeamDto.name),
+      picture,
+      language: updateTeamDto.language || 'fr',
+    };
+    const team = await this.teamsRepository.update(id, teamData);
+    if (lastPicture && lastPicture.picture) {
+      await this.awsS3Service.deleteFile({ fileKey: lastPicture.picture });
+    }
+    return team;
   }
 
+  /**
+   * Removes a team by its ID and deletes the associated logo from S3 if it exists.
+   * @param id - The ID of the team to remove.
+   * @returns The removed team if found, otherwise null.
+   */
   async remove(id: string): Promise<Team | null> {
     const team = await this.teamsRepository.findById(id, {
       projection: { picture: 1 },
@@ -80,7 +143,7 @@ export class TeamsService {
     if (team && team.picture) {
       await this.awsS3Service.deleteFile({ fileKey: team.picture });
     }
-    const result = await this.teamsRepository.delete(id); // ici soft delete via deleted_at
+    const result = await this.teamsRepository.delete(id);
     return result;
   }
 }
