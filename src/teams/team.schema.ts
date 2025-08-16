@@ -17,7 +17,7 @@ export class Team extends Document {
 
   @Prop({ required: true, unique: true, trim: true })
   @IsEmail()
-  @IsOptional()
+  @IsNotEmpty()
   email: string;
 
   @Prop({ required: true, trim: true })
@@ -76,7 +76,7 @@ export class Team extends Document {
 
   @Prop({ required: true })
   @IsString()
-  @IsOptional()
+  @IsNotEmpty()
   timezone: string;
 
   @Prop({ required: true, unique: true, trim: true })

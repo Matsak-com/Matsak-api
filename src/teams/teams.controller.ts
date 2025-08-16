@@ -10,6 +10,9 @@ import {
   HttpStatus,
   UseInterceptors,
   UploadedFile,
+  ParseFilePipe,
+  FileTypeValidator,
+  MaxFileSizeValidator,
 } from '@nestjs/common';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
@@ -25,7 +28,16 @@ export class TeamsController {
   @UseInterceptors(FileInterceptor('logoUrl'))
   async create(
     @Body() createTeamDto: CreateTeamDto,
-    @UploadedFile() logoUrl: Express.Multer.File,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new FileTypeValidator({ fileType: 'image/*' }),
+          new MaxFileSizeValidator({ maxSize: 3 * 1024 * 1024 }),
+        ],
+        fileIsRequired: false,
+      }),
+    )
+    logoUrl: Express.Multer.File,
   ) {
     return this.teamsService.create({ ...createTeamDto, logoUrl });
   }
@@ -41,8 +53,22 @@ export class TeamsController {
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() updateTeamDto: UpdateTeamDto) {
-    return this.teamsService.update(id, updateTeamDto);
+  @UseInterceptors(FileInterceptor('logoUrl'))
+  async update(
+    @Param('id') id: string,
+    @Body() updateTeamDto: UpdateTeamDto,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new FileTypeValidator({ fileType: 'image/*' }),
+          new MaxFileSizeValidator({ maxSize: 3 * 1024 * 1024 }),
+        ],
+        fileIsRequired: false,
+      }),
+    )
+    logoUrl: Express.Multer.File,
+  ) {
+    return this.teamsService.update(id, { ...updateTeamDto, logoUrl });
   }
 
   @Delete(':id')

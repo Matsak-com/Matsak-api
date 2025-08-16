@@ -26,9 +26,14 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
     };
   }
 
-
-  async create(doc: Partial<T>): Promise<T> {
+  async create(
+    doc: Partial<T>,
+    options: { save?: boolean } = { save: true },
+  ): Promise<T> {
     const created = new this.model(doc);
+    if (options.save === false) {
+      return created;
+    }
     return created.save();
   }
 
