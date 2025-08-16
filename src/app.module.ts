@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
@@ -14,6 +14,9 @@ import { DetailProductModule } from './detail-product/detail-product.module';
 import { ImageProductModule } from './image-product/image-product.module';
 import { ProductDecondModule } from './product-decond/product-decond.module';
 import { ProductModule } from './product/product.module';
+import { CartModule } from './cart-item/cart.module';
+import { SessionMiddleware } from './middleware/session.middleware';
+import { TeamProductModule } from './team-product/team-product-module';
 
 @Module({
   imports: [
@@ -30,9 +33,15 @@ import { ProductModule } from './product/product.module';
     DetailProductModule,
     ImageProductModule,
     ProductDecondModule,
-    ProductModule
+    ProductModule,
+    CartModule, 
+    TeamProductModule
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule {
+    configure(consumer: MiddlewareConsumer) {
+    consumer.apply(SessionMiddleware).forRoutes('*');
+  }
+}

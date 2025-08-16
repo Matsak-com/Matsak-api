@@ -6,24 +6,23 @@ import { ProductRepository } from './product.repository';
 import { DetailProductRepository } from '../detail-product/detail-product.repository';
 import { ImageProductRepository } from '../image-product/image-product.repository';
 import { Types } from 'mongoose';
+import { ImageProductService } from 'src/image-product/image-product.service';
 
 @Injectable()
 export class ProductService {
   constructor(
     private readonly productRepo: ProductRepository,
     private readonly detailRepo: DetailProductRepository,
-    private readonly imageRepo: ImageProductRepository,
+    private readonly imageservice: ImageProductService,
   ) {}
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
     const createdDetail = await this.detailRepo.create(createProductDto.detailData);
-    const createdImage = await this.imageRepo.create(createProductDto.imageData);
 
     const productToCreate: Partial<Product> = {
       detail: createdDetail._id as Types.ObjectId,
-      images: createdImage._id as Types.ObjectId,
-      subcategory: new Types.ObjectId(createProductDto.subcategoryId),
-      team: new Types.ObjectId(createProductDto.teamId),
+      images: new Types.ObjectId(createProductDto.imageId),
+      subcategory: new Types.ObjectId(createProductDto.subcategoryId)
     };
 
     return this.productRepo.create(productToCreate);
@@ -33,13 +32,13 @@ export class ProductService {
 
   async findAll(): Promise<Product[]> {
     return this.productRepo.findAll(null, {
-      populate: ['detail', 'subcategory', 'team', 'images'],
+      populate: ['detail', 'subcategory', 'images'],
     });
   }
 
   async findOne(id: string): Promise<Product> {
     const product = await this.productRepo.findById(id, {
-      populate: ['detail', 'subcategory', 'team', 'images'],
+      populate: ['detail', 'subcategory', 'images'],
     });
     if (!product) {
       throw new NotFoundException(`Product with id ${id} not found`);
@@ -48,12 +47,36 @@ export class ProductService {
   }
 
   async update(id: string, updateProductDto: UpdateProductDto): Promise<Product> {
-    const updatedProduct = await this.productRepo.update(id, updateProductDto);
-    if (!updatedProduct) {
+    
+    const existingProduct = await this.productRepo.findById(id);
+    if (!existingProduct) {
       throw new NotFoundException(`Product with id ${id} not found`);
     }
+
+    
+    if (updateProductDto.detailData) {
+      await this.detailRepo.update(existingProduct.detail.toString(), updateProductDto.detailData);
+    }
+
+    
+    if (updateProductDto.imageData) {
+      await this.imageservice.update(existingProduct.images.toString(), updateProductDto.imageData);
+    }
+
+    
+    const updatedProduct = await this.productRepo.update(id, {
+      ...(updateProductDto.subcategoryId && {
+        subcategory: new Types.ObjectId(updateProductDto.subcategoryId),
+      }),
+      ...(typeof updateProductDto.isActive !== "undefined" && {
+        isActive: updateProductDto.isActive,
+      }),
+      updatedAt: new Date(),
+    });
+
     return updatedProduct;
   }
+
 
   async remove(id: string): Promise<void> {
     const result = await this.productRepo.delete(id);
