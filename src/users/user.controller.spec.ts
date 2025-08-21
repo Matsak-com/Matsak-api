@@ -52,21 +52,24 @@ describe('UserController', () => {
   describe('getUser', () => {
     it('should return a user by id', () => {
       const userId = 'abc123';
-      expect(controller.getUser(userId)).toEqual({ id: userId, name: 'John Doe' });
-      expect(usersService.getUser).toHaveBeenCalledWith(userId);
+      expect(controller.getUser({ userId })).toEqual({
+        id: { userId },
+        name: 'John Doe',
+      });
+      expect(usersService.getUser).toHaveBeenCalledWith({ userId });
     });
   });
 
   describe('updateUser', () => {
     it('should update and return the user', async () => {
       const userId = 'abc123';
-        const updateDto: UpdateUserDto & UpdatePasswordDto = {
-            email: 'new@email.com',
-            name: 'Updated Name',
-            currentPassword: 'oldpassword123',
-            newPassword: 'newpassword123',
-        };
-      const result = await controller.updateUser(userId, updateDto);
+      const updateDto: UpdateUserDto & UpdatePasswordDto = {
+        email: 'new@email.com',
+        name: 'Updated Name',
+        currentPassword: 'oldpassword123',
+        newPassword: 'newpassword123',
+      };
+      const result = await controller.updateUser({ userId }, updateDto);
       expect(result).toEqual({ id: userId, ...updateDto });
       expect(usersService.updateUser).toHaveBeenCalledWith(userId, updateDto);
     });
@@ -74,16 +77,18 @@ describe('UserController', () => {
     it('should throw HttpException on error', async () => {
       const userId = 'abc123';
       const updateDto: UpdateUserDto & UpdatePasswordDto = {
-            email: 'new@email.com',
-            name: 'Updated Name',
-            currentPassword: 'oldpassword123',
-            newPassword: 'newpassword123',
-        };
+        email: 'new@email.com',
+        name: 'Updated Name',
+        currentPassword: 'oldpassword123',
+        newPassword: 'newpassword123',
+      };
       jest.spyOn(usersService, 'updateUser').mockImplementation(() => {
         throw { message: 'Update failed', status: 400 };
       });
 
-      await expect(controller.updateUser(userId, updateDto)).rejects.toThrow('Update failed');
+      await expect(
+        controller.updateUser({ userId }, updateDto),
+      ).rejects.toThrow('Update failed');
     });
   });
 });

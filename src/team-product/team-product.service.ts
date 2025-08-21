@@ -8,7 +8,8 @@ import { TeamProduct, TeamProductDocument } from './team-product.schema';
 @Injectable()
 export class TeamProductService {
   constructor(
-    @InjectModel(TeamProduct.name) private readonly model: Model<TeamProductDocument>,
+    @InjectModel(TeamProduct.name)
+    private readonly model: Model<TeamProductDocument>,
   ) {}
 
   private mapDtoToModel(dto: CreateTeamProductDto | UpdateTeamProductDto) {
@@ -34,7 +35,10 @@ export class TeamProductService {
     return this.model.findById(id).exec();
   }
 
-  async update(id: string, dto: UpdateTeamProductDto): Promise<TeamProduct | null> {
+  async update(
+    id: string,
+    dto: UpdateTeamProductDto,
+  ): Promise<TeamProduct | null> {
     if (!Types.ObjectId.isValid(id)) return null;
     const data = this.mapDtoToModel(dto);
     return this.model.findByIdAndUpdate(id, data, { new: true }).exec();

@@ -15,7 +15,7 @@ export class CartService {
 
   async addToCart(sessionId: string, dto: AddToCartDto) {
     const quantity = dto.quantity ?? 1; // Par défaut 1 si non fourni
-    let cart = await this.cartRepository.findOne({ sessionId });
+    const cart = await this.cartRepository.findOne({ sessionId });
 
     if (!cart) {
       return this.cartRepository.create({
@@ -25,7 +25,7 @@ export class CartService {
     }
 
     const itemIndex = cart.items.findIndex(
-      item => item.product.toString() === dto.productId,
+      (item) => item.product.toString() === dto.productId,
     );
 
     if (itemIndex > -1) {
@@ -56,11 +56,17 @@ export class CartService {
     return cart;
   }
 
-  async updateItemQuantity(sessionId: string, productId: string, quantity: number) {
+  async updateItemQuantity(
+    sessionId: string,
+    productId: string,
+    quantity: number,
+  ) {
     const cart = await this.cartRepository.findOne({ sessionId });
     if (!cart) throw new NotFoundException('Panier introuvable');
 
-    const item = cart.items.find(item => item.product.toString() === productId);
+    const item = cart.items.find(
+      (item) => item.product.toString() === productId,
+    );
     if (!item) throw new NotFoundException('Produit dans le panier non trouvé');
 
     item.quantity = quantity;
@@ -71,7 +77,9 @@ export class CartService {
     const cart = await this.cartRepository.findOne({ sessionId });
     if (!cart) throw new NotFoundException('Panier introuvable');
 
-    cart.items = cart.items.filter(item => item.product.toString() !== productId);
+    cart.items = cart.items.filter(
+      (item) => item.product.toString() !== productId,
+    );
     return cart.save();
   }
 

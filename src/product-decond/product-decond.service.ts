@@ -17,16 +17,22 @@ export class ProductDecondService {
   ) {}
 
   async create(data: Partial<ProductDecond>): Promise<ProductDecond> {
-    
-    const detailExists = await this.detailProductModel.exists({ _id: data.detailProduct });
+    const detailExists = await this.detailProductModel.exists({
+      _id: data.detailProduct,
+    });
     if (!detailExists) {
-      throw new NotFoundException(`DetailProduct with ID ${data.detailProduct} not found`);
+      throw new NotFoundException(
+        `DetailProduct with ID ${data.detailProduct} not found`,
+      );
     }
 
-    
-    const imageExists = await this.imageProductModel.exists({ _id: data.image });
+    const imageExists = await this.imageProductModel.exists({
+      _id: data.image,
+    });
     if (!imageExists) {
-      throw new NotFoundException(`ImageProduct with ID ${data.image} not found`);
+      throw new NotFoundException(
+        `ImageProduct with ID ${data.image} not found`,
+      );
     }
 
     const created = new this.productDecondModel(data);
@@ -53,7 +59,10 @@ export class ProductDecondService {
     return product;
   }
 
-  async update(id: string, updateData: Partial<ProductDecond>): Promise<ProductDecond> {
+  async update(
+    id: string,
+    updateData: Partial<ProductDecond>,
+  ): Promise<ProductDecond> {
     const updated = await this.productDecondModel
       .findByIdAndUpdate(id, updateData, { new: true })
       .exec();

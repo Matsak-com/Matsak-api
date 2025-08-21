@@ -3,7 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { UserRole } from 'src/users/user.schema';
 
-export type UserPayload = { userId: string, role : UserRole};
+export type UserPayload = { userId: string; role: UserRole };
 export type RequestWithUser = {
   user: UserPayload;
 };
@@ -17,7 +17,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate({ userId, role}: UserPayload) {
-    return { userId, role};
+  async validate({ userId, role }: UserPayload) {
+    return { userId, role };
   }
 }

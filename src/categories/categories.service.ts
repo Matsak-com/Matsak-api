@@ -22,11 +22,11 @@ export class CategoriesService {
     return this.categoryRepository.findAll();
   }
 
-  
   async findOne(id: string): Promise<Category> {
-    
     if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException(`Category with ID '${id}' is not a valid ObjectId`);
+      throw new NotFoundException(
+        `Category with ID '${id}' is not a valid ObjectId`,
+      );
     }
 
     const category = await this.categoryModel.findById(id).exec();
@@ -36,9 +36,14 @@ export class CategoriesService {
     return category;
   }
 
-
-  async update(id: string, updateCategoryDto: UpdateCategoryDto): Promise<Category> {
-    const updatedCategory = await this.categoryRepository.update(id, updateCategoryDto);
+  async update(
+    id: string,
+    updateCategoryDto: UpdateCategoryDto,
+  ): Promise<Category> {
+    const updatedCategory = await this.categoryRepository.update(
+      id,
+      updateCategoryDto,
+    );
     if (!updatedCategory) {
       throw new NotFoundException(`Category with ID '${id}' not found`);
     }
@@ -65,7 +70,7 @@ export class CategoriesService {
                 $expr: {
                   $eq: [
                     { $toObjectId: '$categoryId' }, // string → ObjectId
-                    '$$category_id'
+                    '$$category_id',
                   ],
                 },
               },
@@ -76,5 +81,4 @@ export class CategoriesService {
       },
     ]);
   }
-
 }

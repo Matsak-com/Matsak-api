@@ -38,8 +38,8 @@ describe('TeamsService', () => {
     it('should create a team', async () => {
       const dto: CreateTeamDto = {
         name: 'Team Example',
-        description : 'Team description',
-        logoUrl : 'Team logo'
+        description: 'Team description',
+        logoUrl: 'Team logo',
       };
 
       const mockTeam = { ...dto, _id: 'abc123' } as Team;
