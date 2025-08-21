@@ -21,6 +21,7 @@ export const createTeamSchema = z.object({
   timezone: z.string().optional(),
   countryCode: z.string().optional(),
   coordinates: coordinatesSchema.optional(),
+  logoUrl: z.any().optional(), // File upload handled by multer
   language: z.string().min(1, 'Language is required'),
 });
 

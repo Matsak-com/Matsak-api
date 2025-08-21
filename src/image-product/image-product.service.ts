@@ -12,14 +12,11 @@ export class ImageProductService {
   constructor(private readonly imageProductRepo: ImageProductRepository) {}
 
   async create(createImageDto: CreateImageProductDto): Promise<ImageProduct> {
-    console.log('> Reçu DTO :', createImageDto);
-
     const filePath = path.resolve(
       'uploads',
       'image-products',
       createImageDto.filename,
     );
-    console.log("> Chemin absolu de l'image :", filePath);
 
     const { mimeType, data } = encodeImageToBase64(filePath);
 
