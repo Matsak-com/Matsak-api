@@ -12,6 +12,12 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UpdateUserDto } from 'src/auth/dto/update-user.dto';
 import { UpdatePasswordDto } from 'src/auth/dto/update-password.dto';
 import { UsersService } from './users.service';
+import { CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
+import {
+  userIdParamSchema,
+  updateUserSchema,
+  updatePasswordSchema,
+} from '../common/schemas/auth.schemas';
 
 @Controller('users')
 export class UserController {
@@ -24,18 +30,23 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @Get('/:userId')
-  getUser(@Param('userId') userId: string) {
-    return this.usersService.getUser({ userId });
+  @CompoundZodValidation({ params: userIdParamSchema })
+  getUser(@Param() params: { userId: string }) {
+    return this.usersService.getUser({ userId: params.userId });
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch('/:userId')
+  @CompoundZodValidation({ 
+    params: userIdParamSchema,
+    body: updateUserSchema.merge(updatePasswordSchema).partial()
+  })
   updateUser(
-    @Param('userId') userId: string,
+    @Param() params: { userId: string },
     @Body() updateUserDto: UpdateUserDto & UpdatePasswordDto,
   ) {
     try {
-      return this.usersService.updateUser(userId, updateUserDto);
+      return this.usersService.updateUser(params.userId, updateUserDto);
     } catch (error) {
       throw new HttpException(
         error.message || 'Error updating user',

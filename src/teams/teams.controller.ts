@@ -18,6 +18,12 @@ import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
 import { TeamsService } from './teams.service';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ZodValidation, CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
+import {
+  createTeamSchema,
+  updateTeamSchema,
+  teamIdParamSchema,
+} from '../common/schemas/team.schemas';
 
 @Controller('teams')
 export class TeamsController {
@@ -26,6 +32,7 @@ export class TeamsController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('logoUrl'))
+  @ZodValidation(createTeamSchema)
   async create(
     @Body() createTeamDto: CreateTeamDto,
     @UploadedFile(
@@ -48,14 +55,19 @@ export class TeamsController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.teamsService.findOne(id);
+  @CompoundZodValidation({ params: teamIdParamSchema })
+  async findOne(@Param() params: { id: string }) {
+    return this.teamsService.findOne(params.id);
   }
 
   @Put(':id')
   @UseInterceptors(FileInterceptor('logoUrl'))
+  @CompoundZodValidation({ 
+    params: teamIdParamSchema, 
+    body: updateTeamSchema 
+  })
   async update(
-    @Param('id') id: string,
+    @Param() params: { id: string },
     @Body() updateTeamDto: UpdateTeamDto,
     @UploadedFile(
       new ParseFilePipe({
@@ -68,12 +80,13 @@ export class TeamsController {
     )
     logoUrl: Express.Multer.File,
   ) {
-    return this.teamsService.update(id, { ...updateTeamDto, logoUrl });
+    return this.teamsService.update(params.id, { ...updateTeamDto, logoUrl });
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string) {
-    await this.teamsService.remove(id);
+  @CompoundZodValidation({ params: teamIdParamSchema })
+  async remove(@Param() params: { id: string }) {
+    await this.teamsService.remove(params.id);
   }
 }

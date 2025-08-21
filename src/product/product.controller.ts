@@ -8,6 +8,13 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import * as path from 'path';
 import { CreateDetailProductDto } from 'src/detail-product/dto/create-detail-product.dto';
+import { ZodValidation, CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
+import {
+  createProductSchema,
+  updateProductSchema,
+  productIdParamSchema,
+  updateSubcategoryParamSchema,
+} from '../common/schemas/product.schemas';
 
 @Controller('products')
 export class ProductController {
@@ -15,6 +22,7 @@ export class ProductController {
 
   // @UseGuards(JwtAuthGuard)
   @Post()
+  @ZodValidation(createProductSchema)
   create(@Body() createProductDto: CreateProductDto) {
     return this.productService.create(createProductDto);
   }
@@ -27,12 +35,14 @@ export class ProductController {
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.productService.findOne(id);
+  @CompoundZodValidation({ params: productIdParamSchema })
+  findOne(@Param() params: { id: string }) {
+    return this.productService.findOne(params.id);
   }
 
   // @UseGuards(JwtAuthGuard) // Ajouté pour sécuriser cette route
  @Patch(':id')
+ @CompoundZodValidation({ params: productIdParamSchema })
 @UseInterceptors(
   FileInterceptor('file', {
     storage: diskStorage({
@@ -45,7 +55,7 @@ export class ProductController {
   }),
 )
 async updateImage(
-  @Param('id') id: string,
+  @Param() params: { id: string },
   @UploadedFile() file: Express.Multer.File,
   @Body() body: any,
 ): Promise<Product> {
@@ -70,10 +80,10 @@ async updateImage(
     };
   }
 
-  const updatedProduct = await this.productService.update(id, updateDto);
+  const updatedProduct = await this.productService.update(params.id, updateDto);
 
   if (!updatedProduct) {
-    throw new NotFoundException(`Product with id ${id} not found`);
+    throw new NotFoundException(`Product with id ${params.id} not found`);
   }
 
   return updatedProduct;
@@ -82,16 +92,17 @@ async updateImage(
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.productService.remove(id);
+  @CompoundZodValidation({ params: productIdParamSchema })
+  remove(@Param() params: { id: string }) {
+    return this.productService.remove(params.id);
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id/subcategory/:subcategoryId')
+  @CompoundZodValidation({ params: updateSubcategoryParamSchema })
   updateSubcategory(
-    @Param('id') id: string,
-    @Param('subcategoryId') subcategoryId: string,
+    @Param() params: { id: string; subcategoryId: string },
   ) {
-    return this.productService.updateSubcategory(id, subcategoryId);
+    return this.productService.updateSubcategory(params.id, params.subcategoryId);
   }
 }
