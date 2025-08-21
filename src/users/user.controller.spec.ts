@@ -52,8 +52,8 @@ describe('UserController', () => {
   describe('getUser', () => {
     it('should return a user by id', () => {
       const userId = 'abc123';
-      expect(controller.getUser(userId)).toEqual({ id: userId, name: 'John Doe' });
-      expect(usersService.getUser).toHaveBeenCalledWith(userId);
+      expect(controller.getUser({ userId })).toEqual({ id: { userId }, name: 'John Doe' });
+      expect(usersService.getUser).toHaveBeenCalledWith({ userId });
     });
   });
 
@@ -66,7 +66,7 @@ describe('UserController', () => {
             currentPassword: 'oldpassword123',
             newPassword: 'newpassword123',
         };
-      const result = await controller.updateUser(userId, updateDto);
+      const result = await controller.updateUser({ userId }, updateDto);
       expect(result).toEqual({ id: userId, ...updateDto });
       expect(usersService.updateUser).toHaveBeenCalledWith(userId, updateDto);
     });
@@ -83,7 +83,7 @@ describe('UserController', () => {
         throw { message: 'Update failed', status: 400 };
       });
 
-      await expect(controller.updateUser(userId, updateDto)).rejects.toThrow('Update failed');
+      await expect(controller.updateUser({ userId }, updateDto)).rejects.toThrow('Update failed');
     });
   });
 });
