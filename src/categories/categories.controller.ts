@@ -1,22 +1,35 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Patch,
+  Delete,
+} from '@nestjs/common';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
-import { Category } from './category.schema'; 
-import { ZodValidation, CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
+import { Category } from './category.schema';
+import {
+  ZodValidation,
+  CompoundZodValidation,
+} from '../common/decorators/zod-validation.decorator';
 import {
   createCategorySchema,
   updateCategorySchema,
   categoryIdParamSchema,
-} from '../common/schemas/category.schemas'; 
+} from '../common/schemas/category.schemas';
 
 @Controller('categories')
-export class CategoriesController { 
-  constructor(private readonly categoriesService: CategoriesService) {} 
+export class CategoriesController {
+  constructor(private readonly categoriesService: CategoriesService) {}
 
   @Post()
   @ZodValidation(createCategorySchema)
-  async create(@Body() createCategoryDto: CreateCategoryDto): Promise<Category> {
+  async create(
+    @Body() createCategoryDto: CreateCategoryDto,
+  ): Promise<Category> {
     return this.categoriesService.create(createCategoryDto);
   }
 
@@ -37,9 +50,9 @@ export class CategoriesController {
   }
 
   @Patch(':id')
-  @CompoundZodValidation({ 
-    params: categoryIdParamSchema, 
-    body: updateCategorySchema 
+  @CompoundZodValidation({
+    params: categoryIdParamSchema,
+    body: updateCategorySchema,
   })
   async update(
     @Param() params: { id: string },

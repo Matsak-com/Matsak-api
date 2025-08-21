@@ -89,7 +89,7 @@ export class AuthController {
   async getAuthenticatedUser(@Request() request: RequestWithUser) {
     return await this.usersService.getUser({
       userId: request.user.userId,
-    }); 
+    });
   }
 
   /**
@@ -141,7 +141,7 @@ export class AuthController {
 
   @UseGuards(AuthGuard('facebook'))
   @Get('facebook/login')
-  async facebookAuth(@Request() req) {
+  async facebookAuth() {
     // Initiates the Facebook OAuth2 login flow
   }
 

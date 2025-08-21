@@ -18,7 +18,10 @@ import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
 import { TeamsService } from './teams.service';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ZodValidation, CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
+import {
+  ZodValidation,
+  CompoundZodValidation,
+} from '../common/decorators/zod-validation.decorator';
 import {
   createTeamSchema,
   updateTeamSchema,
@@ -62,9 +65,9 @@ export class TeamsController {
 
   @Put(':id')
   @UseInterceptors(FileInterceptor('logoUrl'))
-  @CompoundZodValidation({ 
-    params: teamIdParamSchema, 
-    body: updateTeamSchema 
+  @CompoundZodValidation({
+    params: teamIdParamSchema,
+    body: updateTeamSchema,
   })
   async update(
     @Param() params: { id: string },

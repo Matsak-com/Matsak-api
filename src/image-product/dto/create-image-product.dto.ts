@@ -2,10 +2,9 @@ import { IsString, IsEnum, IsOptional, Matches } from 'class-validator';
 
 export class CreateImageProductDto {
   @IsString()
-  filename: string; 
+  filename: string;
 
   @IsOptional()
   @IsString()
-  altText?: string; 
-
+  altText?: string;
 }

@@ -1,7 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-export function encodeImageToBase64(filePath: string): { mimeType: string, data: string } {
+export function encodeImageToBase64(filePath: string): {
+  mimeType: string;
+  data: string;
+} {
   if (!fs.existsSync(filePath)) {
     throw new Error(`File not found: ${filePath}`);
   }

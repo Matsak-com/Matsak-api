@@ -12,5 +12,4 @@ export class DetailProductRepository extends BaseRepository<DetailProductDocumen
   ) {
     super(detailProductModel);
   }
-
 }

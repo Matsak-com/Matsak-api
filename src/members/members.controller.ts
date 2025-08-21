@@ -10,7 +10,10 @@ import {
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { MembersService } from './members.service';
-import { ZodValidation, CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
+import {
+  ZodValidation,
+  CompoundZodValidation,
+} from '../common/decorators/zod-validation.decorator';
 import {
   createMemberSchema,
   updateMemberSchema,
@@ -42,9 +45,9 @@ export class MembersController {
   }
 
   @Put(':id')
-  @CompoundZodValidation({ 
-    params: memberIdParamSchema, 
-    body: updateMemberSchema 
+  @CompoundZodValidation({
+    params: memberIdParamSchema,
+    body: updateMemberSchema,
   })
   async update(
     @Param() params: { id: string },

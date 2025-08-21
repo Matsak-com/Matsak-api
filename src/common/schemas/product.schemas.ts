@@ -55,4 +55,6 @@ export type UpdateImageProductDto = z.infer<typeof updateImageProductSchema>;
 export type CreateProductDto = z.infer<typeof createProductSchema>;
 export type UpdateProductDto = z.infer<typeof updateProductSchema>;
 export type ProductIdParam = z.infer<typeof productIdParamSchema>;
-export type UpdateSubcategoryParam = z.infer<typeof updateSubcategoryParamSchema>;
+export type UpdateSubcategoryParam = z.infer<
+  typeof updateSubcategoryParamSchema
+>;

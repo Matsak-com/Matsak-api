@@ -37,9 +37,9 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @Patch('/:userId')
-  @CompoundZodValidation({ 
+  @CompoundZodValidation({
     params: userIdParamSchema,
-    body: updateUserSchema.merge(updatePasswordSchema).partial()
+    body: updateUserSchema.merge(updatePasswordSchema).partial(),
   })
   updateUser(
     @Param() params: { userId: string },

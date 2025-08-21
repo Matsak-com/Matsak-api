@@ -4,7 +4,6 @@ import {
   Controller,
   Delete,
   Get,
-  Param,
   Patch,
   Post,
   Query,
@@ -13,7 +12,10 @@ import {
 import { Request } from 'express';
 import { CartService } from './cart.service';
 import { AddToCartDto } from './dto/add-to-cart.dto';
-import { ZodValidation, CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
+import {
+  ZodValidation,
+  CompoundZodValidation,
+} from '../common/decorators/zod-validation.decorator';
 import {
   addToCartSchema,
   updateCartQuantitySchema,
@@ -52,16 +54,17 @@ export class CartController {
   ) {
     const sessionId = req.cookies.sessionId;
     if (!sessionId) throw new BadRequestException('Session ID manquant');
-    return this.cartService.updateItemQuantity(sessionId, query.productId, body.quantity);
+    return this.cartService.updateItemQuantity(
+      sessionId,
+      query.productId,
+      body.quantity,
+    );
   }
 
   // DELETE /cart/remove?productId=xxx
   @Delete('remove')
   @CompoundZodValidation({ query: productIdQuerySchema })
-  async remove(
-    @Req() req: Request,
-    @Query() query: { productId: string },
-  ) {
+  async remove(@Req() req: Request, @Query() query: { productId: string }) {
     const sessionId = req.cookies.sessionId;
     if (!sessionId) throw new BadRequestException('Session ID manquant');
     return this.cartService.deleteItem(sessionId, query.productId);

@@ -8,7 +8,9 @@ export const createUserSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   firstname: z.string().min(1, 'First name is required'),
   email: z.string().email('You must provide a valid email address.'),
-  password: z.string().min(8, 'Your password must be more than 8 characters long.'),
+  password: z
+    .string()
+    .min(8, 'Your password must be more than 8 characters long.'),
   role: UserRoleEnum.default('user'),
   isResettingPassword: z.boolean().optional(),
   resetPasswordToken: z.string().nullable().optional(),
@@ -18,7 +20,9 @@ export const createUserSchema = z.object({
 
 export const loginUserSchema = z.object({
   email: z.string().email('You must provide a valid email address.'),
-  password: z.string().min(8, 'Your password must be more than 8 characters long.'),
+  password: z
+    .string()
+    .min(8, 'Your password must be more than 8 characters long.'),
   provider: z.string().optional(), // Optional field for provider (e.g., 'facebook', 'google')
   accessToken: z.string().optional(), // Optional field for access token (e.g., from Facebook or Google)
 });
@@ -28,7 +32,9 @@ export const resetPasswordRequestSchema = z.object({
 });
 
 export const resetPasswordSchema = z.object({
-  newPassword: z.string().min(8, 'Your password must be more than 8 characters long.'),
+  newPassword: z
+    .string()
+    .min(8, 'Your password must be more than 8 characters long.'),
   token: z.string().min(1, 'Reset token is required'),
 });
 
@@ -40,7 +46,9 @@ export const updateUserSchema = z.object({
 
 export const updatePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string().min(8, 'Your password must be more than 8 characters long.'),
+  newPassword: z
+    .string()
+    .min(8, 'Your password must be more than 8 characters long.'),
 });
 
 export const googleCallbackSchema = z.object({
@@ -64,7 +72,9 @@ export const tokenQuerySchema = z.object({
 // Type exports for TypeScript
 export type CreateUserDto = z.infer<typeof createUserSchema>;
 export type LoginUserDto = z.infer<typeof loginUserSchema>;
-export type ResetPasswordRequestDto = z.infer<typeof resetPasswordRequestSchema>;
+export type ResetPasswordRequestDto = z.infer<
+  typeof resetPasswordRequestSchema
+>;
 export type ResetPasswordDto = z.infer<typeof resetPasswordSchema>;
 export type UpdateUserDto = z.infer<typeof updateUserSchema>;
 export type UpdatePasswordDto = z.infer<typeof updatePasswordSchema>;

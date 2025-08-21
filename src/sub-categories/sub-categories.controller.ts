@@ -1,8 +1,19 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { SubCategoriesService } from './sub-categories.service';
 import { CreateSubCategoryDto } from './dto/create-sub-category.dto';
 import { UpdateSubCategoryDto } from './dto/update-sub-category.dto';
-import { ZodValidation, CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
+import {
+  ZodValidation,
+  CompoundZodValidation,
+} from '../common/decorators/zod-validation.decorator';
 import {
   createSubCategorySchema,
   updateSubCategorySchema,
@@ -32,11 +43,14 @@ export class SubCategoriesController {
   }
 
   @Patch(':id')
-  @CompoundZodValidation({ 
-    params: subCategoryIdParamSchema, 
-    body: updateSubCategorySchema 
+  @CompoundZodValidation({
+    params: subCategoryIdParamSchema,
+    body: updateSubCategorySchema,
   })
-  update(@Param() params: { id: string }, @Body() updateSubCategoryDto: UpdateSubCategoryDto) {
+  update(
+    @Param() params: { id: string },
+    @Body() updateSubCategoryDto: UpdateSubCategoryDto,
+  ) {
     return this.subCategoriesService.update(params.id, updateSubCategoryDto);
   }
 

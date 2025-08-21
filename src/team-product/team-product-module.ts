@@ -4,7 +4,6 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { TeamProductController } from './team-product-controller';
 import { TeamProduct, TeamProductSchema } from './team-product.schema';
 
-
 @Module({
   imports: [
     MongooseModule.forFeature([

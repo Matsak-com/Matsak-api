@@ -29,9 +29,12 @@ export class TeamProductController {
   }
 
   @Get(':id')
-  async findOne(@Param('id', ParseObjectIdPipe) id: string): Promise<TeamProduct> {
+  async findOne(
+    @Param('id', ParseObjectIdPipe) id: string,
+  ): Promise<TeamProduct> {
     const item = await this.teamProductService.findById(id);
-    if (!item) throw new NotFoundException(`TeamProduct with id ${id} not found`);
+    if (!item)
+      throw new NotFoundException(`TeamProduct with id ${id} not found`);
     return item;
   }
 
@@ -41,14 +44,18 @@ export class TeamProductController {
     @Body() updateDto: UpdateTeamProductDto,
   ): Promise<TeamProduct> {
     const updated = await this.teamProductService.update(id, updateDto);
-    if (!updated) throw new NotFoundException(`TeamProduct with id ${id} not found`);
+    if (!updated)
+      throw new NotFoundException(`TeamProduct with id ${id} not found`);
     return updated;
   }
 
   @Delete(':id')
-  async remove(@Param('id', ParseObjectIdPipe) id: string): Promise<{ deleted: boolean }> {
+  async remove(
+    @Param('id', ParseObjectIdPipe) id: string,
+  ): Promise<{ deleted: boolean }> {
     const deleted = await this.teamProductService.delete(id);
-    if (!deleted) throw new NotFoundException(`TeamProduct with id ${id} not found`);
+    if (!deleted)
+      throw new NotFoundException(`TeamProduct with id ${id} not found`);
     return { deleted };
   }
 }

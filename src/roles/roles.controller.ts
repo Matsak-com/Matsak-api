@@ -13,7 +13,10 @@ import {
 import { RolesService } from './roles.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
-import { ZodValidation, CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
+import {
+  ZodValidation,
+  CompoundZodValidation,
+} from '../common/decorators/zod-validation.decorator';
 import {
   createRoleSchema,
   updateRoleSchema,
@@ -43,9 +46,9 @@ export class RolesController {
   }
 
   @Put(':id')
-  @CompoundZodValidation({ 
-    params: roleIdParamSchema, 
-    body: updateRoleSchema 
+  @CompoundZodValidation({
+    params: roleIdParamSchema,
+    body: updateRoleSchema,
   })
   async update(
     @Param() params: { id: string },
