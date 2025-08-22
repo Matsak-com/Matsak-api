@@ -6,7 +6,7 @@ import * as promptLib from 'prompt';
 import * as bcrypt from 'bcrypt';
 
 interface PasswordChangeInput {
-  userId: string;
+  email: string;
   newPassword: string;
   confirmPassword: string;
   confirm: string;
@@ -46,14 +46,14 @@ async function main() {
 async function changeUserPasswordInteractive(userService: UsersService) {
   promptLib.start();
 
-  // Step 1: Get user ID
+  // Step 1: Get user email
   console.log('📌 Étape 1: Identification de l\'utilisateur');
-  const userIdInput = await promptForUserInput({
+  const userEmailInput = await promptForUserInput({
     properties: {
-      userId: {
-        description: 'Entrez l\'ID de l\'utilisateur',
-        pattern: /^[a-fA-F0-9]{24}$|^.+$/,
-        message: 'Veuillez entrer un ID utilisateur valide',
+      email: {
+        description: 'Entrez l\'adresse email de l\'utilisateur',
+        pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        message: 'Veuillez entrer une adresse email valide',
         required: true,
       },
     },
@@ -63,9 +63,12 @@ async function changeUserPasswordInteractive(userService: UsersService) {
   console.log('\n🔍 Recherche de l\'utilisateur...');
   let user;
   try {
-    user = await userService.getUser({ userId: userIdInput.userId });
+    user = await userService.findByEmail(userEmailInput.email);
+    if (!user) {
+      throw new Error(`Utilisateur non trouvé avec l'email: ${userEmailInput.email}`);
+    }
   } catch (error) {
-    throw new Error(`Utilisateur non trouvé avec l'ID: ${userIdInput.userId}`);
+    throw new Error(`Utilisateur non trouvé avec l'email: ${userEmailInput.email}`);
   }
 
   console.log('\n✅ Utilisateur trouvé:');
@@ -145,7 +148,7 @@ async function changeUserPasswordInteractive(userService: UsersService) {
     
     // Update user directly with the new hashed password
     await userService.update(
-      { _id: userIdInput.userId },
+      { email: userEmailInput.email },
       { password: hashedPassword }
     );
 
