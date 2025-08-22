@@ -7,6 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "add-user": "ts-node src/scripts/add-user.ts",
+    "change-user-password": "ts-node src/bin/script/users/change-user-password.ts change-user-password",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
