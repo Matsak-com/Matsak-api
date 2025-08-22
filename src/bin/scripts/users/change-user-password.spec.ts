@@ -25,16 +25,15 @@ describe('ChangeUserPassword Script Components', () => {
   });
 
   describe('User input validation patterns', () => {
-    it('should validate ObjectId pattern used in script', () => {
-      const objectIdPattern = /^[a-fA-F0-9]{24}$|^.+$/;
-      const validObjectId = '507f1f77bcf86cd799439011';
-      const validString = 'test@example.com';
+    it('should validate email pattern used in script', () => {
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const validEmail = 'test@example.com';
+      const invalidEmail = 'invalid-email';
       const emptyString = '';
       
-      expect(objectIdPattern.test(validObjectId)).toBe(true);
-      expect(objectIdPattern.test(validString)).toBe(true);
-      // Empty string should match the .+ part but won't in practice due to required: true
-      expect(emptyString.length > 0).toBe(false);
+      expect(emailPattern.test(validEmail)).toBe(true);
+      expect(emailPattern.test(invalidEmail)).toBe(false);
+      expect(emailPattern.test(emptyString)).toBe(false);
     });
 
     it('should validate confirmation responses', () => {

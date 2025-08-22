@@ -13,8 +13,8 @@ npm run change-user-password
 The script provides a step-by-step interactive process:
 
 ### Step 1: User Identification
-- Prompts for user ID (MongoDB ObjectId or any string identifier)
-- Validates the input format
+- Prompts for user email address
+- Validates the email format
 
 ### Step 2: User Verification
 - Searches for the user in the database
@@ -69,15 +69,14 @@ The script handles various error scenarios:
 ================================================
 
 📌 Étape 1: Identification de l'utilisateur
-prompt: Entrez l'ID de l'utilisateur: 507f1f77bcf86cd799439011
+prompt: Entrez l'adresse email de l'utilisateur: jean.dupont@example.com
 
 🔍 Recherche de l'utilisateur...
 
 ✅ Utilisateur trouvé:
-   - ID: 507f1f77bcf86cd799439011
+   - Email: jean.dupont@example.com
    - Nom: Dupont
    - Prénom: Jean
-   - Email: jean.dupont@example.com
 
 📌 Étape 2: Confirmation de l'action
 prompt: Voulez-vous vraiment changer le mot de passe de cet utilisateur? (oui/non): oui
