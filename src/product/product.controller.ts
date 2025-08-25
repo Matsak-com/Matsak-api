@@ -13,7 +13,7 @@ import { CreateDetailProductDto } from 'src/detail-product/dto/create-detail-pro
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body() createProductDto: CreateProductDto) {
     return this.productService.create(createProductDto);
@@ -25,7 +25,7 @@ export class ProductController {
     return this.productService.findAll();
   }
 
-  @UseGuards(JwtAuthGuard)
+  // @UseGuards(JwtAuthGuard)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.productService.findOne(id);

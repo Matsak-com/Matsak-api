@@ -4,7 +4,6 @@ import {
   Controller,
   Delete,
   Get,
-  Param,
   Patch,
   Post,
   Query,
@@ -18,6 +17,7 @@ import { AddToCartDto } from './dto/add-to-cart.dto';
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 
+  // Ajouter un produit au panier (en mémoire)
   @Post('add')
   async add(@Body() dto: AddToCartDto, @Req() req: Request) {
     const sessionId = req.cookies.sessionId;
@@ -25,6 +25,7 @@ export class CartController {
     return this.cartService.addToCart(sessionId, dto);
   }
 
+  // Récupérer le panier pour la session
   @Get()
   async get(@Req() req: Request) {
     const sessionId = req.cookies.sessionId;
@@ -32,7 +33,7 @@ export class CartController {
     return this.cartService.getCart(sessionId);
   }
 
-  // PATCH /cart/update?productId=xxx
+  // Modifier la quantité d'un produit dans le panier
   @Patch('update')
   async updateQuantity(
     @Req() req: Request,
@@ -42,24 +43,35 @@ export class CartController {
     const sessionId = req.cookies.sessionId;
     if (!sessionId) throw new BadRequestException('Session ID manquant');
     if (!productId) throw new BadRequestException('productId manquant');
+    if (quantity == null || quantity < 1) {
+      throw new BadRequestException('Quantité invalide');
+    }
+
     return this.cartService.updateItemQuantity(sessionId, productId, quantity);
   }
 
-  // DELETE /cart/remove?productId=xxx
+  // Supprimer un produit du panier
   @Delete('remove')
-  async remove(
-    @Req() req: Request,
-    @Query('productId') productId: string,
-  ) {
+  async remove(@Req() req: Request, @Query('productId') productId: string) {
     const sessionId = req.cookies.sessionId;
     if (!sessionId) throw new BadRequestException('Session ID manquant');
     if (!productId) throw new BadRequestException('productId manquant');
     return this.cartService.deleteItem(sessionId, productId);
   }
 
+  // Vider le panier
   @Delete('clear')
-  async clearCart(@Req() req: Request) {
+  async clear(@Req() req: Request) {
     const sessionId = req.cookies.sessionId;
+    if (!sessionId) throw new BadRequestException('Session ID manquant');
     return this.cartService.clearCart(sessionId);
+  }
+
+  // Debug (voir le panier brut en mémoire)
+  @Get('debug')
+  async debug(@Req() req: Request) {
+    const sessionId = req.cookies.sessionId;
+    if (!sessionId) throw new BadRequestException('Session ID manquant');
+    return this.cartService.debugCart(sessionId);
   }
 }
