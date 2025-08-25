@@ -1,6 +1,6 @@
 /**
  * Change User Password Script Tests
- * 
+ *
  * This test file validates the change-user-password script functionality.
  * These are basic unit tests for the script components.
  */
@@ -9,7 +9,7 @@ describe('ChangeUserPassword Script Components', () => {
     it('should validate password length requirement', () => {
       const validPassword = 'password123';
       const invalidPassword = '123';
-      
+
       expect(validPassword.length >= 8).toBe(true);
       expect(invalidPassword.length >= 8).toBe(false);
     });
@@ -18,7 +18,7 @@ describe('ChangeUserPassword Script Components', () => {
       const password = 'password123';
       const confirmPassword = 'password123';
       const wrongConfirmPassword = 'password456';
-      
+
       expect(password).toBe(confirmPassword);
       expect(password).not.toBe(wrongConfirmPassword);
     });
@@ -30,7 +30,7 @@ describe('ChangeUserPassword Script Components', () => {
       const validEmail = 'test@example.com';
       const invalidEmail = 'invalid-email';
       const emptyString = '';
-      
+
       expect(emailPattern.test(validEmail)).toBe(true);
       expect(emailPattern.test(invalidEmail)).toBe(false);
       expect(emailPattern.test(emptyString)).toBe(false);
@@ -39,13 +39,17 @@ describe('ChangeUserPassword Script Components', () => {
     it('should validate confirmation responses', () => {
       const validResponses = ['oui', 'o', 'yes', 'y'];
       const invalidResponses = ['non', 'n', 'no', 'maybe'];
-      
-      validResponses.forEach(response => {
-        expect(['oui', 'o', 'yes', 'y'].includes(response.toLowerCase())).toBe(true);
+
+      validResponses.forEach((response) => {
+        expect(['oui', 'o', 'yes', 'y'].includes(response.toLowerCase())).toBe(
+          true,
+        );
       });
-      
-      invalidResponses.forEach(response => {
-        expect(['oui', 'o', 'yes', 'y'].includes(response.toLowerCase())).toBe(false);
+
+      invalidResponses.forEach((response) => {
+        expect(['oui', 'o', 'yes', 'y'].includes(response.toLowerCase())).toBe(
+          false,
+        );
       });
     });
   });
@@ -55,7 +59,7 @@ describe('ChangeUserPassword Script Components', () => {
       const fs = require('fs');
       const path = require('path');
       const scriptPath = path.join(__dirname, './change-user-password.ts');
-      
+
       expect(fs.existsSync(scriptPath)).toBe(true);
     });
 
@@ -64,7 +68,7 @@ describe('ChangeUserPassword Script Components', () => {
       const path = require('path');
       const scriptPath = path.join(__dirname, './change-user-password.ts');
       const scriptContent = fs.readFileSync(scriptPath, 'utf8');
-      
+
       expect(scriptContent).toContain('import { Command }');
       expect(scriptContent).toContain('import { NestFactory }');
       expect(scriptContent).toContain('import { UsersService }');

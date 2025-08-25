@@ -36,7 +36,9 @@ async function main() {
 
   // Default command handler
   program.command('*').action(() => {
-    console.log('🎯 Commande non reconnue. Utilisez --help pour obtenir la liste des commandes disponibles.');
+    console.log(
+      '🎯 Commande non reconnue. Utilisez --help pour obtenir la liste des commandes disponibles.',
+    );
   });
 
   // Parse command line arguments
@@ -47,11 +49,11 @@ async function changeUserPasswordInteractive(userService: UsersService) {
   promptLib.start();
 
   // Step 1: Get user email
-  console.log('📌 Étape 1: Identification de l\'utilisateur');
+  console.log("📌 Étape 1: Identification de l'utilisateur");
   const userEmailInput = await promptForUserInput({
     properties: {
       email: {
-        description: 'Entrez l\'adresse email de l\'utilisateur',
+        description: "Entrez l'adresse email de l'utilisateur",
         pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
         message: 'Veuillez entrer une adresse email valide',
         required: true,
@@ -60,15 +62,19 @@ async function changeUserPasswordInteractive(userService: UsersService) {
   });
 
   // Step 2: Verify user exists and display info
-  console.log('\n🔍 Recherche de l\'utilisateur...');
+  console.log("\n🔍 Recherche de l'utilisateur...");
   let user;
   try {
     user = await userService.findByEmail(userEmailInput.email);
     if (!user) {
-      throw new Error(`Utilisateur non trouvé avec l'email: ${userEmailInput.email}`);
+      throw new Error(
+        `Utilisateur non trouvé avec l'email: ${userEmailInput.email}`,
+      );
     }
   } catch (error) {
-    throw new Error(`Utilisateur non trouvé avec l'email: ${userEmailInput.email}`);
+    throw new Error(
+      `Utilisateur non trouvé avec l'email: ${userEmailInput.email}`,
+    );
   }
 
   console.log('\n✅ Utilisateur trouvé:');
@@ -78,11 +84,12 @@ async function changeUserPasswordInteractive(userService: UsersService) {
   console.log(`   - Email: ${user.email}`);
 
   // Step 3: Confirm action
-  console.log('\n📌 Étape 2: Confirmation de l\'action');
+  console.log("\n📌 Étape 2: Confirmation de l'action");
   const confirmAction = await promptForUserInput({
     properties: {
       confirm: {
-        description: 'Voulez-vous vraiment changer le mot de passe de cet utilisateur? (oui/non)',
+        description:
+          'Voulez-vous vraiment changer le mot de passe de cet utilisateur? (oui/non)',
         pattern: /^(oui|non|o|n|yes|no|y|n)$/i,
         message: 'Veuillez répondre par "oui" ou "non"',
         required: true,
@@ -91,7 +98,7 @@ async function changeUserPasswordInteractive(userService: UsersService) {
   });
 
   if (!['oui', 'o', 'yes', 'y'].includes(confirmAction.confirm.toLowerCase())) {
-    console.log('❌ Opération annulée par l\'utilisateur.');
+    console.log("❌ Opération annulée par l'utilisateur.");
     return;
   }
 
@@ -118,7 +125,9 @@ async function changeUserPasswordInteractive(userService: UsersService) {
 
   // Step 5: Validate password confirmation
   if (passwordInput.newPassword !== passwordInput.confirmPassword) {
-    throw new Error('Les mots de passe ne correspondent pas. Opération annulée.');
+    throw new Error(
+      'Les mots de passe ne correspondent pas. Opération annulée.',
+    );
   }
 
   // Step 6: Final confirmation
@@ -134,31 +143,36 @@ async function changeUserPasswordInteractive(userService: UsersService) {
     },
   });
 
-  if (!['oui', 'o', 'yes', 'y'].includes(finalConfirm.finalConfirm.toLowerCase())) {
-    console.log('❌ Opération annulée par l\'utilisateur.');
+  if (
+    !['oui', 'o', 'yes', 'y'].includes(finalConfirm.finalConfirm.toLowerCase())
+  ) {
+    console.log("❌ Opération annulée par l'utilisateur.");
     return;
   }
 
   // Step 7: Update password
   console.log('\n🔄 Mise à jour du mot de passe...');
-  
+
   try {
     // Hash the new password
     const hashedPassword = await bcrypt.hash(passwordInput.newPassword, 10);
-    
+
     // Update user directly with the new hashed password
     await userService.update(
       { email: userEmailInput.email },
-      { password: hashedPassword }
+      { password: hashedPassword },
     );
 
     console.log('\n✅ Mot de passe changé avec succès!');
     console.log(`   - Utilisateur: ${user.email}`);
     console.log(`   - Date: ${new Date().toLocaleString('fr-FR')}`);
-    console.log('\n🔐 L\'utilisateur peut maintenant se connecter avec son nouveau mot de passe.');
-    
+    console.log(
+      "\n🔐 L'utilisateur peut maintenant se connecter avec son nouveau mot de passe.",
+    );
   } catch (error) {
-    throw new Error(`Erreur lors de la mise à jour du mot de passe: ${(error as Error).message}`);
+    throw new Error(
+      `Erreur lors de la mise à jour du mot de passe: ${(error as Error).message}`,
+    );
   }
 }
 

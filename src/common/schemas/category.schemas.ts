@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { objectIdSchema } from './common.schemas';
 
 // Category validation schemas
 export const createCategorySchema = z.object({
@@ -11,7 +12,7 @@ export const updateCategorySchema = z.object({
 
 // Parameter validation schemas
 export const categoryIdParamSchema = z.object({
-  id: z.string().min(1, 'Category ID is required'),
+  id: objectIdSchema,
 });
 
 // Type exports for TypeScript
