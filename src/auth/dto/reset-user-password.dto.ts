@@ -1,10 +1,10 @@
 import { IsNotEmpty, IsString, MinLength } from 'class-validator';
 
 export class ResetUserPasswordDto {
-    @IsNotEmpty()
-    @MinLength(8, {
-      message: 'Your password must be more than 8 characters long.',
-    })
+  @IsNotEmpty()
+  @MinLength(8, {
+    message: 'Your password must be more than 8 characters long.',
+  })
   password: string;
 
   @IsString({

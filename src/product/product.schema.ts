@@ -20,7 +20,7 @@ export class Product {
   subcategory: Types.ObjectId;
 
   //references to ImageProduct
-  @Prop({ type:Types.ObjectId, ref: ImageProduct.name  })
+  @Prop({ type: Types.ObjectId, ref: ImageProduct.name })
   images: Types.ObjectId;
 
   @Prop({ required: false })

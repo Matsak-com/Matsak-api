@@ -21,8 +21,10 @@ import { AddressModule } from './client/address.module';
 
 @Module({
   imports: [
-    MongooseModule.forRoot(process.env.MONGO_URI || 'mongodb://localhost:27017/matsak'),
-    UsersModule, 
+    MongooseModule.forRoot(
+      process.env.MONGO_URI || 'mongodb://localhost:27017/matsak',
+    ),
+    UsersModule,
     AuthModule,
     ConfigModule.forRoot(),
     TeamsModule,
@@ -43,7 +45,7 @@ import { AddressModule } from './client/address.module';
   providers: [AppService],
 })
 export class AppModule {
-    configure(consumer: MiddlewareConsumer) {
+  configure(consumer: MiddlewareConsumer) {
     consumer.apply(SessionMiddleware).forRoutes('*');
   }
 }

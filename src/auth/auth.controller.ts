@@ -20,6 +20,15 @@ import { UserRole } from 'src/users/user.schema';
 import { FacebookProvider } from 'src/sso/facebook/facebook.provider';
 import { generateRandomPassword } from 'src/users/utils/password.utils';
 import { GoogleService } from 'src/sso/google/google.service';
+import { ZodValidation } from '../common/decorators/zod-validation.decorator';
+import {
+  createUserSchema,
+  loginUserSchema,
+  resetPasswordRequestSchema,
+  resetPasswordSchema,
+  googleCallbackSchema,
+  tokenQuerySchema,
+} from '../common/schemas/auth.schemas';
 
 @Controller('auth')
 export class AuthController {
@@ -30,6 +39,7 @@ export class AuthController {
   ) {}
 
   @Post('register')
+  @ZodValidation(createUserSchema)
   async register(@Body() createUserDto: CreateUserDto) {
     try {
       const user = await this.authService.register({ createUserDto });
@@ -43,11 +53,13 @@ export class AuthController {
   }
 
   @Post('login')
+  @ZodValidation(loginUserSchema)
   async login(@Body() loginDto: LogUserDto) {
     return this.authService.login({ loginDto });
   }
 
   @Post('request-reset-password')
+  @ZodValidation(resetPasswordRequestSchema)
   async resetUserPasswordRequest(@Body('email') email: string) {
     return await this.authService.resetUserPasswordRequest({
       email,
@@ -56,6 +68,7 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Post('reset-password')
+  @ZodValidation(resetPasswordSchema)
   async resetUserPassword(@Body() resetPasswordDto: ResetUserPasswordDto) {
     return await this.authService.resetUserPassword({
       resetPasswordDto,
@@ -64,6 +77,7 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get('verify-reset-password-token')
+  @ZodValidation(tokenQuerySchema)
   async verifyResetPasswordToken(@Query('token') token: string) {
     return await this.authService.verifyResetPasswordToken({
       token,
@@ -75,7 +89,7 @@ export class AuthController {
   async getAuthenticatedUser(@Request() request: RequestWithUser) {
     return await this.usersService.getUser({
       userId: request.user.userId,
-    }); 
+    });
   }
 
   /**
@@ -88,6 +102,7 @@ export class AuthController {
    * @throws ConflictException if Google authentication fails.
    */
   @Post('google/callback')
+  @ZodValidation(googleCallbackSchema)
   async googleAuthCallback(@Body('accessToken') accessToken: string) {
     try {
       // Handle Google OAuth2 callback and get user info
@@ -126,7 +141,7 @@ export class AuthController {
 
   @UseGuards(AuthGuard('facebook'))
   @Get('facebook/login')
-  async facebookAuth(@Request() req) {
+  async facebookAuth() {
     // Initiates the Facebook OAuth2 login flow
   }
 

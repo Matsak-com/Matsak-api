@@ -20,6 +20,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { CreateImageProductDto } from './dto/create-image-product.dto';
 import { UpdateImageProductDto } from './dto/update-image-product.dto';
+import { CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
+import {
+  createImageProductSchema,
+  updateImageProductSchema,
+} from '../common/schemas/product.schemas';
+import { idParamSchema } from '../common/schemas/common.schemas';
 
 @Controller('image-product')
 export class ImageProductController {
@@ -37,7 +43,10 @@ export class ImageProductController {
       }),
       fileFilter: (req, file, callback) => {
         if (!file.mimetype.startsWith('image/')) {
-          callback(new BadRequestException('Seuls les fichiers image sont autorisés'), false);
+          callback(
+            new BadRequestException('Seuls les fichiers image sont autorisés'),
+            false,
+          );
         } else {
           callback(null, true);
         }
@@ -50,14 +59,14 @@ export class ImageProductController {
   async create(
     @UploadedFile() file: Express.Multer.File,
     @Body('altText') altText: string,
-      ) {
-        const filePath = path.resolve('uploads', 'image-products', file.filename);
+  ) {
+    const filePath = path.resolve('uploads', 'image-products', file.filename);
 
-        // Crée le DTO manuellement
-        const createImageDto: CreateImageProductDto = {
-          filename: filePath,
-          altText,
-        };
+    // Crée le DTO manuellement
+    const createImageDto: CreateImageProductDto = {
+      filename: filePath,
+      altText,
+    };
 
     return this.imageProductService.create(createImageDto);
   }
@@ -68,24 +77,33 @@ export class ImageProductController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string): Promise<ImageProduct> {
-    return this.imageProductService.findOne(id);
+  @CompoundZodValidation({ params: idParamSchema })
+  async findOne(@Param() params: { id: string }): Promise<ImageProduct> {
+    return this.imageProductService.findOne(params.id);
   }
 
   @Patch(':id')
-    async update(
-      @Param('id') id: string,
-      @Body() updateImageDto: UpdateImageProductDto,
-    ) {
-      const updatedImage = await this.imageProductService.update(id, updateImageDto);
-      if (!updatedImage) {
-        throw new NotFoundException(`Image with ID ${id} not found`);
-      }
-      return updatedImage;
+  @CompoundZodValidation({
+    params: idParamSchema,
+    body: updateImageProductSchema,
+  })
+  async update(
+    @Param() params: { id: string },
+    @Body() updateImageDto: UpdateImageProductDto,
+  ) {
+    const updatedImage = await this.imageProductService.update(
+      params.id,
+      updateImageDto,
+    );
+    if (!updatedImage) {
+      throw new NotFoundException(`Image with ID ${params.id} not found`);
+    }
+    return updatedImage;
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string): Promise<any> {
-    return this.imageProductService.remove(id);
+  @CompoundZodValidation({ params: idParamSchema })
+  async remove(@Param() params: { id: string }): Promise<any> {
+    return this.imageProductService.remove(params.id);
   }
 }

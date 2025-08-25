@@ -57,7 +57,7 @@ describe('ImageProductService', () => {
 
       const result = await service.create(createImageDto);
       expect(result).toEqual(mockImageProduct);
-      expect(model.save).toHaveBeenCalledWith(createImageDto);  // Vérifie que save a bien été appelé avec les bons paramètres
+      expect(model.save).toHaveBeenCalledWith(createImageDto); // Vérifie que save a bien été appelé avec les bons paramètres
     });
   });
 
@@ -85,7 +85,9 @@ describe('ImageProductService', () => {
 
       const result = await service.update(id, updateImageDto);
       expect(result).toEqual(mockImageProduct);
-      expect(model.findByIdAndUpdate).toHaveBeenCalledWith(id, updateImageDto, { new: true });
+      expect(model.findByIdAndUpdate).toHaveBeenCalledWith(id, updateImageDto, {
+        new: true,
+      });
     });
   });
 

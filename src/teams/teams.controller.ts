@@ -10,11 +10,23 @@ import {
   HttpStatus,
   UseInterceptors,
   UploadedFile,
+  ParseFilePipe,
+  FileTypeValidator,
+  MaxFileSizeValidator,
 } from '@nestjs/common';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
 import { TeamsService } from './teams.service';
 import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ZodValidation,
+  CompoundZodValidation,
+} from '../common/decorators/zod-validation.decorator';
+import {
+  createTeamSchema,
+  updateTeamSchema,
+  teamIdParamSchema,
+} from '../common/schemas/team.schemas';
 
 @Controller('teams')
 export class TeamsController {
@@ -23,12 +35,20 @@ export class TeamsController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('logoUrl'))
+  @ZodValidation(createTeamSchema)
   async create(
     @Body() createTeamDto: CreateTeamDto,
-    @UploadedFile() logoUrl: Express.Multer.File,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new FileTypeValidator({ fileType: 'image/*' }),
+          new MaxFileSizeValidator({ maxSize: 3 * 1024 * 1024 }),
+        ],
+        fileIsRequired: false,
+      }),
+    )
+    logoUrl: Express.Multer.File,
   ) {
-    console.log('Creating team with data:', createTeamDto);
-    console.log('Received file:', logoUrl);
     return this.teamsService.create({ ...createTeamDto, logoUrl });
   }
 
@@ -38,18 +58,38 @@ export class TeamsController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.teamsService.findOne(id);
+  @CompoundZodValidation({ params: teamIdParamSchema })
+  async findOne(@Param() params: { id: string }) {
+    return this.teamsService.findOne(params.id);
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() updateTeamDto: UpdateTeamDto) {
-    return this.teamsService.update(id, updateTeamDto);
+  @UseInterceptors(FileInterceptor('logoUrl'))
+  @CompoundZodValidation({
+    params: teamIdParamSchema,
+    body: updateTeamSchema,
+  })
+  async update(
+    @Param() params: { id: string },
+    @Body() updateTeamDto: UpdateTeamDto,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new FileTypeValidator({ fileType: 'image/*' }),
+          new MaxFileSizeValidator({ maxSize: 3 * 1024 * 1024 }),
+        ],
+        fileIsRequired: false,
+      }),
+    )
+    logoUrl: Express.Multer.File,
+  ) {
+    return this.teamsService.update(params.id, { ...updateTeamDto, logoUrl });
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string) {
-    await this.teamsService.remove(id);
+  @CompoundZodValidation({ params: teamIdParamSchema })
+  async remove(@Param() params: { id: string }) {
+    await this.teamsService.remove(params.id);
   }
 }

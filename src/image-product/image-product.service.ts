@@ -12,12 +12,13 @@ export class ImageProductService {
   constructor(private readonly imageProductRepo: ImageProductRepository) {}
 
   async create(createImageDto: CreateImageProductDto): Promise<ImageProduct> {
-     console.log('> Reçu DTO :', createImageDto);
+    const filePath = path.resolve(
+      'uploads',
+      'image-products',
+      createImageDto.filename,
+    );
 
-      const filePath = path.resolve('uploads', 'image-products',createImageDto.filename);
-      console.log('> Chemin absolu de l\'image :', filePath);
-
-      const { mimeType, data } = encodeImageToBase64(filePath);
+    const { mimeType, data } = encodeImageToBase64(filePath);
 
     const imageToSave = {
       mimeType,
@@ -29,7 +30,7 @@ export class ImageProductService {
     const savedImage = await this.imageProductRepo.create(imageToSave);
     console.log('> Image enregistrée avec ID :', savedImage.id);
 
-    return savedImage
+    return savedImage;
   }
 
   async findAll(): Promise<ImageProduct[]> {
@@ -42,8 +43,10 @@ export class ImageProductService {
     return result;
   }
 
-
-  async update(id: string, updateImageDto: UpdateImageProductDto): Promise<ImageProduct> {
+  async update(
+    id: string,
+    updateImageDto: UpdateImageProductDto,
+  ): Promise<ImageProduct> {
     const existingImage = await this.imageProductRepo.findById(id);
 
     if (!existingImage) {
@@ -53,16 +56,26 @@ export class ImageProductService {
     let updateData: Partial<ImageProduct> = { ...updateImageDto };
 
     if (updateImageDto.filename) {
-      const oldFilePath = path.resolve('uploads', 'image-products', existingImage.name);
+      const oldFilePath = path.resolve(
+        'uploads',
+        'image-products',
+        existingImage.name,
+      );
       if (fs.existsSync(oldFilePath)) {
         try {
           fs.unlinkSync(oldFilePath);
         } catch (error) {
-          console.warn(`Erreur de suppression de l'ancien fichier : ${error.message}`);
+          console.warn(
+            `Erreur de suppression de l'ancien fichier : ${error.message}`,
+          );
         }
       }
 
-      const newFilePath = path.resolve('uploads', 'image-products', updateImageDto.filename);
+      const newFilePath = path.resolve(
+        'uploads',
+        'image-products',
+        updateImageDto.filename,
+      );
       const { mimeType, data } = encodeImageToBase64(newFilePath);
 
       updateData = {
@@ -77,8 +90,6 @@ export class ImageProductService {
 
     return updatedImage;
   }
-
-
 
   async remove(id: string): Promise<any> {
     const result = await this.imageProductRepo.delete(id);

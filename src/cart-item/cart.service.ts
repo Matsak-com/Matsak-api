@@ -23,11 +23,11 @@ export class CartService {
       cart = { items: [] };
       this.carts.set(sessionId, cart);
     }
-
     // Vérifier si le produit existe déjà
     const existingItem = cart.items.find(item => item.product === dto.productId);
     if (existingItem) {
       existingItem.quantity += quantity;
+
     } else {
       cart.items.push({ product: dto.productId, quantity });
     }
@@ -58,7 +58,6 @@ export class CartService {
 
     return { items: enrichedItems };
   }
-
 
   // Mettre à jour la quantité d'un produit
   async updateItemQuantity(sessionId: string, productId: string, quantity: number) {
@@ -95,7 +94,6 @@ export class CartService {
   async deleteItem(sessionId: string, productId: string) {
     const cart = this.carts.get(sessionId);
     if (!cart) throw new NotFoundException('Panier introuvable');
-
     cart.items = cart.items.filter(i => i.product !== productId);
     return cart;
   }

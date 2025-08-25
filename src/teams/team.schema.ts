@@ -20,34 +20,44 @@ export class Team extends Document {
   @IsNotEmpty()
   email: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, trim: true })
   @IsString()
   @IsNotEmpty()
+  phone: string;
+
+  @Prop({ required: false, trim: true })
+  @IsString()
+  @IsOptional()
+  countryCode: string;
+
+  @Prop({ required: false, trim: true })
+  @IsString()
+  @IsOptional()
   region: string;
 
-  @Prop({ required: true })
+  @Prop({ required: false, trim: true })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   address: string;
 
-  @Prop({ required: true })
+  @Prop({ required: false, trim: true })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   city: string;
 
-  @Prop({ required: false })
+  @Prop({ required: false, trim: true })
   @IsString()
   @IsOptional()
   additionalAddress?: string;
 
-  @Prop({ required: true })
+  @Prop({ required: false })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   postalCode: string;
 
-  @Prop({ required: true })
+  @Prop({ required: false })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   country: string;
 
   @Prop({ required: false })

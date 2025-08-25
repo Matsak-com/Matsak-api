@@ -13,6 +13,15 @@ import {
 import { RolesService } from './roles.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
+import {
+  ZodValidation,
+  CompoundZodValidation,
+} from '../common/decorators/zod-validation.decorator';
+import {
+  createRoleSchema,
+  updateRoleSchema,
+  roleIdParamSchema,
+} from '../common/schemas/role.schemas';
 
 @Controller('roles')
 export class RolesController {
@@ -24,27 +33,34 @@ export class RolesController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.rolesService.findOne(id);
+  @CompoundZodValidation({ params: roleIdParamSchema })
+  async findOne(@Param() params: { id: string }) {
+    return this.rolesService.findOne(params.id);
   }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @ZodValidation(createRoleSchema)
   async create(@Body() createRoleDto: CreateRoleDto) {
     return this.rolesService.create(createRoleDto);
   }
 
   @Put(':id')
+  @CompoundZodValidation({
+    params: roleIdParamSchema,
+    body: updateRoleSchema,
+  })
   async update(
-    @Param('id') id: string,
+    @Param() params: { id: string },
     @Body() updateRoleDto: UpdateRoleDto,
   ) {
-    return this.rolesService.update(id, updateRoleDto);
+    return this.rolesService.update(params.id, updateRoleDto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string): Promise<void> {
-    await this.rolesService.remove(id);
+  @CompoundZodValidation({ params: roleIdParamSchema })
+  async remove(@Param() params: { id: string }): Promise<void> {
+    await this.rolesService.remove(params.id);
   }
 }

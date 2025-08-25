@@ -6,10 +6,7 @@ import { BaseRepository } from '../common/base.repository'; // Ajuste le chemin 
 
 @Injectable()
 export class RolesRepository extends BaseRepository<Role> {
-  constructor(
-    @InjectModel(Role.name) private readonly roleModel: Model<Role>,
-  ) {
+  constructor(@InjectModel(Role.name) private readonly roleModel: Model<Role>) {
     super(roleModel);
   }
-
 }
