@@ -27,7 +27,7 @@ export class ImageProductService {
       name: path.basename(createImageDto.filename),
     };
 
-    const savedImage = await this.imageProductRepo.create(imageToSave);
+    const savedImage = await this.imageProductRepo.create({ doc: imageToSave });
     console.log('> Image enregistrée avec ID :', savedImage.id);
 
     return savedImage;
@@ -39,7 +39,7 @@ export class ImageProductService {
   }
 
   async findOne(id: string): Promise<ImageProduct> {
-    const result = await this.imageProductRepo.findById(id);
+    const result = await this.imageProductRepo.findById({ id });
     return result;
   }
 
@@ -47,7 +47,7 @@ export class ImageProductService {
     id: string,
     updateImageDto: UpdateImageProductDto,
   ): Promise<ImageProduct> {
-    const existingImage = await this.imageProductRepo.findById(id);
+    const existingImage = await this.imageProductRepo.findById({ id });
 
     if (!existingImage) {
       throw new NotFoundException(`Image with ID ${id} not found`);
@@ -86,13 +86,16 @@ export class ImageProductService {
       };
     }
 
-    const updatedImage = await this.imageProductRepo.update(id, updateData);
+    const updatedImage = await this.imageProductRepo.update({
+      id,
+      update: updateData,
+    });
 
     return updatedImage;
   }
 
   async remove(id: string): Promise<any> {
-    const result = await this.imageProductRepo.delete(id);
+    const result = await this.imageProductRepo.delete({ id });
     return result;
   }
 }

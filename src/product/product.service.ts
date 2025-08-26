@@ -17,9 +17,9 @@ export class ProductService {
   ) {}
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
-    const createdDetail = await this.detailRepo.create(
-      createProductDto.detailData,
-    );
+    const createdDetail = await this.detailRepo.create({
+      doc: createProductDto.detailData,
+    });
 
     const productToCreate: Partial<Product> = {
       detail: createdDetail._id as Types.ObjectId,
@@ -27,18 +27,24 @@ export class ProductService {
       subcategory: new Types.ObjectId(createProductDto.subcategoryId),
     };
 
-    return this.productRepo.create(productToCreate);
+    return this.productRepo.create({ doc: productToCreate });
   }
 
   async findAll(): Promise<Product[]> {
-    return this.productRepo.findAll(null, {
-      populate: ['detail', 'subcategory', 'images'],
+    return this.productRepo.findAll({
+      filter: {},
+      options: {
+        populate: ['detail', 'subcategory', 'images'],
+      },
     });
   }
 
   async findOne(id: string): Promise<Product> {
-    const product = await this.productRepo.findById(id, {
-      populate: ['detail', 'subcategory', 'images'],
+    const product = await this.productRepo.findById({
+      id,
+      options: {
+        populate: ['detail', 'subcategory', 'images'],
+      },
     });
     if (!product) {
       throw new NotFoundException(`Product with id ${id} not found`);
@@ -50,16 +56,16 @@ export class ProductService {
     id: string,
     updateProductDto: UpdateProductDto,
   ): Promise<Product> {
-    const existingProduct = await this.productRepo.findById(id);
+    const existingProduct = await this.productRepo.findById({ id });
     if (!existingProduct) {
       throw new NotFoundException(`Product with id ${id} not found`);
     }
 
     if (updateProductDto.detailData) {
-      await this.detailRepo.update(
-        existingProduct.detail.toString(),
-        updateProductDto.detailData,
-      );
+      await this.detailRepo.update({
+        id: existingProduct.detail.toString(),
+        update: updateProductDto.detailData,
+      });
     }
 
     if (updateProductDto.imageData) {
@@ -69,29 +75,35 @@ export class ProductService {
       );
     }
 
-    const updatedProduct = await this.productRepo.update(id, {
-      ...(updateProductDto.subcategoryId && {
-        subcategory: new Types.ObjectId(updateProductDto.subcategoryId),
-      }),
-      ...(typeof updateProductDto.isActive !== 'undefined' && {
-        isActive: updateProductDto.isActive,
-      }),
-      updatedAt: new Date(),
+    const updatedProduct = await this.productRepo.update({
+      id,
+      update: {
+        ...(updateProductDto.subcategoryId && {
+          subcategory: new Types.ObjectId(updateProductDto.subcategoryId),
+        }),
+        ...(typeof updateProductDto.isActive !== 'undefined' && {
+          isActive: updateProductDto.isActive,
+        }),
+        updatedAt: new Date(),
+      },
     });
 
     return updatedProduct;
   }
 
   async remove(id: string): Promise<void> {
-    const result = await this.productRepo.delete(id);
+    const result = await this.productRepo.delete({ id });
     if (!result) {
       throw new NotFoundException(`Product with id ${id} not found`);
     }
   }
 
   async updateSubcategory(id: string, subcategoryId: string): Promise<Product> {
-    const updatedProduct = await this.productRepo.update(id, {
-      subcategory: new Types.ObjectId(subcategoryId),
+    const updatedProduct = await this.productRepo.update({
+      id,
+      update: {
+        subcategory: new Types.ObjectId(subcategoryId),
+      },
     });
     if (!updatedProduct) {
       throw new NotFoundException(`Product with id ${id} not found`);

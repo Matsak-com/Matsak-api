@@ -9,7 +9,9 @@ export class MembersService {
   constructor(private readonly memberRepository: MemberRepository) {}
 
   async create(createMemberDto: CreateMemberDto): Promise<Member> {
-    const newMember = await this.memberRepository.create(createMemberDto);
+    const newMember = await this.memberRepository.create({
+      doc: createMemberDto,
+    });
     return await newMember;
   }
 
@@ -19,7 +21,7 @@ export class MembersService {
   }
 
   async findOne(id: string): Promise<Member | null> {
-    const result = await this.memberRepository.findById(id);
+    const result = await this.memberRepository.findById({ id });
     return result;
   }
 
@@ -27,11 +29,14 @@ export class MembersService {
     id: string,
     updateMemberDto: UpdateMemberDto,
   ): Promise<Member | null> {
-    const result = await this.memberRepository.update(id, updateMemberDto);
+    const result = await this.memberRepository.update({
+      id,
+      update: updateMemberDto,
+    });
     return result;
   }
 
   async remove(id: string): Promise<Member | null> {
-    return await this.memberRepository.delete(id);
+    return await this.memberRepository.delete({ id });
   }
 }
