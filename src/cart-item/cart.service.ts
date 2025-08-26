@@ -15,12 +15,14 @@ export class CartService {
 
   async addToCart(sessionId: string, dto: AddToCartDto) {
     const quantity = dto.quantity ?? 1; // Par défaut 1 si non fourni
-    const cart = await this.cartRepository.findOne({ sessionId });
+    const cart = await this.cartRepository.findOne({ filter: { sessionId } });
 
     if (!cart) {
       return this.cartRepository.create({
-        sessionId,
-        items: [{ product: new Types.ObjectId(dto.productId), quantity }],
+        doc: {
+          sessionId,
+          items: [{ product: new Types.ObjectId(dto.productId), quantity }],
+        },
       });
     }
 
@@ -38,9 +40,9 @@ export class CartService {
   }
 
   async getCart(sessionId: string) {
-    const cart = await this.cartRepository.findOne(
-      { sessionId },
-      {
+    const cart = await this.cartRepository.findOne({
+      filter: { sessionId },
+      options: {
         populate: {
           path: 'items.product',
           populate: [
@@ -50,7 +52,7 @@ export class CartService {
           ],
         },
       },
-    );
+    });
 
     if (!cart) throw new NotFoundException('Panier introuvable');
     return cart;
@@ -61,7 +63,7 @@ export class CartService {
     productId: string,
     quantity: number,
   ) {
-    const cart = await this.cartRepository.findOne({ sessionId });
+    const cart = await this.cartRepository.findOne({ filter: { sessionId } });
     if (!cart) throw new NotFoundException('Panier introuvable');
 
     const item = cart.items.find(
@@ -74,7 +76,7 @@ export class CartService {
   }
 
   async deleteItem(sessionId: string, productId: string) {
-    const cart = await this.cartRepository.findOne({ sessionId });
+    const cart = await this.cartRepository.findOne({ filter: { sessionId } });
     if (!cart) throw new NotFoundException('Panier introuvable');
 
     cart.items = cart.items.filter(
@@ -84,7 +86,7 @@ export class CartService {
   }
 
   async clearCart(sessionId: string) {
-    const cart = await this.cartRepository.findOne({ sessionId });
+    const cart = await this.cartRepository.findOne({ filter: { sessionId } });
     if (!cart) throw new NotFoundException('Panier introuvable');
 
     cart.items = []; // Vide tous les produits du panier
