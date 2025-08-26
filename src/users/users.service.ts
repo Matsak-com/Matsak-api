@@ -27,12 +27,12 @@ export class UsersService {
   ) {}
 
   async getUsers(): Promise<any[]> {
-    const users = await this.userRepository.findAll(
-      {},
-      {
+    const users = await this.userRepository.findAll({
+      filter: {},
+      options: {
         projection: { _id: 1, email: 1, firstName: 1, avatarFileKey: 1 },
       },
-    );
+    });
 
     return Promise.all(
       users.map(async (user) => {
@@ -45,9 +45,9 @@ export class UsersService {
   }
 
   async getUser({ userId }: { userId: string }): Promise<any> {
-    const user = await this.userRepository.findOne(
-      { _id: userId },
-      {
+    const user = await this.userRepository.findOne({
+      filter: { _id: userId },
+      options: {
         projection: {
           _id: 1,
           name: 1,
@@ -58,7 +58,7 @@ export class UsersService {
           avatarFileKey: 1,
         },
       },
-    );
+    });
 
     // Check if the user was found
     if (!user) {
@@ -87,7 +87,7 @@ export class UsersService {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    return this.userRepository.findOne({ email });
+    return this.userRepository.findOne({ filter: { email } });
   }
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -99,8 +99,10 @@ export class UsersService {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     return this.userRepository.create({
-      ...createUserDto,
-      password: hashedPassword,
+      doc: {
+        ...createUserDto,
+        password: hashedPassword,
+      },
     });
   }
 
@@ -108,7 +110,7 @@ export class UsersService {
     userId: string,
     updateUserDto: UpdateUserDto & UpdatePasswordDto,
   ): Promise<{ message: string }> {
-    const user = await this.userRepository.findById(userId);
+    const user = await this.userRepository.findById({ id: userId });
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -142,7 +144,7 @@ export class UsersService {
     query: FilterQuery<User>,
     updateUserDto: Partial<CreateUserDto>,
   ): Promise<User> {
-    const user = await this.userRepository.findOne(query);
+    const user = await this.userRepository.findOne({ filter: query });
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -160,7 +162,7 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    await this.userRepository.delete(id);
+    await this.userRepository.delete({ id });
   }
 
   async validateUser(email: string, pass: string): Promise<any> {

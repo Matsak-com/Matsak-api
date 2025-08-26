@@ -22,6 +22,7 @@ export class CartService {
     if (!cart) {
       cart = { items: [] };
       this.carts.set(sessionId, cart);
+
     }
     // Vérifier si le produit existe déjà
     const existingItem = cart.items.find(item => item.product === dto.productId);
@@ -36,7 +37,7 @@ export class CartService {
   }
 
   // Récupérer le panier pour une session
-  async getCart(sessionId: string) {
+  async getCart(sessionId: string) 
     const cart = this.carts.get(sessionId);
     if (!cart) throw new NotFoundException('Panier introuvable');
 

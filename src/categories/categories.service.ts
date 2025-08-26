@@ -15,7 +15,7 @@ export class CategoriesService {
   ) {}
 
   async create(createCategoryDto: CreateCategoryDto): Promise<Category> {
-    return this.categoryRepository.create(createCategoryDto);
+    return this.categoryRepository.create({ doc: createCategoryDto });
   }
 
   async findAll(): Promise<Category[]> {
@@ -40,10 +40,10 @@ export class CategoriesService {
     id: string,
     updateCategoryDto: UpdateCategoryDto,
   ): Promise<Category> {
-    const updatedCategory = await this.categoryRepository.update(
+    const updatedCategory = await this.categoryRepository.update({
       id,
-      updateCategoryDto,
-    );
+      update: updateCategoryDto,
+    });
     if (!updatedCategory) {
       throw new NotFoundException(`Category with ID '${id}' not found`);
     }
@@ -51,7 +51,7 @@ export class CategoriesService {
   }
 
   async remove(id: string): Promise<{ deleted: boolean }> {
-    const result = await this.categoryRepository.delete(id);
+    const result = await this.categoryRepository.delete({ id });
     if (!result) {
       throw new NotFoundException(`Category with ID '${id}' not found`);
     }
