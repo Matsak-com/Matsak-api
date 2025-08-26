@@ -41,7 +41,7 @@ export class SubCategoriesService {
    */
   async findAll(): Promise<SubCategory[]> {
     const results = await this.subCategoryRepo.findAll({
-      filter: null,
+      filter: {},
       options: {
         populate: [{ path: 'categoryId' }],
       },

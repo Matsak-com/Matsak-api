@@ -32,7 +32,7 @@ export class ProductService {
 
   async findAll(): Promise<Product[]> {
     return this.productRepo.findAll({
-      filter: null,
+      filter: {},
       options: {
         populate: ['detail', 'subcategory', 'images'],
       },

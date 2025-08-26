@@ -67,7 +67,7 @@ export class TeamsService {
    */
   async findAll(): Promise<Team[] | null> {
     const teams = await this.teamsRepository.findAll({
-      filter: null,
+      filter: {},
       options: {
         sort: { name: 1 },
       },
