@@ -8,6 +8,9 @@ export type ProductDocument = Product & Document;
 
 @Schema({ timestamps: true })
 export class Product {
+  static findById(product: string) {
+    throw new Error('Method not implemented.');
+  }
   // Reference to DetailProduct
   @Prop({ type: Types.ObjectId, ref: DetailProduct.name })
   detail: Types.ObjectId;
