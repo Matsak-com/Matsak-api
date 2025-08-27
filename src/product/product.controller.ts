@@ -35,7 +35,7 @@ import {
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Post()
   @ZodValidation(createProductSchema)
   create(@Body() createProductDto: CreateProductDto) {
@@ -48,7 +48,7 @@ export class ProductController {
     return this.productService.findAll();
   }
 
-  @UseGuards(JwtAuthGuard)
+  // @UseGuards(JwtAuthGuard)
   @Get(':id')
   @CompoundZodValidation({ params: productIdParamSchema })
   findOne(@Param() params: { id: string }) {
