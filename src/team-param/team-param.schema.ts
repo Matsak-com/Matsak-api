@@ -16,10 +16,7 @@ export class TeamParam extends Document {
   @Prop({ required: true, trim: true })
   name: string;
 
-  @Prop({ required: false })
-  description?: string;
-
-  @Prop({ required: true })
+  // paramType is automatically managed by discriminatorKey
   paramType: string;
 
   @Prop({ required: false })
