@@ -67,10 +67,10 @@ describe('TeamParamService', () => {
 
       const result = await service.create(createDto);
 
-      expect(mockTeamParamRepository.findByTeamAndName).toHaveBeenCalledWith(
-        createDto.team,
-        createDto.name,
-      );
+      expect(mockTeamParamRepository.findByTeamAndName).toHaveBeenCalledWith({
+        teamId: createDto.team,
+        name: createDto.name,
+      });
       expect(mockTeamParamRepository.create).toHaveBeenCalledWith({
         doc: {
           ...createDto,
@@ -149,7 +149,9 @@ describe('TeamParamService', () => {
 
       const result = await service.findByTeam(teamId);
 
-      expect(mockTeamParamRepository.findByTeam).toHaveBeenCalledWith(teamId);
+      expect(mockTeamParamRepository.findByTeam).toHaveBeenCalledWith({
+        teamId,
+      });
       expect(result).toEqual(expectedResult);
     });
   });

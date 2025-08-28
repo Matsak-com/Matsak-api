@@ -13,17 +13,24 @@ export class TeamParamRepository extends BaseRepository<TeamParamDocument> {
     super(teamParamModel);
   }
 
-  async findByTeam(teamId: string): Promise<TeamParamDocument[]> {
+  async findByTeam({
+    teamId,
+  }: {
+    teamId: string;
+  }): Promise<TeamParamDocument[]> {
     return this.findAll({
       filter: { team: teamId } as FilterQuery<TeamParamDocument>,
       options: { populate: [{ path: 'team' }] },
     });
   }
 
-  async findByTeamAndType(
-    teamId: string,
-    paramType: string,
-  ): Promise<TeamParamDocument[]> {
+  async findByTeamAndType({
+    teamId,
+    paramType,
+  }: {
+    teamId: string;
+    paramType: string;
+  }): Promise<TeamParamDocument[]> {
     return this.findAll({
       filter: {
         team: teamId,
@@ -33,10 +40,13 @@ export class TeamParamRepository extends BaseRepository<TeamParamDocument> {
     });
   }
 
-  async findByTeamAndName(
-    teamId: string,
-    name: string,
-  ): Promise<TeamParamDocument | null> {
+  async findByTeamAndName({
+    teamId,
+    name,
+  }: {
+    teamId: string;
+    name: string;
+  }): Promise<TeamParamDocument | null> {
     return this.findOne({
       filter: {
         team: teamId,

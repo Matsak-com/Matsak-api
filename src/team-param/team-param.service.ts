@@ -17,10 +17,10 @@ export class TeamParamService {
     createTeamParamDto: CreateTeamParamDto,
   ): Promise<TeamParamDocument> {
     // Check if a parameter with the same name already exists for this team
-    const existingParam = await this.teamParamRepository.findByTeamAndName(
-      createTeamParamDto.team,
-      createTeamParamDto.name,
-    );
+    const existingParam = await this.teamParamRepository.findByTeamAndName({
+      teamId: createTeamParamDto.team,
+      name: createTeamParamDto.name,
+    });
 
     if (existingParam) {
       throw new BadRequestException(
@@ -46,14 +46,14 @@ export class TeamParamService {
   }
 
   async findByTeam(teamId: string): Promise<TeamParamDocument[]> {
-    return this.teamParamRepository.findByTeam(teamId);
+    return this.teamParamRepository.findByTeam({ teamId });
   }
 
   async findByTeamAndType(
     teamId: string,
     paramType: string,
   ): Promise<TeamParamDocument[]> {
-    return this.teamParamRepository.findByTeamAndType(teamId, paramType);
+    return this.teamParamRepository.findByTeamAndType({ teamId, paramType });
   }
 
   async findOne(id: string): Promise<TeamParamDocument> {
@@ -78,10 +78,10 @@ export class TeamParamService {
       const currentParam = await this.findOne(id);
 
       if (updateTeamParamDto.name !== currentParam.name) {
-        const existingParam = await this.teamParamRepository.findByTeamAndName(
-          currentParam.team.toString(),
-          updateTeamParamDto.name,
-        );
+        const existingParam = await this.teamParamRepository.findByTeamAndName({
+          teamId: currentParam.team.toString(),
+          name: updateTeamParamDto.name,
+        });
 
         if (existingParam && existingParam._id.toString() !== id) {
           throw new BadRequestException(
