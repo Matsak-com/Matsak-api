@@ -26,15 +26,15 @@ export class TeamParamRepository extends BaseRepository<TeamParamDocument> {
 
   async findByTeamAndType({
     teamId,
-    paramType,
+    keyType,
   }: {
     teamId: string;
-    paramType: string;
+    keyType: string;
   }): Promise<TeamParamDocument[]> {
     return this.findAll({
       filter: {
         team: teamId,
-        _key: paramType,
+        _key: keyType,
       } as FilterQuery<TeamParamDocument>,
       options: { populate: [{ path: 'team' }] },
     });

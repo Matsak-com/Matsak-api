@@ -51,9 +51,9 @@ export class TeamParamService {
 
   async findByTeamAndType(
     teamId: string,
-    paramType: string,
+    keyType: string,
   ): Promise<TeamParamDocument[]> {
-    return this.teamParamRepository.findByTeamAndType({ teamId, paramType });
+    return this.teamParamRepository.findByTeamAndType({ teamId, keyType });
   }
 
   async findOne(id: string): Promise<TeamParamDocument> {
