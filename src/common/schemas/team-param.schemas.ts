@@ -4,7 +4,6 @@ import { z } from 'zod';
 const baseTeamParamSchema = z.object({
   team: z.string().min(1, 'Team ID is required'),
   name: z.string().min(1, 'Parameter name is required'),
-  description: z.string().optional(),
 });
 
 // Show Number Parameter schema
