@@ -3,13 +3,12 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { TeamParamService } from './team-param.service';
 import { TeamParamController } from './team-param.controller';
 import { TeamParamRepository } from './team-param.repository';
+import { TeamParam, TeamParamSchema } from './team-param.schema';
 import {
-  TeamParam,
-  TeamParamSchema,
   ShowNumberParamSchema,
   ShowEmailParamSchema,
   CurrencyParamSchema,
-} from './team-param.schema';
+} from './discriminators';
 
 // Setup discriminators on the base schema
 TeamParamSchema.discriminator('ShowNumberParam', ShowNumberParamSchema);
