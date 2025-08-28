@@ -12,6 +12,28 @@ export class CartService {
 
   constructor(private readonly productRepository: ProductRepository) {}
 
+  // Private method to enrich cart items with product details
+  private async enrichCartItems(
+    items: { product: string; quantity: number }[],
+  ): Promise<any[]> {
+    return Promise.all(
+      items.map(async (item) => {
+        const product = await this.productRepository.findById({
+          id: item.product,
+          options: {
+            populate: ['detail', 'subcategory', 'images'],
+            lean: true,
+          },
+        });
+
+        return {
+          ...item,
+          product,
+        };
+      }),
+    );
+  }
+
   // Ajouter un produit au panier (en mémoire)
   async addToCart(sessionId: string, dto: AddToCartDto) {
     const quantity = dto.quantity ?? 1;
@@ -40,23 +62,7 @@ export class CartService {
     const cart = this.carts.get(sessionId);
     if (!cart) throw new NotFoundException('Panier introuvable');
 
-    const enrichedItems = await Promise.all(
-      cart.items.map(async (item) => {
-        const product = await this.productRepository.findById({
-          id: item.product,
-          options: {
-            populate: ['detail', 'subcategory', 'images'],
-            lean: true,
-          },
-        });
-
-        return {
-          ...item,
-          product,
-        };
-      }),
-    );
-
+    const enrichedItems = await this.enrichCartItems(cart.items);
     return { items: enrichedItems };
   }
 
@@ -76,23 +82,7 @@ export class CartService {
     item.quantity = quantity;
 
     // Enrichir les items avec les informations produit comme dans getCart
-    const enrichedItems = await Promise.all(
-      cart.items.map(async (item) => {
-        const product = await this.productRepository.findById({
-          id: item.product,
-          options: {
-            populate: ['detail', 'subcategory', 'images'],
-            lean: true,
-          },
-        });
-
-        return {
-          ...item,
-          product,
-        };
-      }),
-    );
-
+    const enrichedItems = await this.enrichCartItems(cart.items);
     return { items: enrichedItems };
   }
 

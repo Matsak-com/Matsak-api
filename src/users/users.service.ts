@@ -5,7 +5,6 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { FilterQuery } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 
 import { CreateUserDto } from '../auth/dto/create-user.dto';
@@ -78,7 +77,7 @@ export class UsersService {
     return { ...userObj, avatarUrl };
   }
 
-  async findOne(query: FilterQuery<User>): Promise<User | null> {
+  async findOne(query: Record<string, any>): Promise<User | null> {
     return this.userRepository.findOne({ filter: query });
   }
 
@@ -137,7 +136,7 @@ export class UsersService {
   }
 
   async update(
-    query: FilterQuery<User>,
+    query: Record<string, any>,
     updateUserDto: Partial<CreateUserDto>,
   ): Promise<User> {
     const user = await this.userRepository.findOne({ filter: query });
