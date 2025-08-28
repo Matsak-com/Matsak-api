@@ -1,23 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { Category, CategoryDocument } from './category.schema';
-import {
-  SubCategory,
-  SubCategoryDocument,
-} from '../sub-categories/sub-category.schema';
+import { Types } from 'mongoose';
+import { Category } from './category.schema';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CategoryRepository } from './categories.repository';
+import { SubCategoryRepository } from '../sub-categories/sub-categories.repository';
 
 @Injectable()
 export class CategoriesService {
   constructor(
     private readonly categoryRepository: CategoryRepository,
-    @InjectModel(Category.name)
-    private readonly categoryModel: Model<CategoryDocument>,
-    @InjectModel(SubCategory.name)
-    private readonly subCategoryModel: Model<SubCategoryDocument>,
+    private readonly subCategoryRepository: SubCategoryRepository,
   ) {}
 
   async create(createCategoryDto: CreateCategoryDto): Promise<Category> {
@@ -35,7 +28,7 @@ export class CategoriesService {
       );
     }
 
-    const category = await this.categoryModel.findById(id).exec();
+    const category = await this.categoryRepository.findById({ id });
     if (!category) {
       throw new NotFoundException(`Category with ID '${id}' not found`);
     }
@@ -58,10 +51,7 @@ export class CategoriesService {
 
   async remove(id: string): Promise<{ deleted: boolean }> {
     // Soft-delete any subcategories belonging to this category
-    await this.subCategoryModel.updateMany(
-      { categoryId: id, deleted_at: null },
-      { $set: { deleted_at: new Date() } },
-    );
+    await this.subCategoryRepository.softDeleteByCategory(id);
 
     const result = await this.categoryRepository.delete({ id });
     if (!result) {
@@ -71,26 +61,6 @@ export class CategoriesService {
   }
 
   async getCategoriesWithSubCategories(): Promise<any[]> {
-    return this.categoryModel.aggregate([
-      {
-        $lookup: {
-          from: 'subcategories',
-          let: { category_id: '$_id' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $eq: [
-                    { $toObjectId: '$categoryId' }, // string → ObjectId
-                    '$$category_id',
-                  ],
-                },
-              },
-            },
-          ],
-          as: 'subCategories',
-        },
-      },
-    ]);
+    return this.categoryRepository.getCategoriesWithSubCategories();
   }
 }

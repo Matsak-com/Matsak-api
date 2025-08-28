@@ -13,5 +13,10 @@ export class SubCategoryRepository extends BaseRepository<SubCategoryDocument> {
     super(subCategoryModel);
   }
 
-  // You can add custom methods here if needed
+  async softDeleteByCategory(categoryId: string): Promise<any> {
+    return this.model.updateMany(
+      { categoryId: categoryId, deleted_at: null },
+      { $set: { deleted_at: new Date() } },
+    );
+  }
 }

@@ -1,16 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Types } from 'mongoose';
 import { CreateTeamProductDto } from './dto/create-team-product.dto';
 import { UpdateTeamProductDto } from './dto/update-team-product.dto';
-import { TeamProduct, TeamProductDocument } from './team-product.schema';
+import { TeamProduct } from './team-product.schema';
+import { TeamProductRepository } from './team-product.repository';
 
 @Injectable()
 export class TeamProductService {
-  constructor(
-    @InjectModel(TeamProduct.name)
-    private readonly model: Model<TeamProductDocument>,
-  ) {}
+  constructor(private readonly teamProductRepository: TeamProductRepository) {}
 
   private mapDtoToModel(dto: CreateTeamProductDto | UpdateTeamProductDto) {
     return {
@@ -22,17 +19,16 @@ export class TeamProductService {
 
   async create(dto: CreateTeamProductDto): Promise<TeamProduct> {
     const data = this.mapDtoToModel(dto);
-    const created = new this.model(data);
-    return created.save();
+    return this.teamProductRepository.create({ doc: data });
   }
 
   async findAll(): Promise<TeamProduct[]> {
-    return this.model.find().exec();
+    return this.teamProductRepository.findAll();
   }
 
   async findById(id: string): Promise<TeamProduct | null> {
     if (!Types.ObjectId.isValid(id)) return null;
-    return this.model.findById(id).exec();
+    return this.teamProductRepository.findById({ id });
   }
 
   async update(
@@ -41,12 +37,12 @@ export class TeamProductService {
   ): Promise<TeamProduct | null> {
     if (!Types.ObjectId.isValid(id)) return null;
     const data = this.mapDtoToModel(dto);
-    return this.model.findByIdAndUpdate(id, data, { new: true }).exec();
+    return this.teamProductRepository.update({ id, update: data });
   }
 
   async delete(id: string): Promise<boolean> {
     if (!Types.ObjectId.isValid(id)) return false;
-    const res = await this.model.findByIdAndDelete(id).exec();
-    return res != null;
+    const result = await this.teamProductRepository.delete({ id });
+    return result != null;
   }
 }
