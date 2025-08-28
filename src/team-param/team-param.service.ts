@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { Types } from 'mongoose';
 import { TeamParamRepository } from './team-param.repository';
 import { CreateTeamParamDto } from './dto/create-team-param.dto';
 import { UpdateTeamParamDto } from './dto/update-team-param.dto';
@@ -27,8 +28,14 @@ export class TeamParamService {
       );
     }
 
+    // Convert the DTO to match what Mongoose expects
+    const documentData = {
+      ...createTeamParamDto,
+      team: new Types.ObjectId(createTeamParamDto.team),
+    };
+
     return this.teamParamRepository.create({
-      doc: createTeamParamDto as any,
+      doc: documentData,
     });
   }
 
@@ -84,9 +91,17 @@ export class TeamParamService {
       }
     }
 
+    // Convert the DTO to match what Mongoose expects
+    const updateData = {
+      ...updateTeamParamDto,
+      ...(updateTeamParamDto.team && {
+        team: new Types.ObjectId(updateTeamParamDto.team),
+      }),
+    };
+
     const updatedParam = await this.teamParamRepository.update({
       id,
-      update: updateTeamParamDto as any,
+      update: updateData,
       options: { populate: [{ path: 'team' }] },
     });
 

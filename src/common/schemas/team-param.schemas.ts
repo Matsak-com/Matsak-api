@@ -54,12 +54,10 @@ export const updateCurrencyParamSchema = createCurrencyParamSchema
   .partial()
   .omit({ paramType: true });
 
-export const updateTeamParamSchema = z.discriminatedUnion('paramType', [
-  updateShowNumberParamSchema.extend({
-    paramType: z.literal('ShowNumberParam'),
-  }),
-  updateShowEmailParamSchema.extend({ paramType: z.literal('ShowEmailParam') }),
-  updateCurrencyParamSchema.extend({ paramType: z.literal('CurrencyParam') }),
+export const updateTeamParamSchema = z.union([
+  updateShowNumberParamSchema,
+  updateShowEmailParamSchema,
+  updateCurrencyParamSchema,
 ]);
 
 // Parameter validation schemas

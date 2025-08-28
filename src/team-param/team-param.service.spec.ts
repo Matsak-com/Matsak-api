@@ -72,7 +72,10 @@ describe('TeamParamService', () => {
         createDto.name,
       );
       expect(mockTeamParamRepository.create).toHaveBeenCalledWith({
-        doc: createDto,
+        doc: {
+          ...createDto,
+          team: expect.any(Object), // Expect ObjectId conversion
+        },
       });
       expect(result).toEqual(expectedResult);
     });
