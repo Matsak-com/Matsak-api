@@ -6,7 +6,7 @@ export type TeamParamDocument = TeamParam & Document;
 
 @Schema({
   timestamps: true,
-  discriminatorKey: 'paramType',
+  discriminatorKey: '_key',
   collection: 'teamparams',
 })
 export class TeamParam extends Document {
@@ -15,12 +15,6 @@ export class TeamParam extends Document {
 
   @Prop({ required: true, trim: true })
   name: string;
-
-  @Prop({ required: false })
-  description?: string;
-
-  @Prop({ required: true })
-  paramType: string;
 
   @Prop({ required: false })
   deleted_at?: Date;

@@ -34,7 +34,7 @@ export class TeamParamRepository extends BaseRepository<TeamParamDocument> {
     return this.findAll({
       filter: {
         team: teamId,
-        paramType,
+        _key: paramType,
       } as FilterQuery<TeamParamDocument>,
       options: { populate: [{ path: 'team' }] },
     });

@@ -43,10 +43,10 @@ export class TeamParamController {
   @CompoundZodValidation({ query: teamParamQuerySchema })
   async findAll(@Query() query: TeamParamQuery) {
     if (query.team) {
-      if (query.paramType) {
+      if (query._key) {
         return this.teamParamService.findByTeamAndType(
           query.team,
-          query.paramType,
+          query._key,
         );
       }
       return this.teamParamService.findByTeam(query.team);
@@ -60,18 +60,18 @@ export class TeamParamController {
     return this.teamParamService.findByTeam(params.teamId);
   }
 
-  @Get('team/:teamId/type/:paramType')
+  @Get('team/:teamId/type/:_key')
   @CompoundZodValidation({
     params: teamIdParamSchema.extend({
-      paramType: teamParamQuerySchema.shape.paramType,
+      _key: teamParamQuerySchema.shape._key,
     }),
   })
   async findByTeamAndType(
-    @Param() params: TeamIdParam & { paramType: string },
+    @Param() params: TeamIdParam & { _key: string },
   ) {
     return this.teamParamService.findByTeamAndType(
       params.teamId,
-      params.paramType,
+      params._key,
     );
   }
 

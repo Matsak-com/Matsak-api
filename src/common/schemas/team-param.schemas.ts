@@ -4,24 +4,23 @@ import { z } from 'zod';
 const baseTeamParamSchema = z.object({
   team: z.string().min(1, 'Team ID is required'),
   name: z.string().min(1, 'Parameter name is required'),
-  description: z.string().optional(),
 });
 
 // Show Number Parameter schema
 export const createShowNumberParamSchema = baseTeamParamSchema.extend({
-  paramType: z.literal('ShowNumberParam'),
+  _key: z.literal('ShowNumberParam'),
   value: z.boolean(),
 });
 
 // Show Email Parameter schema
 export const createShowEmailParamSchema = baseTeamParamSchema.extend({
-  paramType: z.literal('ShowEmailParam'),
+  _key: z.literal('ShowEmailParam'),
   value: z.boolean(),
 });
 
 // Currency Parameter schema
 export const createCurrencyParamSchema = baseTeamParamSchema.extend({
-  paramType: z.literal('CurrencyParam'),
+  _key: z.literal('CurrencyParam'),
   value: z.enum([
     'USD',
     'EUR',
@@ -37,7 +36,7 @@ export const createCurrencyParamSchema = baseTeamParamSchema.extend({
 });
 
 // Union schema for creating any team param
-export const createTeamParamSchema = z.discriminatedUnion('paramType', [
+export const createTeamParamSchema = z.discriminatedUnion('_key', [
   createShowNumberParamSchema,
   createShowEmailParamSchema,
   createCurrencyParamSchema,
@@ -46,13 +45,13 @@ export const createTeamParamSchema = z.discriminatedUnion('paramType', [
 // Update schemas (partial)
 export const updateShowNumberParamSchema = createShowNumberParamSchema
   .partial()
-  .omit({ paramType: true });
+  .omit({ _key: true });
 export const updateShowEmailParamSchema = createShowEmailParamSchema
   .partial()
-  .omit({ paramType: true });
+  .omit({ _key: true });
 export const updateCurrencyParamSchema = createCurrencyParamSchema
   .partial()
-  .omit({ paramType: true });
+  .omit({ _key: true });
 
 export const updateTeamParamSchema = z.union([
   updateShowNumberParamSchema,
@@ -72,7 +71,7 @@ export const teamIdParamSchema = z.object({
 // Query schemas
 export const teamParamQuerySchema = z.object({
   team: z.string().optional(),
-  paramType: z
+  _key: z
     .enum(['ShowNumberParam', 'ShowEmailParam', 'CurrencyParam'])
     .optional(),
   name: z.string().optional(),

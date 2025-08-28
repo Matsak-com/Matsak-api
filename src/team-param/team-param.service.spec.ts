@@ -56,7 +56,7 @@ describe('TeamParamService', () => {
       const createDto = {
         team: '507f1f77bcf86cd799439011',
         name: 'show-number',
-        paramType: 'ShowNumberParam' as const,
+        _key: 'ShowNumberParam' as const,
         value: true,
       };
 
@@ -84,7 +84,7 @@ describe('TeamParamService', () => {
       const createDto = {
         team: '507f1f77bcf86cd799439011',
         name: 'show-number',
-        paramType: 'ShowNumberParam' as const,
+        _key: 'ShowNumberParam' as const,
         value: true,
       };
 
@@ -108,7 +108,7 @@ describe('TeamParamService', () => {
         _id: id,
         team: '507f1f77bcf86cd799439011',
         name: 'show-number',
-        paramType: 'ShowNumberParam',
+        _key: 'ShowNumberParam',
         value: true,
       };
 
@@ -140,7 +140,7 @@ describe('TeamParamService', () => {
           _id: '507f1f77bcf86cd799439012',
           team: teamId,
           name: 'show-number',
-          paramType: 'ShowNumberParam',
+          _key: 'ShowNumberParam',
           value: true,
         },
       ];
