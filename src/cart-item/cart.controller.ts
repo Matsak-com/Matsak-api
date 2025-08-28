@@ -56,20 +56,22 @@ export class CartController {
   ) {
     const sessionId = req.cookies.sessionId;
     if (!sessionId) throw new BadRequestException('Session ID manquant');
-    if (!productId) throw new BadRequestException('productId manquant');
-    if (quantity == null || quantity < 1) {
+    if (!query.productId) throw new BadRequestException('productId manquant');
+    if (body.quantity == null || body.quantity < 1) {
       throw new BadRequestException('Quantité invalide');
     }
 
-    return this.cartService.updateItemQuantity(sessionId, productId, quantity);
-
+    return this.cartService.updateItemQuantity(
+      sessionId,
+      query.productId,
+      body.quantity,
+    );
   }
 
   // Supprimer un produit du panier
   @Delete('remove')
-  async remove(@Req() req: Request, @Query('productId') productId: string) 
   @CompoundZodValidation({ query: productIdQuerySchema })
-  async remove(@Req() req: Request, @Query() query: { productId: string 
+  async remove(@Req() req: Request, @Query() query: { productId: string }) {
     const sessionId = req.cookies.sessionId;
     if (!sessionId) throw new BadRequestException('Session ID manquant');
     return this.cartService.deleteItem(sessionId, query.productId);

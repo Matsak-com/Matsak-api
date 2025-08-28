@@ -12,7 +12,7 @@ export class Category {
   description: string;
 
   @Prop({ default: true })
-  activate: boolean;
+  status: boolean;
 
   @Prop({ required: false })
   deleted_at?: Date;

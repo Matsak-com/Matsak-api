@@ -22,5 +22,5 @@ export class CreateSubCategoryDto {
 
   @IsBoolean()
   @IsOptional()
-  activate?: boolean;
+  status?: boolean;
 }

@@ -7,7 +7,10 @@ import { Product } from 'src/product/product.schema';
 @Injectable()
 export class CartService {
   // Map pour stocker les paniers en mémoire
-  private carts = new Map<string, { items: { product: string, quantity: number }[] }>();
+  private carts = new Map<
+    string,
+    { items: { product: string; quantity: number }[] }
+  >();
 
   constructor(
     @InjectModel(Product.name) private productModel: Model<Product>,
@@ -22,13 +25,13 @@ export class CartService {
     if (!cart) {
       cart = { items: [] };
       this.carts.set(sessionId, cart);
-
     }
     // Vérifier si le produit existe déjà
-    const existingItem = cart.items.find(item => item.product === dto.productId);
+    const existingItem = cart.items.find(
+      (item) => item.product === dto.productId,
+    );
     if (existingItem) {
       existingItem.quantity += quantity;
-
     } else {
       cart.items.push({ product: dto.productId, quantity });
     }
@@ -37,7 +40,7 @@ export class CartService {
   }
 
   // Récupérer le panier pour une session
-  async getCart(sessionId: string) 
+  async getCart(sessionId: string) {
     const cart = this.carts.get(sessionId);
     if (!cart) throw new NotFoundException('Panier introuvable');
 
@@ -45,9 +48,9 @@ export class CartService {
       cart.items.map(async (item) => {
         const product = await this.productModel
           .findById(item.product)
-          .populate('detail')       
-          .populate('subcategory')  
-          .populate('images')       
+          .populate('detail')
+          .populate('subcategory')
+          .populate('images')
           .lean();
 
         return {
@@ -61,12 +64,17 @@ export class CartService {
   }
 
   // Mettre à jour la quantité d'un produit
-  async updateItemQuantity(sessionId: string, productId: string, quantity: number) {
+  async updateItemQuantity(
+    sessionId: string,
+    productId: string,
+    quantity: number,
+  ) {
     const cart = this.carts.get(sessionId);
     if (!cart) throw new NotFoundException('Panier introuvable');
 
-    const item = cart.items.find(i => i.product === productId);
-    if (!item) throw new NotFoundException('Produit introuvable dans le panier');
+    const item = cart.items.find((i) => i.product === productId);
+    if (!item)
+      throw new NotFoundException('Produit introuvable dans le panier');
 
     item.quantity = quantity;
 
@@ -90,12 +98,11 @@ export class CartService {
     return { items: enrichedItems };
   }
 
-
   // Supprimer un produit du panier
   async deleteItem(sessionId: string, productId: string) {
     const cart = this.carts.get(sessionId);
     if (!cart) throw new NotFoundException('Panier introuvable');
-    cart.items = cart.items.filter(i => i.product !== productId);
+    cart.items = cart.items.filter((i) => i.product !== productId);
     return cart;
   }
 

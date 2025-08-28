@@ -11,5 +11,5 @@ export class CreateCategoryDto {
 
   @IsBoolean()
   @IsOptional()
-  activate?: boolean;
+  status?: boolean;
 }

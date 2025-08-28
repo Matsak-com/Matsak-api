@@ -2,6 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Category, CategoryDocument } from './category.schema';
+import {
+  SubCategory,
+  SubCategoryDocument,
+} from '../sub-categories/sub-category.schema';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CategoryRepository } from './categories.repository';
@@ -12,6 +16,8 @@ export class CategoriesService {
     private readonly categoryRepository: CategoryRepository,
     @InjectModel(Category.name)
     private readonly categoryModel: Model<CategoryDocument>,
+    @InjectModel(SubCategory.name)
+    private readonly subCategoryModel: Model<SubCategoryDocument>,
   ) {}
 
   async create(createCategoryDto: CreateCategoryDto): Promise<Category> {
@@ -51,6 +57,12 @@ export class CategoriesService {
   }
 
   async remove(id: string): Promise<{ deleted: boolean }> {
+    // Soft-delete any subcategories belonging to this category
+    await this.subCategoryModel.updateMany(
+      { categoryId: id, deleted_at: null },
+      { $set: { deleted_at: new Date() } },
+    );
+
     const result = await this.categoryRepository.delete({ id });
     if (!result) {
       throw new NotFoundException(`Category with ID '${id}' not found`);
