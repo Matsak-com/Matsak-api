@@ -1,8 +1,6 @@
-import { Injectable, NotFoundException, Inject } from '@nestjs/common';
-import { Model } from 'mongoose';
-import { InjectModel } from '@nestjs/mongoose';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { AddToCartDto } from './dto/add-to-cart.dto';
-import { Product } from 'src/product/product.schema';
+import { ProductRepository } from '../product/product.repository';
 
 @Injectable()
 export class CartService {
@@ -12,9 +10,7 @@ export class CartService {
     { items: { product: string; quantity: number }[] }
   >();
 
-  constructor(
-    @InjectModel(Product.name) private productModel: Model<Product>,
-  ) {}
+  constructor(private readonly productRepository: ProductRepository) {}
 
   // Ajouter un produit au panier (en mémoire)
   async addToCart(sessionId: string, dto: AddToCartDto) {
@@ -46,12 +42,13 @@ export class CartService {
 
     const enrichedItems = await Promise.all(
       cart.items.map(async (item) => {
-        const product = await this.productModel
-          .findById(item.product)
-          .populate('detail')
-          .populate('subcategory')
-          .populate('images')
-          .lean();
+        const product = await this.productRepository.findById({
+          id: item.product,
+          options: {
+            populate: ['detail', 'subcategory', 'images'],
+            lean: true,
+          },
+        });
 
         return {
           ...item,
@@ -81,12 +78,13 @@ export class CartService {
     // Enrichir les items avec les informations produit comme dans getCart
     const enrichedItems = await Promise.all(
       cart.items.map(async (item) => {
-        const product = await this.productModel
-          .findById(item.product)
-          .populate('detail')
-          .populate('subcategory')
-          .populate('images')
-          .lean();
+        const product = await this.productRepository.findById({
+          id: item.product,
+          options: {
+            populate: ['detail', 'subcategory', 'images'],
+            lean: true,
+          },
+        });
 
         return {
           ...item,

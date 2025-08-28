@@ -5,16 +5,13 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, FilterQuery } from 'mongoose';
+import { FilterQuery } from 'mongoose';
 import * as bcrypt from 'bcrypt';
-import { z } from 'zod';
 
 import { CreateUserDto } from '../auth/dto/create-user.dto';
 import { UpdateUserDto } from '../auth/dto/update-user.dto';
 import { UpdatePasswordDto } from '../auth/dto/update-password.dto';
 import { AwsS3Service } from '../aws/aws-s3.service';
-import { fileSchema } from './utils/file-utils';
 import { User } from './user.schema';
 import { UserRepository } from './users.repository';
 
@@ -23,7 +20,6 @@ export class UsersService {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly awsS3Service: AwsS3Service,
-    @InjectModel(User.name) private readonly userModel: Model<User>,
   ) {}
 
   async getUsers(): Promise<any[]> {
@@ -83,7 +79,7 @@ export class UsersService {
   }
 
   async findOne(query: FilterQuery<User>): Promise<User | null> {
-    return this.userModel.findOne(query).exec();
+    return this.userRepository.findOne({ filter: query });
   }
 
   async findByEmail(email: string): Promise<User | null> {

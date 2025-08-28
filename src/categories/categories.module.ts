@@ -8,6 +8,7 @@ import {
   SubCategorySchema,
 } from '../sub-categories/sub-category.schema';
 import { CategoryRepository } from './categories.repository';
+import { SubCategoryRepository } from '../sub-categories/sub-categories.repository';
 
 @Module({
   imports: [
@@ -17,7 +18,7 @@ import { CategoryRepository } from './categories.repository';
     ]),
   ],
   controllers: [CategoriesController],
-  providers: [CategoriesService, CategoryRepository],
+  providers: [CategoriesService, CategoryRepository, SubCategoryRepository],
   exports: [CategoriesService, MongooseModule, CategoryRepository],
 })
 export class CategoriesModule {}
