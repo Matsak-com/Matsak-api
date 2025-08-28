@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Param, Body, Put, Delete, Headers } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  Put,
+  Delete,
+  Headers,
+} from '@nestjs/common';
 import { AddressService, Address } from './address.service';
 import { CreateAddressDto } from './dto/create-address.dto';
 
@@ -13,16 +22,14 @@ export class AddressController {
   @Post()
   async create(
     @Headers() headers: Record<string, any>,
-    @Body() dto: CreateAddressDto
+    @Body() dto: CreateAddressDto,
   ): Promise<Address> {
     const sessionId = this.getSessionId(headers);
     return this.addressService.create(sessionId, dto);
   }
 
   @Get()
-  async findAll(
-    @Headers() headers: Record<string, any>
-  ): Promise<Address[]> {
+  async findAll(@Headers() headers: Record<string, any>): Promise<Address[]> {
     const sessionId = this.getSessionId(headers);
     return this.addressService.findAll(sessionId);
   }
@@ -30,7 +37,7 @@ export class AddressController {
   @Get(':id')
   async findOne(
     @Headers() headers: Record<string, any>,
-    @Param('id') id: string
+    @Param('id') id: string,
   ): Promise<Address> {
     const sessionId = this.getSessionId(headers);
     return this.addressService.findOne(sessionId, id);
@@ -40,7 +47,7 @@ export class AddressController {
   async update(
     @Headers() headers: Record<string, any>,
     @Param('id') id: string,
-    @Body() dto: CreateAddressDto
+    @Body() dto: CreateAddressDto,
   ): Promise<Address> {
     const sessionId = this.getSessionId(headers);
     return this.addressService.update(sessionId, id, dto);
@@ -49,7 +56,7 @@ export class AddressController {
   @Delete(':id')
   async remove(
     @Headers() headers: Record<string, any>,
-    @Param('id') id: string
+    @Param('id') id: string,
   ): Promise<void> {
     const sessionId = this.getSessionId(headers);
     return this.addressService.remove(sessionId, id);
@@ -58,7 +65,7 @@ export class AddressController {
   @Put(':id/default')
   async setDefault(
     @Headers() headers: Record<string, any>,
-    @Param('id') id: string
+    @Param('id') id: string,
   ): Promise<Address> {
     const sessionId = this.getSessionId(headers);
     return this.addressService.setDefault(sessionId, id);

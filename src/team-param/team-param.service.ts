@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { TeamParamRepository } from './team-param.repository';
 import { CreateTeamParamDto } from './dto/create-team-param.dto';
 import { UpdateTeamParamDto } from './dto/update-team-param.dto';
@@ -8,7 +12,9 @@ import { TeamParamDocument } from './team-param.schema';
 export class TeamParamService {
   constructor(private readonly teamParamRepository: TeamParamRepository) {}
 
-  async create(createTeamParamDto: CreateTeamParamDto): Promise<TeamParamDocument> {
+  async create(
+    createTeamParamDto: CreateTeamParamDto,
+  ): Promise<TeamParamDocument> {
     // Check if a parameter with the same name already exists for this team
     const existingParam = await this.teamParamRepository.findByTeamAndName(
       createTeamParamDto.team,
@@ -63,7 +69,7 @@ export class TeamParamService {
     // If name is being updated, check for conflicts
     if (updateTeamParamDto.name) {
       const currentParam = await this.findOne(id);
-      
+
       if (updateTeamParamDto.name !== currentParam.name) {
         const existingParam = await this.teamParamRepository.findByTeamAndName(
           currentParam.team.toString(),

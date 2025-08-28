@@ -38,10 +38,10 @@ import { AddressModule } from './client/address.module';
     ImageProductModule,
     ProductDecondModule,
     ProductModule,
-    CartModule, 
+    CartModule,
     TeamProductModule,
     TeamParamModule,
-    AddressModule
+    AddressModule,
   ],
   controllers: [AppController],
   providers: [AppService],

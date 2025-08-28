@@ -4,10 +4,10 @@ import { Team } from '../teams/team.schema';
 
 export type TeamParamDocument = TeamParam & Document;
 
-@Schema({ 
+@Schema({
   timestamps: true,
   discriminatorKey: 'paramType',
-  collection: 'teamparams'
+  collection: 'teamparams',
 })
 export class TeamParam extends Document {
   @Prop({ type: Types.ObjectId, ref: Team.name, required: true })
@@ -35,25 +35,38 @@ export class ShowNumberParam extends TeamParam {
   value: boolean;
 }
 
-export const ShowNumberParamSchema = SchemaFactory.createForClass(ShowNumberParam);
+export const ShowNumberParamSchema =
+  SchemaFactory.createForClass(ShowNumberParam);
 
-// Show Email Parameter - boolean value  
+// Show Email Parameter - boolean value
 @Schema()
 export class ShowEmailParam extends TeamParam {
   @Prop({ required: true, type: Boolean })
   value: boolean;
 }
 
-export const ShowEmailParamSchema = SchemaFactory.createForClass(ShowEmailParam);
+export const ShowEmailParamSchema =
+  SchemaFactory.createForClass(ShowEmailParam);
 
 // Currency Parameter - string value
 @Schema()
 export class CurrencyParam extends TeamParam {
-  @Prop({ 
-    required: true, 
+  @Prop({
+    required: true,
     type: String,
-    enum: ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'MGA', 'XOF'],
-    default: 'USD'
+    enum: [
+      'USD',
+      'EUR',
+      'GBP',
+      'JPY',
+      'CAD',
+      'AUD',
+      'CHF',
+      'CNY',
+      'MGA',
+      'XOF',
+    ],
+    default: 'USD',
   })
   value: string;
 }

@@ -25,9 +25,9 @@ export class TeamParamRepository extends BaseRepository<TeamParamDocument> {
     paramType: string,
   ): Promise<TeamParamDocument[]> {
     return this.findAll({
-      filter: { 
-        team: teamId, 
-        paramType 
+      filter: {
+        team: teamId,
+        paramType,
       } as FilterQuery<TeamParamDocument>,
       options: { populate: [{ path: 'team' }] },
     });
@@ -38,9 +38,9 @@ export class TeamParamRepository extends BaseRepository<TeamParamDocument> {
     name: string,
   ): Promise<TeamParamDocument | null> {
     return this.findOne({
-      filter: { 
-        team: teamId, 
-        name 
+      filter: {
+        team: teamId,
+        name,
       } as FilterQuery<TeamParamDocument>,
       options: { populate: [{ path: 'team' }] },
     });

@@ -3,8 +3,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { TeamParamService } from './team-param.service';
 import { TeamParamController } from './team-param.controller';
 import { TeamParamRepository } from './team-param.repository';
-import { 
-  TeamParam, 
+import {
+  TeamParam,
   TeamParamSchema,
   ShowNumberParamSchema,
   ShowEmailParamSchema,

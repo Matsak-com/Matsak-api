@@ -13,7 +13,10 @@ import {
 import { TeamParamService } from './team-param.service';
 import { CreateTeamParamDto } from './dto/create-team-param.dto';
 import { UpdateTeamParamDto } from './dto/update-team-param.dto';
-import { ZodValidation, CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
+import {
+  ZodValidation,
+  CompoundZodValidation,
+} from '../common/decorators/zod-validation.decorator';
 import {
   createTeamParamSchema,
   updateTeamParamSchema,
@@ -41,7 +44,10 @@ export class TeamParamController {
   async findAll(@Query() query: TeamParamQuery) {
     if (query.team) {
       if (query.paramType) {
-        return this.teamParamService.findByTeamAndType(query.team, query.paramType);
+        return this.teamParamService.findByTeamAndType(
+          query.team,
+          query.paramType,
+        );
       }
       return this.teamParamService.findByTeam(query.team);
     }
@@ -55,15 +61,18 @@ export class TeamParamController {
   }
 
   @Get('team/:teamId/type/:paramType')
-  @CompoundZodValidation({ 
+  @CompoundZodValidation({
     params: teamIdParamSchema.extend({
-      paramType: teamParamQuerySchema.shape.paramType
-    })
+      paramType: teamParamQuerySchema.shape.paramType,
+    }),
   })
   async findByTeamAndType(
-    @Param() params: TeamIdParam & { paramType: string }
+    @Param() params: TeamIdParam & { paramType: string },
   ) {
-    return this.teamParamService.findByTeamAndType(params.teamId, params.paramType);
+    return this.teamParamService.findByTeamAndType(
+      params.teamId,
+      params.paramType,
+    );
   }
 
   @Get(':id')

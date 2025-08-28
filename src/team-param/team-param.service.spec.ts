@@ -7,7 +7,6 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('TeamParamService', () => {
   let service: TeamParamService;
-  let repository: TeamParamRepository;
 
   const mockTeamParamRepository = {
     create: jest.fn(),
@@ -43,10 +42,9 @@ describe('TeamParamService', () => {
     }).compile();
 
     service = module.get<TeamParamService>(TeamParamService);
-    repository = module.get<TeamParamRepository>(TeamParamRepository);
 
     // Reset all mocks before each test
-    Object.values(mockTeamParamRepository).forEach(mock => mock.mockReset());
+    Object.values(mockTeamParamRepository).forEach((mock) => mock.mockReset());
   });
 
   it('should be defined', () => {
@@ -89,9 +87,13 @@ describe('TeamParamService', () => {
 
       const existingParam = { ...createDto, _id: '507f1f77bcf86cd799439012' };
 
-      mockTeamParamRepository.findByTeamAndName.mockResolvedValue(existingParam);
+      mockTeamParamRepository.findByTeamAndName.mockResolvedValue(
+        existingParam,
+      );
 
-      await expect(service.create(createDto)).rejects.toThrow(BadRequestException);
+      await expect(service.create(createDto)).rejects.toThrow(
+        BadRequestException,
+      );
       expect(mockTeamParamRepository.create).not.toHaveBeenCalled();
     });
   });
