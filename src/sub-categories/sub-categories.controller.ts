@@ -3,9 +3,9 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
+  Put,
 } from '@nestjs/common';
 import { SubCategoriesService } from './sub-categories.service';
 import { CreateSubCategoryDto } from './dto/create-sub-category.dto';
@@ -21,7 +21,7 @@ import {
   categoryIdParamSchema,
 } from '../common/schemas/sub-category.schemas';
 
-@Controller('sub-categories')
+@Controller('subcategories')
 export class SubCategoriesController {
   constructor(private readonly subCategoriesService: SubCategoriesService) {}
 
@@ -42,7 +42,7 @@ export class SubCategoriesController {
     return this.subCategoriesService.findOne(params.id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   @CompoundZodValidation({
     params: subCategoryIdParamSchema,
     body: updateSubCategorySchema,

@@ -6,14 +6,14 @@ export const createSubCategorySchema = z.object({
   name: z.string().min(1, 'Sub-category name is required'),
   categoryId: objectIdSchema,
   description: z.string().optional(),
-  activate: z.boolean().optional(),
+  status: z.boolean().optional(),
 });
 
 export const updateSubCategorySchema = z.object({
   name: z.string().min(1, 'Sub-category name is required').optional(),
   categoryId: objectIdSchema.optional(),
   description: z.string().optional(),
-  activate: z.boolean().optional(),
+  status: z.boolean().optional(),
 });
 
 // Parameter validation schemas
