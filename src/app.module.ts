@@ -37,9 +37,9 @@ import { AddressModule } from './client/address.module';
     ImageProductModule,
     ProductDecondModule,
     ProductModule,
-    CartModule, 
+    CartModule,
     TeamProductModule,
-    AddressModule
+    AddressModule,
   ],
   controllers: [AppController],
   providers: [AppService],
