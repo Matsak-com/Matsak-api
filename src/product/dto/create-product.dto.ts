@@ -15,8 +15,9 @@ export class CreateProductDto {
   @Type(() => CreateDetailProductDto)
   detailData: CreateDetailProductDto;
 
-  @IsMongoId()
-  imageId: string;
+  @ValidateNested()
+  @Type(() => CreateImageProductDto)
+  imageData: CreateImageProductDto;
 
   @IsMongoId()
   subcategoryId: string;
@@ -25,3 +26,4 @@ export class CreateProductDto {
   @IsBoolean()
   isActive?: boolean;
 }
+

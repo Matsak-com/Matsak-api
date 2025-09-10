@@ -1,6 +1,6 @@
 import { ImageProductRepository } from './image-product.repository';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { ImageProduct } from './image-product.schema';
+import { ImageProduct, ImageProductDocument } from './image-product.schema'; // 👈 ajoute ImageProductDocument
 import { CreateImageProductDto } from './dto/create-image-product.dto';
 import { encodeImageToBase64 } from 'src/helpers/base64.helper';
 import * as path from 'path';
@@ -11,7 +11,29 @@ import * as fs from 'fs';
 export class ImageProductService {
   constructor(private readonly imageProductRepo: ImageProductRepository) {}
 
-  async create(createImageDto: CreateImageProductDto): Promise<ImageProduct> {
+  async createFromBuffer({
+    buffer,
+    originalname,
+    mimetype,
+    altText,
+  }: {
+    buffer: Buffer;
+    originalname: string;
+    mimetype: string;
+    altText?: string;
+  }): Promise<ImageProductDocument> {
+    const imageToSave = {
+      data: buffer.toString('base64'),
+      mimeType: mimetype,
+      name: originalname,
+      altText: altText || '',
+    };
+
+    return this.imageProductRepo.create(imageToSave);
+  }
+
+
+  async create(createImageDto: CreateImageProductDto): Promise<ImageProductDocument> {
     const filePath = path.resolve(
       'uploads',
       'image-products',
@@ -28,25 +50,23 @@ export class ImageProductService {
     };
 
     const savedImage = await this.imageProductRepo.create(imageToSave);
-    console.log('> Image enregistrée avec ID :', savedImage.id);
+    
 
     return savedImage;
   }
 
-  async findAll(): Promise<ImageProduct[]> {
-    const results = await this.imageProductRepo.findAll();
-    return results;
+  async findAll(): Promise<ImageProductDocument[]> {
+    return this.imageProductRepo.findAll();
   }
 
-  async findOne(id: string): Promise<ImageProduct> {
-    const result = await this.imageProductRepo.findById(id);
-    return result;
+  async findOne(id: string): Promise<ImageProductDocument> {
+    return this.imageProductRepo.findById(id);
   }
 
   async update(
     id: string,
     updateImageDto: UpdateImageProductDto,
-  ): Promise<ImageProduct> {
+  ): Promise<ImageProductDocument> {
     const existingImage = await this.imageProductRepo.findById(id);
 
     if (!existingImage) {
@@ -86,13 +106,10 @@ export class ImageProductService {
       };
     }
 
-    const updatedImage = await this.imageProductRepo.update(id, updateData);
-
-    return updatedImage;
+    return this.imageProductRepo.update(id, updateData);
   }
 
   async remove(id: string): Promise<any> {
-    const result = await this.imageProductRepo.delete(id);
-    return result;
+    return this.imageProductRepo.delete(id);
   }
 }
