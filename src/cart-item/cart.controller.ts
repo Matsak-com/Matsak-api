@@ -56,12 +56,17 @@ export class CartController {
 
     const sessionId = req.cookies.sessionId;
     if (!sessionId) throw new BadRequestException('Session ID manquant');
-    if (!productId) throw new BadRequestException('productId manquant');
-    if (quantity == null || quantity < 1) {
+    if (!query.productId) throw new BadRequestException('productId manquant');
+    if (body.quantity == null || body.quantity < 1) {
       throw new BadRequestException('Quantité invalide');
     }
 
-    return this.cartService.updateItemQuantity(sessionId, productId, quantity);
+
+    return this.cartService.updateItemQuantity(
+      sessionId,
+      query.productId,
+      body.quantity,
+    );
   }
 
   @Delete('remove')

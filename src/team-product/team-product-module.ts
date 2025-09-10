@@ -3,6 +3,7 @@ import { TeamProductService } from './team-product.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { TeamProductController } from './team-product-controller';
 import { TeamProduct, TeamProductSchema } from './team-product.schema';
+import { TeamProductRepository } from './team-product.repository';
 
 @Module({
   imports: [
@@ -11,6 +12,6 @@ import { TeamProduct, TeamProductSchema } from './team-product.schema';
     ]),
   ],
   controllers: [TeamProductController],
-  providers: [TeamProductService],
+  providers: [TeamProductService, TeamProductRepository],
 })
 export class TeamProductModule {}

@@ -11,6 +11,12 @@ export class SubCategory {
   @Prop({ type: Types.ObjectId, ref: 'Category', required: true, index: true })
   categoryId: Types.ObjectId;
 
+  @Prop()
+  description: string;
+
+  @Prop({ default: true })
+  status: boolean;
+
   @Prop({ required: false })
   deleted_at?: Date;
 }

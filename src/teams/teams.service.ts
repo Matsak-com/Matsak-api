@@ -44,7 +44,10 @@ export class TeamsService {
       slug: slugify(createTeamDto.name),
       language: createTeamDto.language || 'fr',
     };
-    const team = await this.teamsRepository.create(teamData, { save: false });
+    const team = await this.teamsRepository.create({
+      doc: teamData,
+      options: { save: false },
+    });
     let picture = null;
     if (createTeamDto.logoUrl) {
       picture = (
@@ -55,7 +58,7 @@ export class TeamsService {
       ).fileKey;
     }
     team.picture = picture;
-    return await this.teamsRepository.create(team);
+    return await this.teamsRepository.create({ doc: team });
   }
 
   /**
@@ -63,8 +66,11 @@ export class TeamsService {
    * @returns An array of teams or null if none found.
    */
   async findAll(): Promise<Team[] | null> {
-    const teams = await this.teamsRepository.findAll(null, {
-      sort: { name: 1 },
+    const teams = await this.teamsRepository.findAll({
+      filter: {},
+      options: {
+        sort: { name: 1 },
+      },
     });
     return teams;
   }
@@ -75,7 +81,7 @@ export class TeamsService {
    * @returns The team if found, otherwise null.
    */
   async findOne(id: string): Promise<Team | null> {
-    const team = await this.teamsRepository.findById(id);
+    const team = await this.teamsRepository.findById({ id });
     if (team && team.picture) {
       team.picture = await this.awsS3Service.getFileUrl({
         fileKey: team.picture,
@@ -92,7 +98,7 @@ export class TeamsService {
    * @returns The updated team if found, otherwise null.
    */
   async update(id: string, updateTeamDto: UpdateTeamDto): Promise<Team | null> {
-    const existingTeam = await this.teamsRepository.findById(id);
+    const existingTeam = await this.teamsRepository.findById({ id });
     if (!existingTeam) return null;
 
     const updateData: any = {};
@@ -150,7 +156,7 @@ export class TeamsService {
       return existingTeam;
     }
 
-    return await this.teamsRepository.update(id, updateData);
+    return await this.teamsRepository.update({ id, update: updateData });
   }
 
   /**
@@ -159,14 +165,17 @@ export class TeamsService {
    * @returns The removed team if found, otherwise null.
    */
   async remove(id: string): Promise<Team | null> {
-    const team = await this.teamsRepository.findById(id, {
-      projection: { picture: 1 },
-      lean: true,
+    const team = await this.teamsRepository.findById({
+      id,
+      options: {
+        projection: { picture: 1 },
+        lean: true,
+      },
     });
     if (team && team.picture) {
       await this.awsS3Service.deleteFile({ fileKey: team.picture });
     }
-    const result = await this.teamsRepository.delete(id);
+    const result = await this.teamsRepository.delete({ id });
     return result;
   }
 }

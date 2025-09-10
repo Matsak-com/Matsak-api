@@ -48,17 +48,14 @@ export class ImageProductService {
       altText: createImageDto.altText || '',
       name: path.basename(createImageDto.filename),
     };
-
     const savedImage = await this.imageProductRepo.create(imageToSave);
     
-
     return savedImage;
   }
 
   async findAll(): Promise<ImageProductDocument[]> {
     return this.imageProductRepo.findAll();
   }
-
   async findOne(id: string): Promise<ImageProductDocument> {
     return this.imageProductRepo.findById(id);
   }
@@ -68,7 +65,7 @@ export class ImageProductService {
     updateImageDto: UpdateImageProductDto,
   ): Promise<ImageProductDocument> {
     const existingImage = await this.imageProductRepo.findById(id);
-
+      
     if (!existingImage) {
       throw new NotFoundException(`Image with ID ${id} not found`);
     }
@@ -106,10 +103,12 @@ export class ImageProductService {
       };
     }
 
+
     return this.imageProductRepo.update(id, updateData);
   }
 
   async remove(id: string): Promise<any> {
     return this.imageProductRepo.delete(id);
+
   }
 }

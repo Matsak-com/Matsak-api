@@ -13,5 +13,27 @@ export class CategoryRepository extends BaseRepository<CategoryDocument> {
     super(categoryModel);
   }
 
-  // You can add custom methods here if needed
+  async getCategoriesWithSubCategories(): Promise<any[]> {
+    return this.model.aggregate([
+      {
+        $lookup: {
+          from: 'subcategories',
+          let: { category_id: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: [
+                    { $toObjectId: '$categoryId' }, // string → ObjectId
+                    '$$category_id',
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'subCategories',
+        },
+      },
+    ]);
+  }
 }
