@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  # MongoDB service for development
+  mongodb:
+    image: mongo:7.0
+    container_name: matsak-mongodb-dev
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: matsak
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_dev_data:/data/db
+    networks:
+      - matsak-dev-network
+
+  # API service for development with hot reload
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: matsak-api-dev
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=development
+      - PORT=8080
+      - MONGO_URI=mongodb://mongodb:27017/matsak
+      - DB_URI=mongodb://mongodb:27017/matsak
+      - JWT_SECRET=development-jwt-secret
+      - CORS_ORIGIN=["http://localhost:3000", "http://localhost:8080"]
+    depends_on:
+      - mongodb
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./uploads:/app/uploads
+    networks:
+      - matsak-dev-network
+
+volumes:
+  mongodb_dev_data:
+    driver: local
+
+networks:
+  matsak-dev-network:
+    driver: bridge
