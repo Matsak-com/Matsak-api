@@ -1,21 +1,22 @@
-version: '3.8'
-
 services:
-  # MongoDB service
+  # MongoDB service with authentication
   mongodb:
     image: mongo:7.0
     container_name: matsak-mongodb
     restart: unless-stopped
     environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-matsak_admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
       MONGO_INITDB_DATABASE: matsak
-    ports:
-      - "27017:27017"
+      MONGO_APP_USERNAME: ${MONGO_APP_USERNAME:-matsak_user}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD}
     volumes:
       - mongodb_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
     networks:
       - matsak-network
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "--username", "${MONGO_ROOT_USERNAME:-matsak_admin}", "--password", "${MONGO_ROOT_PASSWORD}", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -33,9 +34,9 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=8080
-      - MONGO_URI=mongodb://mongodb:27017/matsak
-      - DB_URI=mongodb://mongodb:27017/matsak
-      - JWT_SECRET=${JWT_SECRET:-default-jwt-secret-change-in-production}
+      - MONGO_URI=mongodb://${MONGO_APP_USERNAME:-matsak_user}:${MONGO_APP_PASSWORD}@mongodb:27017/matsak?authSource=matsak
+      - DB_URI=mongodb://${MONGO_APP_USERNAME:-matsak_user}:${MONGO_APP_PASSWORD}@mongodb:27017/matsak?authSource=matsak
+      - JWT_SECRET=${JWT_SECRET}
       - CORS_ORIGIN=["http://localhost:3000", "http://localhost:8080"]
     depends_on:
       mongodb:

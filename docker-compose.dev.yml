@@ -1,17 +1,20 @@
-version: '3.8'
-
 services:
-  # MongoDB service for development
+  # MongoDB service for development with authentication
   mongodb:
     image: mongo:7.0
     container_name: matsak-mongodb-dev
     restart: unless-stopped
     environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-matsak_admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-dev_admin_password}
       MONGO_INITDB_DATABASE: matsak
+      MONGO_APP_USERNAME: ${MONGO_APP_USERNAME:-matsak_user}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:-dev_user_password}
     ports:
-      - "27017:27017"
+      - "27017:27017"  # Keep port exposed for development access
     volumes:
       - mongodb_dev_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
     networks:
       - matsak-dev-network
 
@@ -27,9 +30,9 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=8080
-      - MONGO_URI=mongodb://mongodb:27017/matsak
-      - DB_URI=mongodb://mongodb:27017/matsak
-      - JWT_SECRET=development-jwt-secret
+      - MONGO_URI=mongodb://${MONGO_APP_USERNAME:-matsak_user}:${MONGO_APP_PASSWORD:-dev_user_password}@mongodb:27017/matsak?authSource=matsak
+      - DB_URI=mongodb://${MONGO_APP_USERNAME:-matsak_user}:${MONGO_APP_PASSWORD:-dev_user_password}@mongodb:27017/matsak?authSource=matsak
+      - JWT_SECRET=${JWT_SECRET:-development-jwt-secret}
       - CORS_ORIGIN=["http://localhost:3000", "http://localhost:8080"]
     depends_on:
       - mongodb
