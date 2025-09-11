@@ -5,7 +5,7 @@ This script provides an interactive way to change a user's password in the Matsa
 ## Usage
 
 ```bash
-npm run change-user-password
+pnpm run change-user-password
 ```
 
 ## Features
@@ -99,7 +99,7 @@ prompt: Confirmer le changement de mot de passe? (oui/non): oui
 
 ## Requirements
 
-- Node.js and npm installed
+- Node.js and pnpm installed
 - MongoDB database connection configured
 - Required dependencies:
   - commander
