@@ -71,10 +71,10 @@ shell-mongo-admin: ## Access MongoDB shell with admin credentials
 	docker compose exec mongodb mongosh -u matsak_admin --authenticationDatabase admin
 
 migrate: ## Run database migrations manually
-	docker compose exec api npm run migrate-mongo:up
+	docker compose exec api pnpm run migrate-mongo:up
 
 migrate-status: ## Check migration status
-	docker compose exec api npm run migrate-mongo:status
+	docker compose exec api pnpm run migrate-mongo:status
 
 security-check: ## Validate security configuration
 	@echo "🔍 Checking security configuration..."

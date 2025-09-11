@@ -121,13 +121,13 @@ Migrations run automatically with authenticated connections.
 
 ```bash
 # Check migration status
-docker-compose exec api npm run migrate-mongo:status
+docker-compose exec api pnpm run migrate-mongo:status
 
 # Run pending migrations  
-docker-compose exec api npm run migrate-mongo:up
+docker-compose exec api pnpm run migrate-mongo:up
 
 # Rollback last migration
-docker-compose exec api npm run migrate-mongo:down
+docker-compose exec api pnpm run migrate-mongo:down
 ```
 
 ## Troubleshooting

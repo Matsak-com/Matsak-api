@@ -5,11 +5,14 @@ WORKDIR /app
 # Install system dependencies required for native modules
 RUN apk update && apk add --no-cache build-base g++ cairo-dev pango-dev libpng-dev python3 make
 
-# Copy package files first for better caching
-COPY package*.json ./
+# Enable pnpm via corepack
+RUN corepack enable
 
-# Install all dependencies (including dev dependencies) with legacy peer deps
-RUN npm install --legacy-peer-deps
+# Copy package files first for better caching
+COPY package*.json pnpm-lock.yaml ./
+
+# Install all dependencies (including dev dependencies)
+RUN pnpm install --frozen-lockfile
 
 # Copy source code
 COPY . .
@@ -18,4 +21,4 @@ COPY . .
 EXPOSE 8080
 
 # Start the application in development mode with hot reload
-CMD ["npm", "run", "dev"]
+CMD ["pnpm", "run", "dev"]

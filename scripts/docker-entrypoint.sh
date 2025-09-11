@@ -11,8 +11,8 @@ echo "MongoDB is ready!"
 
 # Run migrations
 echo "Running database migrations..."
-npm run migrate-mongo:up
+pnpm run migrate-mongo:up
 
 # Start the application
 echo "Starting the application..."
-exec npm run start:prod
+exec pnpm run start:prod
