@@ -75,7 +75,7 @@ cp .env.sample .env
 docker-compose -f docker-compose.dev.yml up -d
 ```
 
-3. **MongoDB access**: In development, MongoDB port 27017 is exposed for debugging.
+3. **MongoDB access**: In development, MongoDB port 27018 is exposed for debugging (avoids conflict with local MongoDB).
 
 ## Services
 
@@ -85,7 +85,7 @@ docker-compose -f docker-compose.dev.yml up -d
 - **Volume**: `mongodb_data` for data persistence  
 - **Health check**: Authenticated connection verification
 - **Production**: No external port exposure
-- **Development**: Port 27017 exposed for debugging
+- **Development**: Port 27018 exposed for debugging (avoids conflict with local MongoDB)
 
 ### API (api)
 - **Port**: 8080
@@ -155,6 +155,9 @@ docker-compose exec mongodb mongosh -u matsak_admin -p your-admin-password --aut
 
 # Using application credentials  
 docker-compose exec mongodb mongosh -u matsak_user -p your-app-password --authenticationDatabase matsak matsak
+
+# Development external access (connects to Docker container via host port 27018)
+mongosh mongodb://matsak_user:your-app-password@localhost:27018/matsak?authSource=matsak
 ```
 
 ### View Container Logs

@@ -11,7 +11,7 @@ services:
       MONGO_APP_USERNAME: ${MONGO_APP_USERNAME:-matsak_user}
       MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:-dev_user_password}
     ports:
-      - "27017:27017"  # Keep port exposed for development access
+      - "27018:27017"  # Avoid conflict with local MongoDB (external:internal)
     volumes:
       - mongodb_dev_data:/data/db
       - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
