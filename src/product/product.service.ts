@@ -1,15 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Product, ProductDocument } from './product.schema';
-import { UpdateProductDto } from './dto/update-product.dto'; // Gardez celui-ci si vous en avez besoin pour update
 import { ProductRepository } from './product.repository';
 import { DetailProductRepository } from '../detail-product/detail-product.repository';
-import { ImageProductRepository } from '../image-product/image-product.repository';
 import { Model, Types } from 'mongoose';
 import { ImageProductService } from 'src/image-product/image-product.service';
-import { ImageProductDocument } from 'src/image-product/image-product.schema';
-
-import path from 'path';
-import fs from 'fs';
 import { InjectModel } from '@nestjs/mongoose';
 import { DetailProductService } from 'src/detail-product/detail-product.service';
 import { DetailProduct } from 'src/detail-product/detail-product.schema';
@@ -20,7 +14,7 @@ import { createProductSchema } from '../common/schemas/product.schemas';
 
 // Type validé par Zod
 type ValidatedCreateProductDto = z.infer<typeof createProductSchema>;
-// type ValidatedCreateDetailProductDto = z.infer<typeof createDetailProductSchema>;
+
 
 @Injectable()
 export class ProductService {
@@ -39,7 +33,7 @@ export class ProductService {
   try {
     // 1️⃣ Créer le detailProduct
     const detail = await this.detailProductService.create(
-      createDto.detailData as any
+      createDto.detailData 
     ) as DetailProduct & { _id: string };
 
     // 2️⃣ Créer le produit en DB
@@ -92,12 +86,12 @@ export class ProductService {
 
   async update(
   id: string,
-  updateProductDto: any, // Utiliser le bon type
+  updateProductDto,
   file?: Express.Multer.File
 ): Promise<Product> {
 
   // Vérifier que le produit existe
-  const existingProduct = await this.productRepo.findById(id);
+  const existingProduct = await this.productRepo.findById( id );
   if (!existingProduct) {
     throw new NotFoundException(`Product with id ${id} not found`);
   }

@@ -7,38 +7,27 @@ import {
   Patch,
   Delete,
   UseGuards,
-  NotFoundException,
   UploadedFile,
   UseInterceptors,
   BadRequestException,
-  ValidationPipe,
   Put,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { Product } from './product.schema';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage, memoryStorage } from 'multer';
-import * as path from 'path';
-import { CreateDetailProductDto } from 'src/detail-product/dto/create-detail-product.dto';
 import {
-  ZodValidation,
   CompoundZodValidation,
 } from '../common/decorators/zod-validation.decorator';
 import {
   createProductSchema,
-  updateProductSchema,
   productIdParamSchema,
-  simpleUpdateProductSchema,
   updateSubcategoryParamSchema,
-  updateProductSchemaFlexible,
   simpleUpdateSchema,
 } from '../common/schemas/product.schemas';
 import { ImageProductService } from 'src/image-product/image-product.service';
 import { z } from 'zod';
-import { UpdateDetailProductDto } from 'src/detail-product/dto/update-detail-product.dto';
+import { memoryStorage } from 'multer';
+import { CreateProductDto } from './dto/create-product.dto';
 
 @Controller('products')
 export class ProductController {
@@ -49,7 +38,7 @@ export class ProductController {
   @Post()
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   async create(
-  @Body() body: any,
+  @Body() body: CreateProductDto,
   @UploadedFile() file?: Express.Multer.File
   ) {
     try {
@@ -62,7 +51,7 @@ export class ProductController {
       const dataToValidate = {
         detailData,
         subcategoryId: body.subcategoryId,
-        isActive: body.isActive === 'true' || body.isActive === true,
+        isActive: body.isActive === true,
       };
 
       // 3️⃣ Validation avec Zod
@@ -93,53 +82,53 @@ export class ProductController {
     }
   }
 
-@Put(':id')
-@UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
-async update(
-  @Param('id') id: string,
-  @Body() body: any,
-  @UploadedFile() file?: Express.Multer.File,
-) {
-  try {
+  @Put(':id')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  async update(
+    @Param('id') id: string,
+    @Body() body: CreateProductDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    try {
 
-    // Parser detailData si présent
-    let detailData = undefined;
-    if (body.detailData) {
-      try {
-        detailData = typeof body.detailData === 'string'
-          ? JSON.parse(body.detailData)
-          : body.detailData;
-        
-        // Convertir expirationDate si nécessaire
-        if (detailData?.expirationDate && typeof detailData.expirationDate === 'string') {
-          detailData.expirationDate = new Date(detailData.expirationDate);
+      // Parser detailData si présent
+      let detailData = undefined;
+      if (body.detailData) {
+        try {
+          detailData = typeof body.detailData === 'string'
+            ? JSON.parse(body.detailData)
+            : body.detailData;
+          
+          // Convertir expirationDate si nécessaire
+          if (detailData?.expirationDate && typeof detailData.expirationDate === 'string') {
+            detailData.expirationDate = new Date(detailData.expirationDate);
+          }
+        } catch (parseError) {
+          throw new BadRequestException('Invalid JSON format in detailData');
         }
-      } catch (parseError) {
-        throw new BadRequestException('Invalid JSON format in detailData');
       }
+
+      const dataToValidate : z.infer<typeof simpleUpdateSchema> = {};
+      if (detailData) dataToValidate.detailData = detailData;
+      if (body.subcategoryId) dataToValidate.subcategoryId = body.subcategoryId;
+      if (body.isActive !== undefined) dataToValidate.isActive = body.isActive === true;
+      if (file) dataToValidate.imageData = { altText: dataToValidate.imageData?.altText || '' };
+
+      // 🔧 VALIDATION ZOD
+      const validatedData = simpleUpdateSchema.parse(dataToValidate);
+
+      return await this.productService.update(id, validatedData, file);
+
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        throw new BadRequestException({
+          message: 'Validation failed',
+          errors: error.errors.map(err => `${err.path.join('.')}: ${err.message}`)
+        });
+      }
+      throw error;
     }
-
-    const dataToValidate: any = {};
-    if (detailData) dataToValidate.detailData = detailData;
-    if (body.subcategoryId) dataToValidate.subcategoryId = body.subcategoryId;
-    if (body.isActive !== undefined) dataToValidate.isActive = body.isActive === 'true' || body.isActive === true;
-    if (file) dataToValidate.imageData = { altText: body.altText || '' };
-
-    // 🔧 VALIDATION ZOD
-    const validatedData = simpleUpdateSchema.parse(dataToValidate);
-
-    return await this.productService.update(id, validatedData, file);
-
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      throw new BadRequestException({
-        message: 'Validation failed',
-        errors: error.errors.map(err => `${err.path.join('.')}: ${err.message}`)
-      });
-    }
-    throw error;
   }
-}
 
   // @UseGuards(JwtAuthGuard)
   @Get()

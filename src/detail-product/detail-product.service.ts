@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateDetailProductDto } from './dto/create-detail-product.dto';
 import { UpdateDetailProductDto } from './dto/update-detail-product.dto';
 import { DetailProductRepository } from './detail-product.repository';
 import { DetailProduct } from './detail-product.schema';
+import { CreateDetailProductDto } from 'src/common/schemas/product.schemas';
 
 @Injectable()
 export class DetailProductService {
@@ -11,7 +11,11 @@ export class DetailProductService {
   ) {}
 
   async create(dto: CreateDetailProductDto): Promise<DetailProduct> {
-    const created = await this.detailProductRepository.create(dto);
+    const dataToCreate = {
+      ...dto,
+      expirationDate: dto.expirationDate ? new Date(dto.expirationDate) : undefined,
+    };
+    const created = await this.detailProductRepository.create(dataToCreate);
     return created;
   }
 

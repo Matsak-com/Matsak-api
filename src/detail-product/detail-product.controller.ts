@@ -21,11 +21,11 @@ import { idParamSchema } from '../common/schemas/common.schemas';
 export class DetailProductController {
   constructor(private readonly service: DetailProductService) {}
 
-  @Post()
-  @ZodValidation(createDetailProductSchema)
-  create(@Body() dto: CreateDetailProductDto) {
-    return this.service.create(dto);
-  }
+  // @Post()
+  // @ZodValidation(createDetailProductSchema)
+  // create(@Body() dto: CreateDetailProductDto) {
+  //   return this.service.create(dto);
+  // }
 
   @Get()
   findAll() {
