@@ -4,7 +4,6 @@ import {
   UpdateQuery,
   PopulateOptions,
   ProjectionType,
-  QueryOptions,
 } from 'mongoose';
 
 type QueryOptionsExtended<T> = {
@@ -26,10 +25,13 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
     };
   }
 
-  async create(
-    doc: Partial<T>,
-    options: { save?: boolean } = { save: true },
-  ): Promise<T> {
+  async create({
+    doc,
+    options = { save: true },
+  }: {
+    doc: Partial<T>;
+    options?: { save?: boolean };
+  }): Promise<T> {
     const created = new this.model(doc);
     if (options.save === false) {
       return created;
@@ -37,10 +39,13 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
     return created.save();
   }
 
-  async findAll(
-    filter: FilterQuery<T> = {},
-    options: QueryOptionsExtended<T> = {},
-  ): Promise<(T & { _id: any })[]> {
+  async findAll({
+    filter = {},
+    options = {},
+  }: {
+    filter?: FilterQuery<T>;
+    options?: QueryOptionsExtended<T>;
+  } = {}): Promise<(T & { _id: any })[]> {
     const query = this.model.find(
       this.withNotDeleted(filter),
       options.projection,
@@ -49,10 +54,13 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
     return query.exec();
   }
 
-  async findOne(
-    filter: FilterQuery<T>,
-    options: QueryOptionsExtended<T> = {},
-  ): Promise<T | null> {
+  async findOne({
+    filter,
+    options = {},
+  }: {
+    filter: FilterQuery<T>;
+    options?: QueryOptionsExtended<T>;
+  }): Promise<T | null> {
     const query = this.model.findOne(
       this.withNotDeleted(filter),
       options.projection,
@@ -61,10 +69,13 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
     return query.exec();
   }
 
-  async findById(
-    id: string,
-    options: QueryOptionsExtended<T> = {},
-  ): Promise<T | null> {
+  async findById({
+    id,
+    options = {},
+  }: {
+    id: string;
+    options?: QueryOptionsExtended<T>;
+  }): Promise<T | null> {
     const query = this.model.findOne(
       this.withNotDeleted({ _id: id } as FilterQuery<T>),
       options.projection,
@@ -73,11 +84,15 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
     return query.exec();
   }
 
-  async update(
-    id: string,
-    update: UpdateQuery<T>,
-    options: QueryOptionsExtended<T> = {},
-  ): Promise<T | null> {
+  async update({
+    id,
+    update,
+    options = {},
+  }: {
+    id: string;
+    update: UpdateQuery<T>;
+    options?: QueryOptionsExtended<T>;
+  }): Promise<T | null> {
     const query = this.model.findOneAndUpdate(
       this.withNotDeleted({ _id: id } as FilterQuery<T>),
       update,
@@ -87,10 +102,13 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
     return query.exec();
   }
 
-  async delete(
-    id: string,
-    options: QueryOptionsExtended<T> = {},
-  ): Promise<T | null> {
+  async delete({
+    id,
+    options = {},
+  }: {
+    id: string;
+    options?: QueryOptionsExtended<T>;
+  }): Promise<T | null> {
     const update: UpdateQuery<T> = { deleted_at: new Date() } as any;
     const query = this.model.findOneAndUpdate(
       this.withNotDeleted({ _id: id } as FilterQuery<T>),

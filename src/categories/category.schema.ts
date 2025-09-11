@@ -8,6 +8,12 @@ export class Category {
   @Prop({ required: true })
   name: string;
 
+  @Prop()
+  description: string;
+
+  @Prop({ default: true })
+  status: boolean;
+
   @Prop({ required: false })
   deleted_at?: Date;
 }

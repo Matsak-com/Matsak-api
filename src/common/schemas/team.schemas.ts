@@ -1,10 +1,21 @@
 import { z } from 'zod';
 
-// Coordinates schema
-const coordinatesSchema = z.object({
-  lat: z.number(),
-  lng: z.number(),
-});
+const coordinatesSchema = z.preprocess(
+  (arg) => {
+    if (typeof arg === 'string') {
+      try {
+        return JSON.parse(arg);
+      } catch (e) {
+        return arg;
+      }
+    }
+    return arg;
+  },
+  z.object({
+    lat: z.number(),
+    lng: z.number(),
+  }),
+);
 
 // Team validation schemas
 export const createTeamSchema = z.object({

@@ -48,10 +48,15 @@ export class ImageProductService {
       altText: createImageDto.altText || '',
       name: path.basename(createImageDto.filename),
     };
+<<<<<<< HEAD
 
     // ✅ Use standard BaseRepository create method
     const savedImage = await this.imageProductRepo.create(imageToSave);
 
+=======
+    const savedImage = await this.imageProductRepo.create(imageToSave);
+    
+>>>>>>> 20768a51c14f6eec52bfca2e68b277b33cde8134
     return savedImage;
   }
 
@@ -59,7 +64,6 @@ export class ImageProductService {
     // ✅ Use standard BaseRepository findAll method
     return this.imageProductRepo.findAll();
   }
-
   async findOne(id: string): Promise<ImageProductDocument> {
     // ✅ Use standard BaseRepository findById method
     return this.imageProductRepo.findById(id);
@@ -71,7 +75,7 @@ export class ImageProductService {
   ): Promise<ImageProductDocument> {
     // ✅ Use standard BaseRepository findById method
     const existingImage = await this.imageProductRepo.findById(id);
-
+      
     if (!existingImage) {
       throw new NotFoundException(`Image with ID ${id} not found`);
     }
@@ -109,13 +113,22 @@ export class ImageProductService {
       };
     }
 
+<<<<<<< HEAD
     // ✅ Use standard BaseRepository update method
+=======
+
+>>>>>>> 20768a51c14f6eec52bfca2e68b277b33cde8134
     return this.imageProductRepo.update(id, updateData);
   }
 
   async remove(id: string): Promise<any> {
+<<<<<<< HEAD
     // ✅ Use simplified structure with { id }
     return this.imageProductRepo.delete({ id });
+=======
+    return this.imageProductRepo.delete(id);
+
+>>>>>>> 20768a51c14f6eec52bfca2e68b277b33cde8134
   }
 
   // 🆕 Alternative method using the custom save method from repository

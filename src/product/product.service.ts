@@ -26,6 +26,7 @@ export class ProductService {
     private readonly detailProductService: DetailProductService,
   ) {}
 
+
   async createProduct(
   createDto: ValidatedCreateProductDto,
   file?: Express.Multer.File
@@ -35,6 +36,7 @@ export class ProductService {
     const detail = await this.detailProductService.create(
       createDto.detailData 
     ) as DetailProduct & { _id: string };
+
 
     // 2️⃣ Créer le produit en DB
     const product = new this.productModel({
@@ -64,19 +66,26 @@ export class ProductService {
       throw new BadRequestException('Product already exists');
     }
     throw error;
+
   }
 }
 
 
   async findAll(): Promise<Product[]> {
-    return this.productRepo.findAll(null, {
-      populate: ['detail', 'subcategory', 'images'],
+    return this.productRepo.findAll({
+      filter: {},
+      options: {
+        populate: ['detail', 'subcategory', 'images'],
+      },
     });
   }
 
   async findOne(id: string): Promise<Product> {
-    const product = await this.productRepo.findById(id, {
-      populate: ['detail', 'subcategory', 'images'],
+    const product = await this.productRepo.findById({
+      id,
+      options: {
+        populate: ['detail', 'subcategory', 'images'],
+      },
     });
     if (!product) {
       throw new NotFoundException(`Product with id ${id} not found`);
@@ -104,6 +113,7 @@ export class ProductService {
     );
   }
 
+
   // Gestion de l'image
   let imageId = existingProduct.images;
   if (file) {
@@ -118,6 +128,7 @@ export class ProductService {
       originalname: file.originalname,
       mimetype: file.mimetype,
       altText: updateProductDto.imageData?.altText || '',
+
     });
 
     imageId = new Types.ObjectId(uploadedImage._id as string);
@@ -149,15 +160,18 @@ export class ProductService {
 }
 
   async remove(id: string): Promise<void> {
-    const result = await this.productRepo.delete(id);
+    const result = await this.productRepo.delete({ id });
     if (!result) {
       throw new NotFoundException(`Product with id ${id} not found`);
     }
   }
 
   async updateSubcategory(id: string, subcategoryId: string): Promise<Product> {
-    const updatedProduct = await this.productRepo.update(id, {
-      subcategory: new Types.ObjectId(subcategoryId),
+    const updatedProduct = await this.productRepo.update({
+      id,
+      update: {
+        subcategory: new Types.ObjectId(subcategoryId),
+      },
     });
     if (!updatedProduct) {
       throw new NotFoundException(`Product with id ${id} not found`);

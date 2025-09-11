@@ -11,11 +11,15 @@ export class DetailProductService {
   ) {}
 
   async create(dto: CreateDetailProductDto): Promise<DetailProduct> {
+<<<<<<< HEAD
     const dataToCreate = {
       ...dto,
       expirationDate: dto.expirationDate ? new Date(dto.expirationDate) : undefined,
     };
     const created = await this.detailProductRepository.create(dataToCreate);
+=======
+    const created = await this.detailProductRepository.create({ doc: dto });
+>>>>>>> 20768a51c14f6eec52bfca2e68b277b33cde8134
     return created;
   }
 
@@ -25,7 +29,7 @@ export class DetailProductService {
   }
 
   async findOne(id: string): Promise<DetailProduct> {
-    const item = await this.detailProductRepository.findById(id);
+    const item = await this.detailProductRepository.findById({ id });
     if (!item) throw new NotFoundException(`DetailProduct ${id} not found`);
     return item;
   }
@@ -34,13 +38,16 @@ export class DetailProductService {
     id: string,
     dto: UpdateDetailProductDto,
   ): Promise<DetailProduct> {
-    const updated = await this.detailProductRepository.update(id, dto);
+    const updated = await this.detailProductRepository.update({
+      id,
+      update: dto,
+    });
     if (!updated) throw new NotFoundException(`DetailProduct ${id} not found`);
     return updated;
   }
 
   async remove(id: string): Promise<{ deleted: boolean }> {
-    const result = await this.detailProductRepository.delete(id);
+    const result = await this.detailProductRepository.delete({ id });
     if (!result) throw new NotFoundException(`DetailProduct ${id} not found`);
     return { deleted: true };
   }

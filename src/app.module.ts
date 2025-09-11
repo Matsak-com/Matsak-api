@@ -17,6 +17,7 @@ import { ProductModule } from './product/product.module';
 import { CartModule } from './cart-item/cart.module';
 import { SessionMiddleware } from './middleware/session.middleware';
 import { TeamProductModule } from './team-product/team-product-module';
+import { TeamParamModule } from './team-param/team-param.module';
 import { AddressModule } from './client/address.module';
 
 @Module({
@@ -37,9 +38,10 @@ import { AddressModule } from './client/address.module';
     ImageProductModule,
     ProductDecondModule,
     ProductModule,
-    CartModule, 
+    CartModule,
     TeamProductModule,
-    AddressModule
+    TeamParamModule,
+    AddressModule,
   ],
   controllers: [AppController],
   providers: [AppService],
