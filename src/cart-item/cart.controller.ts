@@ -59,16 +59,11 @@ export class CartController {
       throw new BadRequestException('Quantité invalide');
     }
 
-<<<<<<< HEAD
-    return this.cartService.updateItemQuantity(sessionId, query.productId, body.quantity);
-=======
-
     return this.cartService.updateItemQuantity(
       sessionId,
       query.productId,
       body.quantity,
     );
->>>>>>> 20768a51c14f6eec52bfca2e68b277b33cde8134
   }
 
   @Delete('remove')

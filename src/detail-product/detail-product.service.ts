@@ -11,15 +11,13 @@ export class DetailProductService {
   ) {}
 
   async create(dto: CreateDetailProductDto): Promise<DetailProduct> {
-<<<<<<< HEAD
-    const dataToCreate = {
-      ...dto,
-      expirationDate: dto.expirationDate ? new Date(dto.expirationDate) : undefined,
+      const docToCreate = {
+        ...dto,
+        // Convert string to Date if expirationDate exists
+        ...(dto.expirationDate && { expirationDate: new Date(dto.expirationDate) })
     };
-    const created = await this.detailProductRepository.create(dataToCreate);
-=======
-    const created = await this.detailProductRepository.create({ doc: dto });
->>>>>>> 20768a51c14f6eec52bfca2e68b277b33cde8134
+    
+    const created = await this.detailProductRepository.create({ doc: docToCreate });
     return created;
   }
 

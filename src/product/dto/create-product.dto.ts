@@ -25,5 +25,6 @@ export class CreateProductDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+  altText: string;
 }
 
