@@ -23,8 +23,8 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup || true
 RUN chown -R appuser:appgroup /app
 USER appuser
 
-# Run linter check and fail build on lint errors
-RUN pnpm run lint:check
+# Run focused linter check for CI and fail build on lint errors
+RUN pnpm run lint:ci
 
 RUN pnpm run build
 

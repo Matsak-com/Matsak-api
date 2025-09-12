@@ -171,12 +171,6 @@ export class ImageProductRepository extends BaseRepository<ImageProductDocument>
     }
   }
 
-  // Note: Do not override BaseRepository methods here. Use the helper
-  // methods below (createWithOptions, findAllWithOptions, etc.) from
-  // other services to keep signatures consistent with BaseRepository.
-
-  // 🆕 Additional utility methods
-
   /**
    * Find images by criteria with pagination
    */

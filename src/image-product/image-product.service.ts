@@ -135,7 +135,6 @@ export class ImageProductService {
       name: path.basename(createImageDto.filename),
     };
 
-    // Use standard create helper
     return this.imageProductRepo.create({ doc: imageToSave });
   }
 
@@ -158,7 +157,6 @@ export class ImageProductService {
       altText: altText || '',
     };
 
-    // Use standard create helper
     return this.imageProductRepo.create({ doc: imageToSave });
   }
 
