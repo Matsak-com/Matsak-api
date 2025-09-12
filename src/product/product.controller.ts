@@ -7,39 +7,127 @@ import {
   Patch,
   Delete,
   UseGuards,
-  NotFoundException,
   UploadedFile,
   UseInterceptors,
+  BadRequestException,
+  Put,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { Product } from './product.schema';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import * as path from 'path';
-import { CreateDetailProductDto } from 'src/detail-product/dto/create-detail-product.dto';
 import {
-  ZodValidation,
   CompoundZodValidation,
 } from '../common/decorators/zod-validation.decorator';
 import {
   createProductSchema,
-  updateProductSchema,
   productIdParamSchema,
   updateSubcategoryParamSchema,
+  simpleUpdateSchema,
 } from '../common/schemas/product.schemas';
+import { ImageProductService } from 'src/image-product/image-product.service';
+import { z } from 'zod';
+import { memoryStorage } from 'multer';
+import { CreateProductDto } from './dto/create-product.dto';
 
 @Controller('products')
 export class ProductController {
-  constructor(private readonly productService: ProductService) {}
+  constructor(private readonly productService: ProductService, 
+    private readonly imageProductService: ImageProductService
+  ) {}
 
-  @UseGuards(JwtAuthGuard)
   @Post()
-  @ZodValidation(createProductSchema)
-  create(@Body() createProductDto: CreateProductDto) {
-    return this.productService.create(createProductDto);
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  async create(
+  @Body() body: CreateProductDto,
+  @UploadedFile() file?: Express.Multer.File
+  ) {
+    try {
+      // 1️⃣ Parser les données du formulaire
+      const detailData = typeof body.detailData === 'string'
+        ? JSON.parse(body.detailData)
+        : body.detailData;
+
+      // 2️⃣ Construire l'objet à valider
+      const dataToValidate = {
+        detailData,
+        subcategoryId: body.subcategoryId,
+        isActive: body.isActive === true,
+      };
+
+      // 3️⃣ Validation avec Zod
+      const validatedData = createProductSchema.parse(dataToValidate);
+      
+      // 4️⃣ Créer le produit avec les données validées
+      return this.productService.createProduct(validatedData, file);
+      
+    } catch (error) {
+      // 5️⃣ Gestion des erreurs de validation Zod
+      if (error instanceof z.ZodError) {
+        throw new BadRequestException({
+          message: 'Validation failed',
+          errors: error.errors.map(err => 
+            `${err.path.join('.')}: ${err.message}`
+          )
+        });
+      }
+      
+      // 6️⃣ Autres erreurs (JSON parse, etc.)
+      if (error instanceof SyntaxError) {
+        throw new BadRequestException({
+          message: 'Invalid JSON format in detailData'
+        });
+      }
+      
+      throw error;
+    }
+  }
+
+  @Put(':id')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  async update(
+    @Param('id') id: string,
+    @Body() body: CreateProductDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    try {
+
+      // Parser detailData si présent
+      let detailData = undefined;
+      if (body.detailData) {
+        try {
+          detailData = typeof body.detailData === 'string'
+            ? JSON.parse(body.detailData)
+            : body.detailData;
+          
+          // Convertir expirationDate si nécessaire
+          if (detailData?.expirationDate && typeof detailData.expirationDate === 'string') {
+            detailData.expirationDate = new Date(detailData.expirationDate);
+          }
+        } catch (parseError) {
+          throw new BadRequestException('Invalid JSON format in detailData');
+        }
+      }
+
+      const dataToValidate : z.infer<typeof simpleUpdateSchema> = {};
+      if (detailData) dataToValidate.detailData = detailData;
+      if (body.subcategoryId) dataToValidate.subcategoryId = body.subcategoryId;
+      if (body.isActive !== undefined) dataToValidate.isActive = body.isActive === true;
+      if (file) dataToValidate.imageData = { altText: dataToValidate.imageData?.altText || '' };
+
+      // 🔧 VALIDATION ZOD
+      const validatedData = simpleUpdateSchema.parse(dataToValidate);
+
+      return await this.productService.update(id, validatedData, file);
+
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        throw new BadRequestException({
+          message: 'Validation failed',
+          errors: error.errors.map(err => `${err.path.join('.')}: ${err.message}`)
+        });
+      }
+      throw error;
+    }
   }
 
   // @UseGuards(JwtAuthGuard)
@@ -55,57 +143,6 @@ export class ProductController {
     return this.productService.findOne(params.id);
   }
 
-  // @UseGuards(JwtAuthGuard) // Ajouté pour sécuriser cette route
-  @Patch(':id')
-  @CompoundZodValidation({ params: productIdParamSchema })
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads/image-products',
-        filename: (req, file, callback) => {
-          const uniqueName = `${Date.now()}-${file.originalname}`;
-          callback(null, uniqueName);
-        },
-      }),
-    }),
-  )
-  async updateImage(
-    @Param() params: { id: string },
-    @UploadedFile() file: Express.Multer.File,
-    @Body() body: any,
-  ): Promise<Product> {
-    // Parse des champs reçus dans le formulaire
-    const updateDto: UpdateProductDto = {
-      detailData: body.detailData ? JSON.parse(body.detailData) : undefined,
-      subcategoryId: body.subcategoryId || undefined,
-      isActive:
-        body.isActive !== undefined && body.isActive !== null
-          ? body.isActive === 'true' || body.isActive === true
-          : undefined,
-      imageData: body.imageData ? JSON.parse(body.imageData) : undefined,
-    };
-
-    // Si un fichier est envoyé, on remplace l'image
-    if (file) {
-      const filePath = path.resolve('uploads', 'image-products', file.filename);
-
-      updateDto.imageData = {
-        filename: filePath,
-        altText: body.altText || '',
-      };
-    }
-
-    const updatedProduct = await this.productService.update(
-      params.id,
-      updateDto,
-    );
-
-    if (!updatedProduct) {
-      throw new NotFoundException(`Product with id ${params.id} not found`);
-    }
-
-    return updatedProduct;
-  }
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')

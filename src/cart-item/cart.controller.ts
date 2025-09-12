@@ -26,7 +26,6 @@ import {
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 
-  // Ajouter un produit au panier (en mémoire)
   @Post('add')
   @ZodValidation(addToCartSchema)
   async add(@Body() dto: AddToCartDto, @Req() req: Request) {
@@ -35,7 +34,6 @@ export class CartController {
     return this.cartService.addToCart(sessionId, dto);
   }
 
-  // Récupérer le panier pour la session
   @Get()
   async get(@Req() req: Request) {
     const sessionId = req.cookies.sessionId;
@@ -43,7 +41,6 @@ export class CartController {
     return this.cartService.getCart(sessionId);
   }
 
-  // Modifier la quantité d'un produit dans le panier
   @Patch('update')
   @CompoundZodValidation({
     query: productIdQuerySchema,
@@ -54,6 +51,7 @@ export class CartController {
     @Query() query: { productId: string },
     @Body() body: { quantity: number },
   ) {
+
     const sessionId = req.cookies.sessionId;
     if (!sessionId) throw new BadRequestException('Session ID manquant');
     if (!query.productId) throw new BadRequestException('productId manquant');
@@ -68,7 +66,6 @@ export class CartController {
     );
   }
 
-  // Supprimer un produit du panier
   @Delete('remove')
   @CompoundZodValidation({ query: productIdQuerySchema })
   async remove(@Req() req: Request, @Query() query: { productId: string }) {
@@ -77,7 +74,6 @@ export class CartController {
     return this.cartService.deleteItem(sessionId, query.productId);
   }
 
-  // Vider le panier
   @Delete('clear')
   async clear(@Req() req: Request) {
     const sessionId = req.cookies.sessionId;
@@ -85,7 +81,6 @@ export class CartController {
     return this.cartService.clearCart(sessionId);
   }
 
-  // Debug (voir le panier brut en mémoire)
   @Get('debug')
   async debug(@Req() req: Request) {
     const sessionId = req.cookies.sessionId;
