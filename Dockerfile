@@ -1,31 +1,45 @@
-FROM node:20-alpine AS base
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 # Enable pnpm via corepack
 RUN corepack enable
 
-# Copy package files first for better caching
+# Copy package files for caching
 COPY package*.json pnpm-lock.yaml ./
 
-# Install dependencies with legacy peer deps to handle version conflicts
-RUN pnpm install --frozen-lockfile --prod
+# Install full dependencies (including dev) required for build
+# --frozen-lockfile ensures lockfile is respected
+RUN pnpm install --frozen-lockfile
 
-# Copy source code
+# Copy source code and build
 COPY . .
 
-# Build the application
+# Clean any existing build output that might be present (e.g., from mounting host volume)
+RUN rm -rf ./dist || true
+
+# Run build as a non-root user to avoid permission issues when files are created by root on host
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup || true
+RUN chown -R appuser:appgroup /app
+USER appuser
+
 RUN pnpm run build
 
-# Copy and set permissions for entrypoint script
-COPY scripts/docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+FROM node:20-alpine AS runner
+WORKDIR /app
 
 # Create uploads directory
 RUN mkdir -p uploads
 
-# Expose the application port
-EXPOSE 8080
+# Copy production dependencies from builder's pnpm store via node_modules
+# and the built dist
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
 
-# Use the entrypoint script
+# Copy and set permissions for entrypoint script
+COPY --from=builder /app/scripts/docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
