@@ -11,13 +11,17 @@ export class DetailProductService {
   ) {}
 
   async create(dto: CreateDetailProductDto): Promise<DetailProduct> {
-      const docToCreate = {
-        ...dto,
-        // Convert string to Date if expirationDate exists
-        ...(dto.expirationDate && { expirationDate: new Date(dto.expirationDate) })
+    const docToCreate = {
+      ...dto,
+      // Convert string to Date if expirationDate exists
+      ...(dto.expirationDate && {
+        expirationDate: new Date(dto.expirationDate),
+      }),
     };
-    
-    const created = await this.detailProductRepository.create({ doc: docToCreate });
+
+    const created = await this.detailProductRepository.create({
+      doc: docToCreate,
+    });
     return created;
   }
 

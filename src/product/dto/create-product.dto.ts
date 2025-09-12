@@ -27,4 +27,3 @@ export class CreateProductDto {
   isActive?: boolean;
   altText: string;
 }
-

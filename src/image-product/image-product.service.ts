@@ -30,10 +30,12 @@ export class ImageProductService {
     };
 
     // ✅ Use standard BaseRepository create method
-    return this.imageProductRepo.create(imageToSave);
+    return this.imageProductRepo.create({ doc: imageToSave });
   }
 
-  async create(createImageDto: CreateImageProductDto): Promise<ImageProductDocument> {
+  async create(
+    createImageDto: CreateImageProductDto,
+  ): Promise<ImageProductDocument> {
     const filePath = path.resolve(
       'uploads',
       'image-products',
@@ -48,8 +50,8 @@ export class ImageProductService {
       altText: createImageDto.altText || '',
       name: path.basename(createImageDto.filename),
     };
-    const savedImage = await this.imageProductRepo.create(imageToSave);
-    
+    const savedImage = await this.imageProductRepo.create({ doc: imageToSave });
+
     return savedImage;
   }
 
@@ -57,9 +59,9 @@ export class ImageProductService {
     // ✅ Use standard BaseRepository findAll method
     return this.imageProductRepo.findAll();
   }
-  async findOne(id: string): Promise<ImageProductDocument> {
+  async findOne(id: string): Promise<ImageProductDocument | null> {
     // ✅ Use standard BaseRepository findById method
-    return this.imageProductRepo.findById(id);
+    return this.imageProductRepo.findById({ id });
   }
 
   async update(
@@ -67,8 +69,8 @@ export class ImageProductService {
     updateImageDto: UpdateImageProductDto,
   ): Promise<ImageProductDocument> {
     // ✅ Use standard BaseRepository findById method
-    const existingImage = await this.imageProductRepo.findById(id);
-      
+    const existingImage = await this.imageProductRepo.findById({ id });
+
     if (!existingImage) {
       throw new NotFoundException(`Image with ID ${id} not found`);
     }
@@ -106,7 +108,7 @@ export class ImageProductService {
       };
     }
 
-    return this.imageProductRepo.update(id, updateData);
+    return this.imageProductRepo.update({ id, update: updateData });
   }
 
   async remove(id: string): Promise<any> {
@@ -115,7 +117,9 @@ export class ImageProductService {
   }
 
   // 🆕 Alternative method using the custom save method from repository
-  async createUsingSave(createImageDto: CreateImageProductDto): Promise<ImageProduct> {
+  async createUsingSave(
+    createImageDto: CreateImageProductDto,
+  ): Promise<ImageProduct> {
     const filePath = path.resolve(
       'uploads',
       'image-products',
@@ -131,8 +135,8 @@ export class ImageProductService {
       name: path.basename(createImageDto.filename),
     };
 
-    // ✅ Use the custom save method from ImageProductRepository
-    return this.imageProductRepo.save(imageToSave);
+    // Use standard create helper
+    return this.imageProductRepo.create({ doc: imageToSave });
   }
 
   // 🆕 Alternative method using custom save for buffer
@@ -154,8 +158,8 @@ export class ImageProductService {
       altText: altText || '',
     };
 
-    // ✅ Use the custom save method from ImageProductRepository
-    return this.imageProductRepo.save(imageToSave);
+    // Use standard create helper
+    return this.imageProductRepo.create({ doc: imageToSave });
   }
 
   // 🔧 Enhanced methods with validation and error handling
@@ -163,7 +167,9 @@ export class ImageProductService {
   /**
    * Create image with validation and error handling
    */
-  async createSafely(createImageDto: CreateImageProductDto): Promise<ImageProductDocument> {
+  async createSafely(
+    createImageDto: CreateImageProductDto,
+  ): Promise<ImageProductDocument> {
     try {
       const filePath = path.resolve(
         'uploads',
@@ -173,7 +179,9 @@ export class ImageProductService {
 
       // Validate file exists
       if (!fs.existsSync(filePath)) {
-        throw new NotFoundException(`Image file not found: ${createImageDto.filename}`);
+        throw new NotFoundException(
+          `Image file not found: ${createImageDto.filename}`,
+        );
       }
 
       return await this.create(createImageDto);
@@ -204,7 +212,12 @@ export class ImageProductService {
       }
 
       // Validate mimetype
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      const allowedTypes = [
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
+        'image/webp',
+      ];
       if (!allowedTypes.includes(mimetype)) {
         throw new Error(`Invalid image type: ${mimetype}`);
       }
@@ -227,7 +240,7 @@ export class ImageProductService {
   async findOneSafely(id: string): Promise<ImageProductDocument> {
     try {
       const image = await this.findOne(id);
-      
+
       if (!image) {
         throw new NotFoundException(`Image with ID ${id} not found`);
       }
@@ -249,10 +262,10 @@ export class ImageProductService {
     try {
       // Get image info before deletion for cleanup
       const existingImage = await this.findOneSafely(id);
-      
+
       // Delete from database
       const result = await this.remove(id);
-      
+
       // Clean up physical file if it exists
       if (existingImage.name) {
         const filePath = path.resolve(
@@ -260,7 +273,7 @@ export class ImageProductService {
           'image-products',
           existingImage.name,
         );
-        
+
         if (fs.existsSync(filePath)) {
           try {
             fs.unlinkSync(filePath);
@@ -273,7 +286,7 @@ export class ImageProductService {
           }
         }
       }
-      
+
       return result;
     } catch (error) {
       console.error(`Error removing image ${id}: ${error.message}`);

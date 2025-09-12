@@ -49,30 +49,39 @@ export const createProductSchema = z.object({
 });
 
 // 🔧 CORRECTION 3: Schéma d'update plus permissif
-export const updateProductSchema = z.object({
-  detailData: updateDetailProductSchema.optional(),
-  imageData: z.union([
-    updateImageProductSchema,
-    imageBufferSchema,
-    z.string() // Accepter aussi les strings pour les IDs d'images existantes
-  ]).optional(),
-  subcategoryId: z.string().min(1, 'Subcategory ID is required').optional(),
-  isActive: z.boolean().optional(),
-})
-// 🔧 SUPPRESSION de .strict() pour plus de flexibilité
-.refine((data) => {
-  // Au moins un champ doit être fourni pour la mise à jour
-  return Object.keys(data).length > 0;
-}, {
-  message: "At least one field must be provided for update"
-});
+export const updateProductSchema = z
+  .object({
+    detailData: updateDetailProductSchema.optional(),
+    imageData: z
+      .union([
+        updateImageProductSchema,
+        imageBufferSchema,
+        z.string(), // Accepter aussi les strings pour les IDs d'images existantes
+      ])
+      .optional(),
+    subcategoryId: z.string().min(1, 'Subcategory ID is required').optional(),
+    isActive: z.boolean().optional(),
+  })
+  // 🔧 SUPPRESSION de .strict() pour plus de flexibilité
+  .refine(
+    (data) => {
+      // Au moins un champ doit être fourni pour la mise à jour
+      return Object.keys(data).length > 0;
+    },
+    {
+      message: 'At least one field must be provided for update',
+    },
+  );
 
 // 🔧 CORRECTION 4: Schéma alternatif plus simple pour les updates partiels
-export const simpleUpdateProductSchema = z.record(z.any()).refine((data) => {
-  return Object.keys(data).length > 0;
-}, {
-  message: "At least one field must be provided for update"
-});
+export const simpleUpdateProductSchema = z.record(z.any()).refine(
+  (data) => {
+    return Object.keys(data).length > 0;
+  },
+  {
+    message: 'At least one field must be provided for update',
+  },
+);
 
 // Parameter validation schemas
 export const productIdParamSchema = z.object({
@@ -84,62 +93,84 @@ export const updateSubcategoryParamSchema = z.object({
   subcategoryId: z.string().min(1, 'Subcategory ID is required'),
 });
 
-export const updateProductSchemaFlexible = z.object({
-  detailData: z.object({
-    name: z.string().optional(),
-    description: z.string().optional(),
-    composition: z.string().optional(),
-    form: z.string().optional(),
-    indications: z.string().optional(),
-    contraindications: z.string().optional(),
-    sideEffects: z.string().optional(),
-    precautions: z.string().optional(),
-    expirationDate: z.date().optional(), // 🔧 Accepter directement Date
-    manufacturer: z.string().optional(),
-    isRepackaged: z.boolean().optional(),
-  }).optional(),
-  imageData: z.object({
-    altText: z.string().optional(),
-  }).optional(),
-  subcategoryId: z.string().optional(),
-  isActive: z.boolean().optional(),
-}).refine((data) => {
-  return Object.keys(data).some(key => data[key] !== undefined);
-}, {
-  message: "At least one field must be provided for update"
-});
+export const updateProductSchemaFlexible = z
+  .object({
+    detailData: z
+      .object({
+        name: z.string().optional(),
+        description: z.string().optional(),
+        composition: z.string().optional(),
+        form: z.string().optional(),
+        indications: z.string().optional(),
+        contraindications: z.string().optional(),
+        sideEffects: z.string().optional(),
+        precautions: z.string().optional(),
+        expirationDate: z.date().optional(), // 🔧 Accepter directement Date
+        manufacturer: z.string().optional(),
+        isRepackaged: z.boolean().optional(),
+      })
+      .optional(),
+    imageData: z
+      .object({
+        altText: z.string().optional(),
+      })
+      .optional(),
+    subcategoryId: z.string().optional(),
+    isActive: z.boolean().optional(),
+  })
+  .refine(
+    (data) => {
+      return Object.keys(data).some((key) => data[key] !== undefined);
+    },
+    {
+      message: 'At least one field must be provided for update',
+    },
+  );
 
-export type UpdateProductDtoFlexible = z.infer<typeof updateProductSchemaFlexible>;
+export type UpdateProductDtoFlexible = z.infer<
+  typeof updateProductSchemaFlexible
+>;
 
-export const simpleUpdateSchema = z.object({
-  detailData: z.object({
-    name: z.string().min(1).optional(),
-    description: z.string().min(1).optional(),
-    composition: z.string().optional(),
-    form: z.string().optional(),
-    indications: z.string().optional(),
-    contraindications: z.string().optional(),
-    sideEffects: z.string().optional(),
-    precautions: z.string().optional(),
-    expirationDate: z.date().optional(),
-    manufacturer: z.string().optional(),
-    isRepackaged: z.boolean().optional(),
-  }).optional(),
-  subcategoryId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId').optional(),
-  isActive: z.boolean().optional(),
-  // 🔧 CORRECTION: imageData plus flexible
-  imageData: z.object({
-    altText: z.string().optional(),
-  }).optional(),
-}).refine((data) => {
-  return Object.keys(data).some(key => data[key] !== undefined);
-}, {
-  message: "At least one field must be provided for update"
-});
+export const simpleUpdateSchema = z
+  .object({
+    detailData: z
+      .object({
+        name: z.string().min(1).optional(),
+        description: z.string().min(1).optional(),
+        composition: z.string().optional(),
+        form: z.string().optional(),
+        indications: z.string().optional(),
+        contraindications: z.string().optional(),
+        sideEffects: z.string().optional(),
+        precautions: z.string().optional(),
+        expirationDate: z.date().optional(),
+        manufacturer: z.string().optional(),
+        isRepackaged: z.boolean().optional(),
+      })
+      .optional(),
+    subcategoryId: z
+      .string()
+      .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId')
+      .optional(),
+    isActive: z.boolean().optional(),
+    // 🔧 CORRECTION: imageData plus flexible
+    imageData: z
+      .object({
+        altText: z.string().optional(),
+      })
+      .optional(),
+  })
+  .refine(
+    (data) => {
+      return Object.keys(data).some((key) => data[key] !== undefined);
+    },
+    {
+      message: 'At least one field must be provided for update',
+    },
+  );
 
 // Créer un nouveau type pour éviter les conflits
 export type SimpleUpdateDto = z.infer<typeof simpleUpdateSchema>;
-
 
 // Types TypeScript
 export type CreateProductDto = z.infer<typeof createProductSchema>;

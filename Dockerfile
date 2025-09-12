@@ -23,6 +23,9 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup || true
 RUN chown -R appuser:appgroup /app
 USER appuser
 
+# Run linter check and fail build on lint errors
+RUN pnpm run lint:check
+
 RUN pnpm run build
 
 FROM node:20-alpine AS runner

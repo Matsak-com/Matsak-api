@@ -50,7 +50,10 @@ export class ImageProductRepository extends BaseRepository<ImageProductDocument>
   /**
    * Create image with doc/options structure
    */
-  async createWithOptions({ doc, options = {} }: CreateImageParams): Promise<ImageProductDocument> {
+  async createWithOptions({
+    doc,
+    options = {},
+  }: CreateImageParams): Promise<ImageProductDocument> {
     try {
       const imageProduct = new this.model({
         mimeType: doc.mimeType,
@@ -58,7 +61,7 @@ export class ImageProductRepository extends BaseRepository<ImageProductDocument>
         altText: doc.altText,
         name: doc.name,
       });
-      
+
       return await imageProduct.save(options);
     } catch (error) {
       console.error('Error creating image:', error);
@@ -69,14 +72,17 @@ export class ImageProductRepository extends BaseRepository<ImageProductDocument>
   /**
    * Find all images with filter/options structure
    */
-  async findAllWithOptions({ filter = {}, options = {} }: FindAllParams = {}): Promise<ImageProductDocument[]> {
+  async findAllWithOptions({
+    filter = {},
+    options = {},
+  }: FindAllParams = {}): Promise<ImageProductDocument[]> {
     try {
       // Exclure les éléments soft-deleted par défaut
       const finalFilter = {
         deleted_at: { $exists: false },
-        ...filter
+        ...filter,
       };
-      
+
       return await this.model.find(finalFilter, null, options).exec();
     } catch (error) {
       console.error('Error finding all images:', error);
@@ -87,13 +93,16 @@ export class ImageProductRepository extends BaseRepository<ImageProductDocument>
   /**
    * Find by ID with options structure
    */
-  async findByIdWithOptions({ id, options = {} }: FindByIdParams): Promise<ImageProductDocument | null> {
+  async findByIdWithOptions({
+    id,
+    options = {},
+  }: FindByIdParams): Promise<ImageProductDocument | null> {
     try {
-      const filter = { 
-        _id: id, 
-        deleted_at: { $exists: false } 
+      const filter = {
+        _id: id,
+        deleted_at: { $exists: false },
       };
-      
+
       return await this.model.findOne(filter, null, options).exec();
     } catch (error) {
       console.error(`Error finding image by ID ${id}:`, error);
@@ -104,24 +113,30 @@ export class ImageProductRepository extends BaseRepository<ImageProductDocument>
   /**
    * Update image with doc/options structure
    */
-  async updateWithOptions({ id, doc, options = {} }: UpdateParams): Promise<ImageProductDocument | null> {
+  async updateWithOptions({
+    id,
+    doc,
+    options = {},
+  }: UpdateParams): Promise<ImageProductDocument | null> {
     try {
-      const filter = { 
-        _id: id, 
-        deleted_at: { $exists: false } 
+      const filter = {
+        _id: id,
+        deleted_at: { $exists: false },
       };
-      
+
       const updateOptions = {
         new: true, // Return updated document
         runValidators: true,
-        ...options
+        ...options,
       };
-      
-      return await this.model.findOneAndUpdate(
-        filter,
-        doc as UpdateQuery<ImageProductDocument>,
-        updateOptions
-      ).exec();
+
+      return await this.model
+        .findOneAndUpdate(
+          filter,
+          doc as UpdateQuery<ImageProductDocument>,
+          updateOptions,
+        )
+        .exec();
     } catch (error) {
       console.error(`Error updating image ${id}:`, error);
       throw error;
@@ -131,98 +146,34 @@ export class ImageProductRepository extends BaseRepository<ImageProductDocument>
   /**
    * Soft delete image with options structure
    */
-  async deleteWithOptions({ id, options = {} }: DeleteParams): Promise<ImageProductDocument | null> {
+  async deleteWithOptions({
+    id,
+    options = {},
+  }: DeleteParams): Promise<ImageProductDocument | null> {
     try {
-      const filter = { 
-        _id: id, 
-        deleted_at: { $exists: false } 
+      const filter = {
+        _id: id,
+        deleted_at: { $exists: false },
       };
-      
+
       const updateOptions = {
         new: true,
-        ...options
+        ...options,
       };
-      
+
       // Soft delete: set deleted_at timestamp
-      return await this.model.findOneAndUpdate(
-        filter,
-        { deleted_at: new Date() },
-        updateOptions
-      ).exec();
+      return await this.model
+        .findOneAndUpdate(filter, { deleted_at: new Date() }, updateOptions)
+        .exec();
     } catch (error) {
       console.error(`Error deleting image ${id}:`, error);
       throw error;
     }
   }
 
-
-  // 🔄 Backward compatibility: Keep existing methods but delegate to new ones
-
-  /**
-   * @deprecated Use createWithOptions instead
-   */
-  async save(imageToSave: {
-    mimeType: string;
-    data: string;
-    altText: string;
-    name: string;
-  }): Promise<ImageProductDocument> {
-    return this.createWithOptions({ doc: imageToSave });
-  }
-
-  /**
-   * Override BaseRepository create to use new structure
-   */
-  async create(params: { doc: Partial<ImageProductDocument>; options?: QueryOptions } | Partial<ImageProductDocument>): Promise<ImageProductDocument> {
-    // Support both new structure { doc } and old format
-    if (params && typeof params === 'object' && 'doc' in params) {
-      return this.createWithOptions({ 
-        doc: params.doc as CreateImageParams['doc'],
-        options: params.options
-      });
-    }
-    
-    // Old format: direct document
-    return this.createWithOptions({ 
-      doc: params as CreateImageParams['doc']
-    });
-  }
-
-  /**
-   * Override BaseRepository findAll to use new structure
-   */
-  async findAll(): Promise<ImageProductDocument[]> {
-    return this.findAllWithOptions();
-  }
-
-  /**
-   * Override BaseRepository findById to use new structure
-   */
-  async findById(id: string): Promise<ImageProductDocument | null> {
-    return this.findByIdWithOptions({ id });
-  }
-
-  /**
-   * Override BaseRepository update to use new structure
-   */
-  async update(id: string, doc: Partial<ImageProductDocument>): Promise<ImageProductDocument | null> {
-    return this.updateWithOptions({ id, doc });
-  }
-
-  /**
-   * Override BaseRepository delete to use new structure
-   */
-  async delete(params: { id: string; options?: QueryOptions } | string): Promise<ImageProductDocument | null> {
-    // Support both new structure { id } and old string format
-    if (typeof params === 'string') {
-      return this.deleteWithOptions({ id: params });
-    }
-    
-    return this.deleteWithOptions({ 
-      id: params.id, 
-      options: params.options 
-    });
-  }
+  // Note: Do not override BaseRepository methods here. Use the helper
+  // methods below (createWithOptions, findAllWithOptions, etc.) from
+  // other services to keep signatures consistent with BaseRepository.
 
   // 🆕 Additional utility methods
 
@@ -233,18 +184,18 @@ export class ImageProductRepository extends BaseRepository<ImageProductDocument>
     filter = {},
     options = {},
     page = 1,
-    limit = 10
+    limit = 10,
   }: FindAllParams & { page?: number; limit?: number } = {}) {
     try {
       const skip = (page - 1) * limit;
       const finalFilter = {
         deleted_at: { $exists: false },
-        ...filter
+        ...filter,
       };
 
       const [data, total] = await Promise.all([
         this.model.find(finalFilter, null, { ...options, skip, limit }).exec(),
-        this.model.countDocuments(finalFilter).exec()
+        this.model.countDocuments(finalFilter).exec(),
       ]);
 
       return {
@@ -253,8 +204,8 @@ export class ImageProductRepository extends BaseRepository<ImageProductDocument>
           page,
           limit,
           total,
-          pages: Math.ceil(total / limit)
-        }
+          pages: Math.ceil(total / limit),
+        },
       };
     } catch (error) {
       console.error('Error in paginated find:', error);
@@ -267,27 +218,35 @@ export class ImageProductRepository extends BaseRepository<ImageProductDocument>
    */
   async findByMimeType({
     mimeType,
-    options = {}
+    options = {},
   }: {
     mimeType: string;
     options?: QueryOptions;
   }): Promise<ImageProductDocument[]> {
     return this.findAllWithOptions({
       filter: { mimeType },
-      options
+      options,
     });
   }
 
   /**
    * Restore soft-deleted image
    */
-  async restore({ id, options = {} }: { id: string; options?: QueryOptions }): Promise<ImageProductDocument | null> {
+  async restore({
+    id,
+    options = {},
+  }: {
+    id: string;
+    options?: QueryOptions;
+  }): Promise<ImageProductDocument | null> {
     try {
-      return await this.model.findOneAndUpdate(
-        { _id: id, deleted_at: { $exists: true } },
-        { $unset: { deleted_at: 1 } },
-        { new: true, ...options }
-      ).exec();
+      return await this.model
+        .findOneAndUpdate(
+          { _id: id, deleted_at: { $exists: true } },
+          { $unset: { deleted_at: 1 } },
+          { new: true, ...options },
+        )
+        .exec();
     } catch (error) {
       console.error(`Error restoring image ${id}:`, error);
       throw error;
