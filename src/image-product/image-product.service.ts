@@ -1,6 +1,6 @@
 import { ImageProductRepository } from './image-product.repository';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { ImageProduct } from './image-product.schema';
+import { ImageProduct, ImageProductDocument } from './image-product.schema';
 import { CreateImageProductDto } from './dto/create-image-product.dto';
 import { encodeImageToBase64 } from 'src/helpers/base64.helper';
 import * as path from 'path';
@@ -11,7 +11,29 @@ import * as fs from 'fs';
 export class ImageProductService {
   constructor(private readonly imageProductRepo: ImageProductRepository) {}
 
-  async create(createImageDto: CreateImageProductDto): Promise<ImageProduct> {
+  async createFromBuffer({
+    buffer,
+    originalname,
+    mimetype,
+    altText,
+  }: {
+    buffer: Buffer;
+    originalname: string;
+    mimetype: string;
+    altText?: string;
+  }): Promise<ImageProductDocument> {
+    const imageToSave = {
+      data: buffer.toString('base64'),
+      mimeType: mimetype,
+      name: originalname,
+      altText: altText || '',
+    };
+
+    // ✅ Use standard BaseRepository create method
+    return this.imageProductRepo.create(imageToSave);
+  }
+
+  async create(createImageDto: CreateImageProductDto): Promise<ImageProductDocument> {
     const filePath = path.resolve(
       'uploads',
       'image-products',
@@ -26,29 +48,27 @@ export class ImageProductService {
       altText: createImageDto.altText || '',
       name: path.basename(createImageDto.filename),
     };
-
-    const savedImage = await this.imageProductRepo.create({ doc: imageToSave });
-    console.log('> Image enregistrée avec ID :', savedImage.id);
-
+    const savedImage = await this.imageProductRepo.create(imageToSave);
+    
     return savedImage;
   }
 
-  async findAll(): Promise<ImageProduct[]> {
-    const results = await this.imageProductRepo.findAll();
-    return results;
+  async findAll(): Promise<ImageProductDocument[]> {
+    // ✅ Use standard BaseRepository findAll method
+    return this.imageProductRepo.findAll();
   }
-
-  async findOne(id: string): Promise<ImageProduct> {
-    const result = await this.imageProductRepo.findById({ id });
-    return result;
+  async findOne(id: string): Promise<ImageProductDocument> {
+    // ✅ Use standard BaseRepository findById method
+    return this.imageProductRepo.findById(id);
   }
 
   async update(
     id: string,
     updateImageDto: UpdateImageProductDto,
-  ): Promise<ImageProduct> {
-    const existingImage = await this.imageProductRepo.findById({ id });
-
+  ): Promise<ImageProductDocument> {
+    // ✅ Use standard BaseRepository findById method
+    const existingImage = await this.imageProductRepo.findById(id);
+      
     if (!existingImage) {
       throw new NotFoundException(`Image with ID ${id} not found`);
     }
@@ -86,16 +106,178 @@ export class ImageProductService {
       };
     }
 
-    const updatedImage = await this.imageProductRepo.update({
-      id,
-      update: updateData,
-    });
-
-    return updatedImage;
+    return this.imageProductRepo.update(id, updateData);
   }
 
   async remove(id: string): Promise<any> {
-    const result = await this.imageProductRepo.delete({ id });
-    return result;
+    // ✅ Use simplified structure with { id }
+    return this.imageProductRepo.delete({ id });
+  }
+
+  // 🆕 Alternative method using the custom save method from repository
+  async createUsingSave(createImageDto: CreateImageProductDto): Promise<ImageProduct> {
+    const filePath = path.resolve(
+      'uploads',
+      'image-products',
+      createImageDto.filename,
+    );
+
+    const { mimeType, data } = encodeImageToBase64(filePath);
+
+    const imageToSave = {
+      mimeType,
+      data,
+      altText: createImageDto.altText || '',
+      name: path.basename(createImageDto.filename),
+    };
+
+    // ✅ Use the custom save method from ImageProductRepository
+    return this.imageProductRepo.save(imageToSave);
+  }
+
+  // 🆕 Alternative method using custom save for buffer
+  async createFromBufferUsingSave({
+    buffer,
+    originalname,
+    mimetype,
+    altText,
+  }: {
+    buffer: Buffer;
+    originalname: string;
+    mimetype: string;
+    altText?: string;
+  }): Promise<ImageProduct> {
+    const imageToSave = {
+      data: buffer.toString('base64'),
+      mimeType: mimetype,
+      name: originalname,
+      altText: altText || '',
+    };
+
+    // ✅ Use the custom save method from ImageProductRepository
+    return this.imageProductRepo.save(imageToSave);
+  }
+
+  // 🔧 Enhanced methods with validation and error handling
+
+  /**
+   * Create image with validation and error handling
+   */
+  async createSafely(createImageDto: CreateImageProductDto): Promise<ImageProductDocument> {
+    try {
+      const filePath = path.resolve(
+        'uploads',
+        'image-products',
+        createImageDto.filename,
+      );
+
+      // Validate file exists
+      if (!fs.existsSync(filePath)) {
+        throw new NotFoundException(`Image file not found: ${createImageDto.filename}`);
+      }
+
+      return await this.create(createImageDto);
+    } catch (error) {
+      console.error(`Error creating image: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Create image from buffer with validation
+   */
+  async createFromBufferSafely({
+    buffer,
+    originalname,
+    mimetype,
+    altText,
+  }: {
+    buffer: Buffer;
+    originalname: string;
+    mimetype: string;
+    altText?: string;
+  }): Promise<ImageProductDocument> {
+    try {
+      // Validate buffer
+      if (!buffer || buffer.length === 0) {
+        throw new Error('Invalid buffer provided');
+      }
+
+      // Validate mimetype
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(mimetype)) {
+        throw new Error(`Invalid image type: ${mimetype}`);
+      }
+
+      return await this.createFromBuffer({
+        buffer,
+        originalname,
+        mimetype,
+        altText,
+      });
+    } catch (error) {
+      console.error(`Error creating image from buffer: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Find image by ID with proper error handling
+   */
+  async findOneSafely(id: string): Promise<ImageProductDocument> {
+    try {
+      const image = await this.findOne(id);
+      
+      if (!image) {
+        throw new NotFoundException(`Image with ID ${id} not found`);
+      }
+
+      return image;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      console.error(`Error finding image: ${error.message}`);
+      throw new NotFoundException(`Image with ID ${id} not found`);
+    }
+  }
+
+  /**
+   * Remove with proper cleanup
+   */
+  async removeSafely(id: string): Promise<any> {
+    try {
+      // Get image info before deletion for cleanup
+      const existingImage = await this.findOneSafely(id);
+      
+      // Delete from database
+      const result = await this.remove(id);
+      
+      // Clean up physical file if it exists
+      if (existingImage.name) {
+        const filePath = path.resolve(
+          'uploads',
+          'image-products',
+          existingImage.name,
+        );
+        
+        if (fs.existsSync(filePath)) {
+          try {
+            fs.unlinkSync(filePath);
+            console.log(`Successfully deleted file: ${filePath}`);
+          } catch (fileError) {
+            console.warn(
+              `Warning: Could not delete file ${filePath}: ${fileError.message}`,
+            );
+            // Don't throw error for file cleanup failure
+          }
+        }
+      }
+      
+      return result;
+    } catch (error) {
+      console.error(`Error removing image ${id}: ${error.message}`);
+      throw error;
+    }
   }
 }
