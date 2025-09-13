@@ -31,6 +31,9 @@ RUN pnpm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
+# Enable pnpm in the runtime image so the entrypoint can call pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 # Create uploads directory
 RUN mkdir -p uploads
 

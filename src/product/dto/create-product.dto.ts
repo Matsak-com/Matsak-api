@@ -1,6 +1,4 @@
 import {
-  IsString,
-  IsNumber,
   IsOptional,
   IsBoolean,
   ValidateNested,

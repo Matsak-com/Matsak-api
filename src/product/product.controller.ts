@@ -105,7 +105,7 @@ export class ProductController {
           ) {
             detailData.expirationDate = new Date(detailData.expirationDate);
           }
-        } catch (parseError) {
+        } catch {
           throw new BadRequestException('Invalid JSON format in detailData');
         }
       }
