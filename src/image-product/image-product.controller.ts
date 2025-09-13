@@ -13,18 +13,13 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
 import { ImageProductService } from './image-product.service';
 import { ImageProduct } from './image-product.schema';
-import * as fs from 'fs';
 import * as path from 'path';
 import { CreateImageProductDto } from './dto/create-image-product.dto';
 import { UpdateImageProductDto } from './dto/update-image-product.dto';
 import { CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
-import {
-  createImageProductSchema,
-  updateImageProductSchema,
-} from '../common/schemas/product.schemas';
+import { updateImageProductSchema } from '../common/schemas/product.schemas';
 import { idParamSchema } from '../common/schemas/common.schemas';
 
 @Controller('image-product')

@@ -1,6 +1,4 @@
 import {
-  IsString,
-  IsNumber,
   IsOptional,
   IsBoolean,
   ValidateNested,
@@ -27,4 +25,3 @@ export class CreateProductDto {
   isActive?: boolean;
   altText: string;
 }
-

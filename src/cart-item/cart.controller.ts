@@ -51,7 +51,6 @@ export class CartController {
     @Query() query: { productId: string },
     @Body() body: { quantity: number },
   ) {
-
     const sessionId = req.cookies.sessionId;
     if (!sessionId) throw new BadRequestException('Session ID manquant');
     if (!query.productId) throw new BadRequestException('productId manquant');

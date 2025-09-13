@@ -3,7 +3,7 @@ import { CorsOptions } from 'cors';
 // Allow common Vue.js development ports and production configurations
 const allowedOrigins = [
   'http://localhost:3000',
-  'http://localhost:8080', 
+  'http://localhost:8080',
   'http://localhost:8081',
   'http://localhost:5173', // Vite default port
   'http://127.0.0.1:3000',
@@ -19,9 +19,12 @@ export const corsConfig: CorsOptions = {
       callback(null, true);
       return;
     }
-    
+
     // Check if origin is in allowed list or matches environment-specific origins
-    if (allowedOrigins.includes(origin) || process.env.CORS_ORIGIN?.includes(origin)) {
+    if (
+      allowedOrigins.includes(origin) ||
+      process.env.CORS_ORIGIN?.includes(origin)
+    ) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));

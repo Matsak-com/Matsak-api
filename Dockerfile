@@ -23,10 +23,16 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup || true
 RUN chown -R appuser:appgroup /app
 USER appuser
 
+# Run focused linter check for CI and fail build on lint errors
+RUN pnpm run lint:ci
+
 RUN pnpm run build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
+
+# Enable pnpm in the runtime image so the entrypoint can call pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Create uploads directory
 RUN mkdir -p uploads

@@ -8,7 +8,7 @@ export type ProductDocument = Product & Document;
 
 @Schema({ timestamps: true })
 export class Product {
-  static findById(product: string) {
+  static findById() {
     throw new Error('Method not implemented.');
   }
   // Reference to DetailProduct

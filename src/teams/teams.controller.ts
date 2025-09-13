@@ -18,10 +18,8 @@ import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
 import { TeamsService } from './teams.service';
 import { FileInterceptor } from '@nestjs/platform-express';
-import {
-  ZodValidation,
-  CompoundZodValidation,
-} from '../common/decorators/zod-validation.decorator';
+import { CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
+import { ZodMultipartInterceptor } from '../common/interceptors/zod-multipart.interceptor';
 import {
   createTeamSchema,
   updateTeamSchema,
@@ -34,8 +32,10 @@ export class TeamsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @UseInterceptors(FileInterceptor('logoUrl'))
-  @ZodValidation(createTeamSchema)
+  @UseInterceptors(
+    FileInterceptor('logoUrl'),
+    new ZodMultipartInterceptor(createTeamSchema),
+  )
   async create(
     @Body() createTeamDto: CreateTeamDto,
     @UploadedFile(
@@ -49,7 +49,7 @@ export class TeamsController {
     )
     logoUrl: Express.Multer.File,
   ) {
-    return this.teamsService.create({ ...createTeamDto, logoUrl });
+    return await this.teamsService.create({ ...createTeamDto, logoUrl });
   }
 
   @Get()
@@ -64,11 +64,11 @@ export class TeamsController {
   }
 
   @Put(':id')
-  @UseInterceptors(FileInterceptor('logoUrl'))
-  @CompoundZodValidation({
-    params: teamIdParamSchema,
-    body: updateTeamSchema,
-  })
+  @UseInterceptors(
+    FileInterceptor('logoUrl'),
+    new ZodMultipartInterceptor(updateTeamSchema),
+  )
+  @CompoundZodValidation({ params: teamIdParamSchema })
   async update(
     @Param() params: { id: string },
     @Body() updateTeamDto: UpdateTeamDto,
