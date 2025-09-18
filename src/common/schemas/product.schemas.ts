@@ -2,6 +2,32 @@
 
 import { z } from 'zod';
 
+// Discount schema
+export const discountSchema = z.object({
+  type: z.enum(['percentage', 'fixed', 'bulk']),
+  value: z.number().min(0),
+  description: z.string().optional(),
+  startDate: z.date().optional(),
+  endDate: z.date().optional(),
+  isActive: z.boolean().default(true),
+  minQuantity: z.number().min(1).optional(),
+});
+
+// Pricing schemas
+export const setPriceSchema = z.object({
+  basePrice: z.number().min(0),
+  currency: z.string().default('MGA'),
+});
+
+export const addDiscountSchema = discountSchema;
+
+export const updateDiscountSchema = discountSchema.partial();
+
+export const calculatePriceSchema = z.object({
+  quantity: z.number().min(1).default(1),
+  calculateAt: z.date().optional(),
+});
+
 // Detail product schema
 export const createDetailProductSchema = z.object({
   name: z.string().min(1, 'Product name is required'),

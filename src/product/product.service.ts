@@ -178,4 +178,234 @@ export class ProductService {
     }
     return updatedProduct;
   }
+
+  // Pricing methods
+  async setPrice(
+    id: string,
+    basePrice: number,
+    currency = 'MGA',
+  ): Promise<Product> {
+    const product = await this.productRepo.findById({ id });
+    if (!product) {
+      throw new NotFoundException(`Product with id ${id} not found`);
+    }
+
+    const updatedProduct = await this.productRepo.update({
+      id,
+      update: {
+        basePrice,
+        currency,
+      },
+    });
+
+    await updatedProduct.populate(['detail', 'subcategory', 'images']);
+    return updatedProduct;
+  }
+
+  async addDiscount(
+    id: string,
+    discountData: {
+      type: 'percentage' | 'fixed' | 'bulk';
+      value: number;
+      description?: string;
+      startDate?: Date;
+      endDate?: Date;
+      isActive?: boolean;
+      minQuantity?: number;
+    },
+  ): Promise<Product> {
+    const product = await this.productRepo.findById({ id });
+    if (!product) {
+      throw new NotFoundException(`Product with id ${id} not found`);
+    }
+
+    // Validate discount data
+    if (discountData.type === 'percentage' && discountData.value > 100) {
+      throw new BadRequestException('Percentage discount cannot exceed 100%');
+    }
+
+    if (discountData.type === 'bulk' && !discountData.minQuantity) {
+      throw new BadRequestException(
+        'Bulk discount requires minimum quantity',
+      );
+    }
+
+    const discount = {
+      ...discountData,
+      isActive: discountData.isActive ?? true,
+    };
+
+    const updatedProduct = await this.productRepo.update({
+      id,
+      update: {
+        $push: { discounts: discount },
+      },
+    });
+
+    await updatedProduct.populate(['detail', 'subcategory', 'images']);
+    return updatedProduct;
+  }
+
+  async removeDiscount(id: string, discountIndex: number): Promise<Product> {
+    const product = await this.productRepo.findById({ id });
+    if (!product) {
+      throw new NotFoundException(`Product with id ${id} not found`);
+    }
+
+    if (
+      !product.discounts ||
+      discountIndex < 0 ||
+      discountIndex >= product.discounts.length
+    ) {
+      throw new BadRequestException('Invalid discount index');
+    }
+
+    const updatedProduct = await this.productRepo.update({
+      id,
+      update: {
+        $unset: { [`discounts.${discountIndex}`]: 1 },
+      },
+    });
+
+    // Remove null elements from array
+    await this.productRepo.update({
+      id,
+      update: {
+        $pull: { discounts: null },
+      },
+    });
+
+    const finalProduct = await this.productRepo.findById({ id });
+    await finalProduct.populate(['detail', 'subcategory', 'images']);
+    return finalProduct;
+  }
+
+  async updateDiscount(
+    id: string,
+    discountIndex: number,
+    updateData: Partial<{
+      type: 'percentage' | 'fixed' | 'bulk';
+      value: number;
+      description: string;
+      startDate: Date;
+      endDate: Date;
+      isActive: boolean;
+      minQuantity: number;
+    }>,
+  ): Promise<Product> {
+    const product = await this.productRepo.findById({ id });
+    if (!product) {
+      throw new NotFoundException(`Product with id ${id} not found`);
+    }
+
+    if (
+      !product.discounts ||
+      discountIndex < 0 ||
+      discountIndex >= product.discounts.length
+    ) {
+      throw new BadRequestException('Invalid discount index');
+    }
+
+    // Validate updated data
+    if (updateData.type === 'percentage' && updateData.value > 100) {
+      throw new BadRequestException('Percentage discount cannot exceed 100%');
+    }
+
+    if (updateData.type === 'bulk' && !updateData.minQuantity) {
+      throw new BadRequestException(
+        'Bulk discount requires minimum quantity',
+      );
+    }
+
+    // Prepare update object
+    const updateFields = {};
+    Object.keys(updateData).forEach((key) => {
+      updateFields[`discounts.${discountIndex}.${key}`] = updateData[key];
+    });
+
+    const updatedProduct = await this.productRepo.update({
+      id,
+      update: { $set: updateFields },
+    });
+
+    await updatedProduct.populate(['detail', 'subcategory', 'images']);
+    return updatedProduct;
+  }
+
+  calculatePrice(
+    product: Product,
+    quantity = 1,
+    calculateAt?: Date,
+  ): {
+    basePrice: number;
+    finalPrice: number;
+    totalPrice: number;
+    discountsApplied: any[];
+    currency: string;
+  } {
+    if (!product.basePrice) {
+      throw new BadRequestException('Product has no base price set');
+    }
+
+    const currentDate = calculateAt || new Date();
+    let finalPrice = product.basePrice;
+    const discountsApplied = [];
+
+    // Filter active and time-valid discounts
+    const validDiscounts = (product.discounts || []).filter((discount) => {
+      if (!discount.isActive) return false;
+
+      const isValidTime =
+        (!discount.startDate || discount.startDate <= currentDate) &&
+        (!discount.endDate || discount.endDate >= currentDate);
+
+      const isValidQuantity =
+        discount.type !== 'bulk' ||
+        !discount.minQuantity ||
+        quantity >= discount.minQuantity;
+
+      return isValidTime && isValidQuantity;
+    });
+
+    // Apply discounts
+    for (const discount of validDiscounts) {
+      let discountAmount = 0;
+
+      switch (discount.type) {
+        case 'percentage':
+          discountAmount = (finalPrice * discount.value) / 100;
+          break;
+        case 'fixed':
+          discountAmount = discount.value;
+          break;
+        case 'bulk':
+          if (quantity >= discount.minQuantity) {
+            if (discount.value <= 1) {
+              // Treat as percentage if value is <= 1
+              discountAmount = (finalPrice * discount.value * 100) / 100;
+            } else {
+              // Treat as fixed amount
+              discountAmount = discount.value;
+            }
+          }
+          break;
+      }
+
+      finalPrice = Math.max(0, finalPrice - discountAmount);
+      discountsApplied.push({
+        type: discount.type,
+        value: discount.value,
+        discountAmount,
+        description: discount.description,
+      });
+    }
+
+    return {
+      basePrice: product.basePrice,
+      finalPrice,
+      totalPrice: finalPrice * quantity,
+      discountsApplied,
+      currency: product.currency || 'MGA',
+    };
+  }
 }
