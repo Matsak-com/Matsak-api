@@ -80,6 +80,38 @@ describe('TeamParamService', () => {
       expect(result).toEqual(expectedResult);
     });
 
+    it('should create an openings param successfully', async () => {
+      const createDto = {
+        team: '507f1f77bcf86cd799439011',
+        name: 'store-hours',
+        paramType: 'OpeningsParam' as const,
+        value: {
+          dayOfWeek: 'monday' as const,
+          openingHour: '09:00',
+          closingHour: '18:00',
+        },
+      };
+
+      const expectedResult = { ...createDto, _id: '507f1f77bcf86cd799439013' };
+
+      mockTeamParamRepository.findByTeamAndName.mockResolvedValue(null);
+      mockTeamParamRepository.create.mockResolvedValue(expectedResult);
+
+      const result = await service.create(createDto);
+
+      expect(mockTeamParamRepository.findByTeamAndName).toHaveBeenCalledWith({
+        teamId: createDto.team,
+        name: createDto.name,
+      });
+      expect(mockTeamParamRepository.create).toHaveBeenCalledWith({
+        doc: {
+          ...createDto,
+          team: expect.any(Object), // Expect ObjectId conversion
+        },
+      });
+      expect(result).toEqual(expectedResult);
+    });
+
     it('should throw BadRequestException if parameter name already exists', async () => {
       const createDto = {
         team: '507f1f77bcf86cd799439011',
