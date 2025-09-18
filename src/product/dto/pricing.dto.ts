@@ -1,4 +1,13 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString, Min, IsEnum, IsBoolean, IsDateString } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+  IsEnum,
+  IsBoolean,
+  IsDateString,
+} from 'class-validator';
 
 export class DiscountDto {
   @IsNotEmpty()

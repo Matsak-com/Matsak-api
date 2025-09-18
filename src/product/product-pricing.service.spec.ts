@@ -106,7 +106,9 @@ describe('ProductService - Pricing', () => {
 
       const result = await service.setPrice(productId, basePrice, currency);
 
-      expect(productRepository.findById).toHaveBeenCalledWith({ id: productId });
+      expect(productRepository.findById).toHaveBeenCalledWith({
+        id: productId,
+      });
       expect(productRepository.update).toHaveBeenCalledWith({
         id: productId,
         update: { basePrice, currency },
@@ -143,12 +145,14 @@ describe('ProductService - Pricing', () => {
       };
       productRepository.update.mockResolvedValue(updatedProduct);
 
-      const result = await service.addDiscount(productId, discountData);
-
+      expect(productRepository.findById).toHaveBeenCalledWith({
+        id: productId,
+      });
       expect(productRepository.update).toHaveBeenCalledWith({
         id: productId,
         update: { $push: { discounts: discountData } },
       });
+      expect(result).toBeDefined();
     });
 
     it('should throw BadRequestException for percentage > 100', async () => {

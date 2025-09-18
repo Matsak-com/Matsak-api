@@ -225,9 +225,7 @@ export class ProductService {
     }
 
     if (discountData.type === 'bulk' && !discountData.minQuantity) {
-      throw new BadRequestException(
-        'Bulk discount requires minimum quantity',
-      );
+      throw new BadRequestException('Bulk discount requires minimum quantity');
     }
 
     const discount = {
@@ -259,13 +257,6 @@ export class ProductService {
     ) {
       throw new BadRequestException('Invalid discount index');
     }
-
-    const updatedProduct = await this.productRepo.update({
-      id,
-      update: {
-        $unset: { [`discounts.${discountIndex}`]: 1 },
-      },
-    });
 
     // Remove null elements from array
     await this.productRepo.update({
@@ -312,9 +303,7 @@ export class ProductService {
     }
 
     if (updateData.type === 'bulk' && !updateData.minQuantity) {
-      throw new BadRequestException(
-        'Bulk discount requires minimum quantity',
-      );
+      throw new BadRequestException('Bulk discount requires minimum quantity');
     }
 
     // Prepare update object

@@ -22,10 +22,6 @@ import {
   productIdParamSchema,
   updateSubcategoryParamSchema,
   simpleUpdateSchema,
-  setPriceSchema,
-  addDiscountSchema,
-  updateDiscountSchema,
-  calculatePriceSchema,
 } from '../common/schemas/product.schemas';
 import { ImageProductService } from 'src/image-product/image-product.service';
 import { z } from 'zod';
@@ -272,7 +268,7 @@ export class ProductController {
   @CompoundZodValidation({ params: productIdParamSchema })
   async getPriceHistory(@Param() params: { id: string }) {
     const product = await this.productService.findOne(params.id);
-    
+
     return {
       productId: params.id,
       basePrice: product.basePrice,
