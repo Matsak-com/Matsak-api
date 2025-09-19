@@ -5,7 +5,7 @@ const coordinatesSchema = z.preprocess(
     if (typeof arg === 'string') {
       try {
         return JSON.parse(arg);
-      } catch (e) {
+      } catch {
         return arg;
       }
     }

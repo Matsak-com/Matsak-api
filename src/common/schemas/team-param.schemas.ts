@@ -38,23 +38,39 @@ export const createCurrencyParamSchema = baseTeamParamSchema.extend({
 // Openings Parameter schema
 export const createOpeningsParamSchema = baseTeamParamSchema.extend({
   paramType: z.literal('OpeningsParam'),
-  value: z.object({
-    dayOfWeek: z.enum([
-      'monday',
-      'tuesday',
-      'wednesday',
-      'thursday',
-      'friday',
-      'saturday',
-      'sunday',
-    ]),
-    openingHour: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
-      message: 'Opening hour must be in HH:MM format',
+  // value is an array of daily opening entries
+  value: z.array(
+    z.object({
+      dayOfWeek: z.enum([
+        'monday',
+        'tuesday',
+        'wednesday',
+        'thursday',
+        'friday',
+        'saturday',
+        'sunday',
+      ]),
+      isOpen: z.boolean(),
+      openTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+        message: 'openTime must be in HH:MM format',
+      }),
+      closeTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+        message: 'closeTime must be in HH:MM format',
+      }),
+      breakStartTime: z
+        .string()
+        .regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+          message: 'breakStartTime must be in HH:MM format',
+        })
+        .optional(),
+      breakEndTime: z
+        .string()
+        .regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+          message: 'breakEndTime must be in HH:MM format',
+        })
+        .optional(),
     }),
-    closingHour: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
-      message: 'Closing hour must be in HH:MM format',
-    }),
-  }),
+  ),
 });
 
 // Closings Parameter schema

@@ -6,11 +6,14 @@ describe('OpeningsParam Validation', () => {
       team: '507f1f77bcf86cd799439011',
       name: 'store-hours',
       paramType: 'OpeningsParam',
-      value: {
-        dayOfWeek: 'monday',
-        openingHour: '09:00',
-        closingHour: '18:00',
-      },
+      value: [
+        {
+          dayOfWeek: 'monday',
+          isOpen: true,
+          openTime: '09:00',
+          closeTime: '18:00',
+        },
+      ],
     };
 
     const result = createOpeningsParamSchema.safeParse(validData);
@@ -22,11 +25,14 @@ describe('OpeningsParam Validation', () => {
       team: '507f1f77bcf86cd799439011',
       name: 'store-hours',
       paramType: 'OpeningsParam',
-      value: {
-        dayOfWeek: 'invalid-day',
-        openingHour: '09:00',
-        closingHour: '18:00',
-      },
+      value: [
+        {
+          dayOfWeek: 'invalid-day',
+          isOpen: true,
+          openTime: '09:00',
+          closeTime: '18:00',
+        },
+      ],
     };
 
     const result = createOpeningsParamSchema.safeParse(invalidData);
@@ -38,11 +44,14 @@ describe('OpeningsParam Validation', () => {
       team: '507f1f77bcf86cd799439011',
       name: 'store-hours',
       paramType: 'OpeningsParam',
-      value: {
-        dayOfWeek: 'monday',
-        openingHour: '25:00', // Invalid hour
-        closingHour: '18:00',
-      },
+      value: [
+        {
+          dayOfWeek: 'monday',
+          isOpen: true,
+          openTime: '25:00', // Invalid hour
+          closeTime: '18:00',
+        },
+      ],
     };
 
     const result = createOpeningsParamSchema.safeParse(invalidData);
@@ -54,11 +63,14 @@ describe('OpeningsParam Validation', () => {
       team: '507f1f77bcf86cd799439011',
       name: 'store-hours',
       paramType: 'OpeningsParam',
-      value: {
-        dayOfWeek: 'friday',
-        openingHour: '09:30',
-        closingHour: '18:70', // Invalid minutes
-      },
+      value: [
+        {
+          dayOfWeek: 'friday',
+          isOpen: true,
+          openTime: '09:30',
+          closeTime: '18:70', // Invalid minutes
+        },
+      ],
     };
 
     const result = createOpeningsParamSchema.safeParse(invalidData);
@@ -81,11 +93,14 @@ describe('OpeningsParam Validation', () => {
         team: '507f1f77bcf86cd799439011',
         name: 'store-hours',
         paramType: 'OpeningsParam',
-        value: {
-          dayOfWeek: day,
-          openingHour: '08:30',
-          closingHour: '17:15',
-        },
+        value: [
+          {
+            dayOfWeek: day,
+            isOpen: true,
+            openTime: '08:30',
+            closeTime: '17:15',
+          },
+        ],
       };
 
       const result = createOpeningsParamSchema.safeParse(validData);

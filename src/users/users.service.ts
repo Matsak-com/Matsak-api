@@ -167,8 +167,9 @@ export class UsersService {
     const isMatch = await bcrypt.compare(pass, user.password);
     if (!isMatch) return null;
 
-    const { password, ...result } = user.toObject();
-    return result;
+    const obj = user.toObject();
+    delete (obj as any).password;
+    return obj;
   }
 
   // Optional: Avatar update

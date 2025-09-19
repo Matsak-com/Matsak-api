@@ -29,9 +29,9 @@ export class GoogleService {
         lastName: data.family_name,
         picture: data.picture,
       };
-    } catch (error) {
+    } catch (err) {
       throw new HttpException(
-        'Failed to fetch Google user info',
+        `Failed to fetch Google user info: ${(err as Error).message}`,
         HttpStatus.UNAUTHORIZED,
       );
     }

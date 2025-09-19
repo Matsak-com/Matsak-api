@@ -1,17 +1,9 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  Delete,
-  Put,
-} from '@nestjs/common';
+import { Controller, Get, Body, Param, Delete, Put } from '@nestjs/common';
 import { DetailProductService } from './detail-product.service';
-import { CreateDetailProductDto } from './dto/create-detail-product.dto';
+// import { CreateDetailProductDto } from './dto/create-detail-product.dto';
 import { UpdateDetailProductDto } from './dto/update-detail-product.dto';
 import {
-  ZodValidation,
+  // ZodValidation,
   CompoundZodValidation,
 } from '../common/decorators/zod-validation.decorator';
 import { createDetailProductSchema } from '../common/schemas/product.schemas';
