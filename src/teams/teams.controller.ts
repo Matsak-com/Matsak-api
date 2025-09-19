@@ -8,7 +8,6 @@ import {
   Put,
   HttpCode,
   HttpStatus,
-  UseInterceptors,
   UploadedFile,
   ParseFilePipe,
   FileTypeValidator,
@@ -17,9 +16,8 @@ import {
 import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
 import { TeamsService } from './teams.service';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
-import { ZodMultipartInterceptor } from '../common/interceptors/zod-multipart.interceptor';
+import { ZodMultipart } from '../common/decorators/zod-multipart.decorator';
 import {
   createTeamSchema,
   updateTeamSchema,
@@ -32,10 +30,7 @@ export class TeamsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @UseInterceptors(
-    FileInterceptor('logoUrl'),
-    new ZodMultipartInterceptor(createTeamSchema),
-  )
+  @ZodMultipart(createTeamSchema)
   async create(
     @Body() createTeamDto: CreateTeamDto,
     @UploadedFile(
@@ -64,10 +59,7 @@ export class TeamsController {
   }
 
   @Put(':id')
-  @UseInterceptors(
-    FileInterceptor('logoUrl'),
-    new ZodMultipartInterceptor(updateTeamSchema),
-  )
+  @ZodMultipart(updateTeamSchema)
   @CompoundZodValidation({ params: teamIdParamSchema })
   async update(
     @Param() params: { id: string },

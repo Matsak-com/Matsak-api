@@ -5,13 +5,6 @@ import { UsersService } from '../../../users/users.service';
 import * as promptLib from 'prompt';
 import * as bcrypt from 'bcrypt';
 
-interface PasswordChangeInput {
-  email: string;
-  newPassword: string;
-  confirmPassword: string;
-  confirm: string;
-}
-
 async function main() {
   const program = new Command();
 
@@ -71,9 +64,10 @@ async function changeUserPasswordInteractive(userService: UsersService) {
         `Utilisateur non trouvé avec l'email: ${userEmailInput.email}`,
       );
     }
-  } catch (error) {
+  } catch (err) {
+    // rethrow with user-friendly message while preserving original
     throw new Error(
-      `Utilisateur non trouvé avec l'email: ${userEmailInput.email}`,
+      `Utilisateur non trouvé avec l'email: ${userEmailInput.email}: ${(err as Error).message}`,
     );
   }
 
