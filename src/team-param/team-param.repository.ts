@@ -34,7 +34,11 @@ export class TeamParamRepository extends BaseRepository<TeamParamDocument> {
   }): Promise<TeamParamDocument[]> {
     return this.findAll({
       filter: {
-        team: new Types.ObjectId(teamId),
+        team: Types.ObjectId.isValid(teamId)
+          ? new Types.ObjectId(teamId)
+          : (() => {
+              throw new Error('Invalid teamId');
+            })(),
         paramType,
       } as FilterQuery<TeamParamDocument>,
       options: { populate: [{ path: 'team' }] },
