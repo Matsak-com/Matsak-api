@@ -57,12 +57,32 @@ export const createOpeningsParamSchema = baseTeamParamSchema.extend({
   }),
 });
 
+// Closings Parameter schema
+export const createClosingsParamSchema = baseTeamParamSchema.extend({
+  paramType: z.literal('ClosingsParam'),
+  value: z.object({
+    dayOfWeek: z.enum([
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday',
+    ]),
+    closingHour: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+      message: 'Closing hour must be in HH:MM format',
+    }),
+  }),
+});
+
 // Union schema for creating any team param
 export const createTeamParamSchema = z.discriminatedUnion('paramType', [
   createShowNumberParamSchema,
   createShowEmailParamSchema,
   createCurrencyParamSchema,
   createOpeningsParamSchema,
+  createClosingsParamSchema,
 ]);
 
 // Update schemas (partial)
@@ -78,12 +98,16 @@ export const updateCurrencyParamSchema = createCurrencyParamSchema
 export const updateOpeningsParamSchema = createOpeningsParamSchema
   .partial()
   .omit({ paramType: true });
+export const updateClosingsParamSchema = createClosingsParamSchema
+  .partial()
+  .omit({ paramType: true });
 
 export const updateTeamParamSchema = z.union([
   updateShowNumberParamSchema,
   updateShowEmailParamSchema,
   updateCurrencyParamSchema,
   updateOpeningsParamSchema,
+  updateClosingsParamSchema,
 ]);
 
 // Parameter validation schemas
@@ -104,6 +128,7 @@ export const teamParamQuerySchema = z.object({
       'ShowEmailParam',
       'CurrencyParam',
       'OpeningsParam',
+      'ClosingsParam',
     ])
     .optional(),
   name: z.string().optional(),
@@ -119,6 +144,7 @@ export type CreateShowEmailParamDto = z.infer<
 >;
 export type CreateCurrencyParamDto = z.infer<typeof createCurrencyParamSchema>;
 export type CreateOpeningsParamDto = z.infer<typeof createOpeningsParamSchema>;
+export type CreateClosingsParamDto = z.infer<typeof createClosingsParamSchema>;
 
 export type UpdateTeamParamDto = z.infer<typeof updateTeamParamSchema>;
 export type UpdateShowNumberParamDto = z.infer<
@@ -129,6 +155,7 @@ export type UpdateShowEmailParamDto = z.infer<
 >;
 export type UpdateCurrencyParamDto = z.infer<typeof updateCurrencyParamSchema>;
 export type UpdateOpeningsParamDto = z.infer<typeof updateOpeningsParamSchema>;
+export type UpdateClosingsParamDto = z.infer<typeof updateClosingsParamSchema>;
 
 export type TeamParamIdParam = z.infer<typeof teamParamIdParamSchema>;
 export type TeamIdParam = z.infer<typeof teamIdParamSchema>;
