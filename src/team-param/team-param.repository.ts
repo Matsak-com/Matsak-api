@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, FilterQuery } from 'mongoose';
 import { BaseRepository } from '../common/base.repository';
 import { TeamParam, TeamParamDocument } from './team-param.schema';
+import { Types } from 'mongoose';
 
 @Injectable()
 export class TeamParamRepository extends BaseRepository<TeamParamDocument> {
@@ -33,7 +34,11 @@ export class TeamParamRepository extends BaseRepository<TeamParamDocument> {
   }): Promise<TeamParamDocument[]> {
     return this.findAll({
       filter: {
-        team: teamId,
+        team: Types.ObjectId.isValid(teamId)
+          ? new Types.ObjectId(teamId)
+          : (() => {
+              throw new Error('Invalid teamId');
+            })(),
         paramType,
       } as FilterQuery<TeamParamDocument>,
       options: { populate: [{ path: 'team' }] },
