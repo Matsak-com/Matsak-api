@@ -51,23 +51,31 @@ export const createOpeningsParamSchema = baseTeamParamSchema.extend({
         'sunday',
       ]),
       isOpen: z.boolean(),
-      openTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
-        message: 'openTime must be in HH:MM format',
-      }),
-      closeTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
-        message: 'closeTime must be in HH:MM format',
-      }),
+      openTime: z
+        .string()
+        .regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+          message: 'openTime must be in HH:MM format',
+        })
+        .nullable(),
+      closeTime: z
+        .string()
+        .regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+          message: 'closeTime must be in HH:MM format',
+        })
+        .nullable(),
       breakStartTime: z
         .string()
         .regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
           message: 'breakStartTime must be in HH:MM format',
         })
+        .nullable()
         .optional(),
       breakEndTime: z
         .string()
         .regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
           message: 'breakEndTime must be in HH:MM format',
         })
+        .nullable()
         .optional(),
     }),
   ),

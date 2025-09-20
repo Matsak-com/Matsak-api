@@ -45,7 +45,7 @@ export class TeamParamService {
     });
   }
 
-  async findByTeam(teamId: string): Promise<TeamParamDocument[]> {
+  findByTeam(teamId: string): Promise<TeamParamDocument[]> {
     return this.teamParamRepository.findByTeam({ teamId });
   }
 

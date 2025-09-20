@@ -85,11 +85,15 @@ describe('TeamParamService', () => {
         team: '507f1f77bcf86cd799439011',
         name: 'store-hours',
         paramType: 'OpeningsParam' as const,
-        value: {
-          dayOfWeek: 'monday' as const,
-          openingHour: '09:00',
-          closingHour: '18:00',
-        },
+        // value is now an array of daily opening entries
+        value: [
+          {
+            dayOfWeek: 'monday' as const,
+            isOpen: true,
+            openTime: '09:00',
+            closeTime: '18:00',
+          },
+        ],
       };
 
       const expectedResult = { ...createDto, _id: '507f1f77bcf86cd799439013' };

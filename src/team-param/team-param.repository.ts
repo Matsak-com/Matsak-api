@@ -20,7 +20,13 @@ export class TeamParamRepository extends BaseRepository<TeamParamDocument> {
     teamId: string;
   }): Promise<TeamParamDocument[]> {
     return this.findAll({
-      filter: { team: teamId } as FilterQuery<TeamParamDocument>,
+      filter: {
+        team: Types.ObjectId.isValid(teamId)
+          ? new Types.ObjectId(teamId)
+          : (() => {
+              throw new Error('Invalid teamId');
+            })(),
+      } as FilterQuery<TeamParamDocument>,
       options: { populate: [{ path: 'team' }] },
     });
   }
@@ -54,7 +60,11 @@ export class TeamParamRepository extends BaseRepository<TeamParamDocument> {
   }): Promise<TeamParamDocument | null> {
     return this.findOne({
       filter: {
-        team: teamId,
+        team: Types.ObjectId.isValid(teamId)
+          ? new Types.ObjectId(teamId)
+          : (() => {
+              throw new Error('Invalid teamId');
+            })(),
         name,
       } as FilterQuery<TeamParamDocument>,
       options: { populate: [{ path: 'team' }] },
