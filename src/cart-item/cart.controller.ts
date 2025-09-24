@@ -31,18 +31,18 @@ export class CartController {
   @ZodValidation(addToCartSchema)
   async add(@Body() dto: AddToCartDto, @Req() req: Request) {
     const sessionId = req.cookies.sessionId;
-      if (!sessionId) {
-        throw new BadRequestException(ERRORS.SESSION_ID_MISSING);
-      }
+    if (!sessionId) {
+      throw new BadRequestException(ERRORS.SESSION_ID_MISSING);
+    }
     return this.cartService.addToCart(sessionId, dto);
   }
 
   @Get()
   async get(@Req() req: Request) {
     const sessionId = req.cookies.sessionId;
-      if (!sessionId) {
-        throw new BadRequestException(ERRORS.SESSION_ID_MISSING);
-      }
+    if (!sessionId) {
+      throw new BadRequestException(ERRORS.SESSION_ID_MISSING);
+    }
     return this.cartService.getCart(sessionId);
   }
 
@@ -57,14 +57,14 @@ export class CartController {
     @Body() body: { quantity: number },
   ) {
     const sessionId = req.cookies.sessionId;
-      if (!sessionId) {
-        throw new BadRequestException(ERRORS.SESSION_ID_MISSING);
-      }
-      if (!query.productId) {
-        throw new BadRequestException(ERRORS.PRODUCT_ID_MISSING);
-      }
+    if (!sessionId) {
+      throw new BadRequestException(ERRORS.SESSION_ID_MISSING);
+    }
+    if (!query.productId) {
+      throw new BadRequestException(ERRORS.PRODUCT_ID_MISSING);
+    }
     if (body.quantity == null || body.quantity < 1) {
-  throw new BadRequestException(ERRORS.INVALID_QUANTITY);
+      throw new BadRequestException(ERRORS.INVALID_QUANTITY);
     }
 
     return this.cartService.updateItemQuantity(

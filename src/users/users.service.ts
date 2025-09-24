@@ -125,9 +125,9 @@ export class UsersService {
         updateUserDto.currentPassword,
         user.password,
       );
-    if (!isPasswordValid) {
-  throw new UnauthorizedException(ERRORS.INVALID_CREDENTIALS);
-    }
+      if (!isPasswordValid) {
+        throw new UnauthorizedException(ERRORS.INVALID_CREDENTIALS);
+      }
 
       user.password = await bcrypt.hash(updateUserDto.newPassword, 10);
     }

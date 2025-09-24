@@ -71,11 +71,10 @@ export class CartService {
     quantity: number,
   ) {
     const cart = this.carts.get(sessionId);
-     if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
+    if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
 
     const item = cart.items.find((i) => i.product === productId);
-    if (!item)
-      throw new NotFoundException(ERRORS.CART_PRODUCT_NOT_FOUND);
+    if (!item) throw new NotFoundException(ERRORS.CART_PRODUCT_NOT_FOUND);
 
     item.quantity = quantity;
 

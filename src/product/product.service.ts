@@ -255,7 +255,7 @@ export class ProductService {
       discountIndex < 0 ||
       discountIndex >= product.discounts.length
     ) {
-  throw new BadRequestException(ERRORS.INVALID_DISCOUNT_INDEX);
+      throw new BadRequestException(ERRORS.INVALID_DISCOUNT_INDEX);
     }
 
     // Remove null elements from array
@@ -294,7 +294,7 @@ export class ProductService {
       discountIndex < 0 ||
       discountIndex >= product.discounts.length
     ) {
-  throw new BadRequestException(ERRORS.INVALID_DISCOUNT_INDEX);
+      throw new BadRequestException(ERRORS.INVALID_DISCOUNT_INDEX);
     }
 
     // Validate updated data

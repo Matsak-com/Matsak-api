@@ -52,7 +52,7 @@ export class CompoundZodValidationPipe implements PipeTransform {
           errors: errorMessages,
         });
       }
-  throw new BadRequestException(ERRORS.VALIDATION_FAILED);
+      throw new BadRequestException(ERRORS.VALIDATION_FAILED);
     }
   }
 }

@@ -51,8 +51,8 @@ export class AddressService {
   // Mettre à jour une adresse
   update(sessionId: string, id: string, dto: CreateAddressDto): Address {
     const userAddresses = this.addresses.get(sessionId) || [];
-  const index = userAddresses.findIndex((a) => a.id === id);
-  if (index === -1) throw new NotFoundException(ERRORS.ADDRESS_NOT_FOUND);
+    const index = userAddresses.findIndex((a) => a.id === id);
+    if (index === -1) throw new NotFoundException(ERRORS.ADDRESS_NOT_FOUND);
 
     userAddresses[index] = { ...userAddresses[index], ...dto };
     this.addresses.set(sessionId, userAddresses);
@@ -64,7 +64,7 @@ export class AddressService {
   remove(sessionId: string, id: string): void {
     let userAddresses = this.addresses.get(sessionId) || [];
     const exists = userAddresses.find((a) => a.id === id);
-  if (!exists) throw new NotFoundException(ERRORS.ADDRESS_NOT_FOUND);
+    if (!exists) throw new NotFoundException(ERRORS.ADDRESS_NOT_FOUND);
 
     userAddresses = userAddresses.filter((a) => a.id !== id);
 
@@ -80,7 +80,7 @@ export class AddressService {
   setDefault(sessionId: string, id: string): Address {
     const userAddresses = this.addresses.get(sessionId) || [];
     const address = userAddresses.find((a) => a.id === id);
-  if (!address) throw new NotFoundException(ERRORS.ADDRESS_NOT_FOUND);
+    if (!address) throw new NotFoundException(ERRORS.ADDRESS_NOT_FOUND);
 
     // Retirer default des autres
     userAddresses.forEach((a) => (a.isDefault = false));

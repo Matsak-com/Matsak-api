@@ -46,22 +46,21 @@ export class ImageProductController {
           callback(null, true);
         }
       },
-      import {
-        Controller,
-        Get,
-        Post,
-        Body,
-        Patch,
-        Param,
-        Delete,
-        UseInterceptors,
-        UploadedFile,
-        Put,
-        UseGuards,
-        BadRequestException,
-        NotFoundException,
-      } from '@nestjs/common';
-      import { ERRORS } from '../common/errors';
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB max
+      },
+    }),
+  )
+  async create(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('altText') altText: string,
+  ) {
+    const filePath = path.resolve('uploads', 'image-products', file.filename);
+
+    // Crée le DTO manuellement
+    const createImageDto: CreateImageProductDto = {
+      filename: filePath,
+      altText,
     };
 
     return this.imageProductService.create(createImageDto);
@@ -92,7 +91,7 @@ export class ImageProductController {
       updateImageDto,
     );
     if (!updatedImage) {
-  throw new NotFoundException(ERRORS.IMAGE_NOT_FOUND);
+      throw new NotFoundException(`Image with ID ${params.id} not found`);
     }
     return updatedImage;
   }

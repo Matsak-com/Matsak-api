@@ -108,7 +108,10 @@ export class AuthService {
       }
 
       if (existingUser.isResettingPassword === true) {
-        throw new HttpException(ERRORS.RESET_ALREADY_IN_PROGRESS, HttpStatus.BAD_REQUEST);
+        throw new HttpException(
+          ERRORS.RESET_ALREADY_IN_PROGRESS,
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
       const createdId = uuidv4();
@@ -142,7 +145,10 @@ export class AuthService {
       }
 
       if (existingUser.isResettingPassword === false) {
-        throw new HttpException(ERRORS.RESET_NOT_REQUESTED, HttpStatus.BAD_REQUEST);
+        throw new HttpException(
+          ERRORS.RESET_NOT_REQUESTED,
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
       return {
@@ -173,7 +179,10 @@ export class AuthService {
       }
 
       if (existingUser.isResettingPassword === false) {
-        throw new HttpException(ERRORS.RESET_NOT_REQUESTED, HttpStatus.BAD_REQUEST);
+        throw new HttpException(
+          ERRORS.RESET_NOT_REQUESTED,
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
       const hashedPassword = await this.hashPassword({

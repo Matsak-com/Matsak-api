@@ -32,8 +32,7 @@ export class Discount {
 
 @Schema({ timestamps: true })
 export class Product {
-  static findById() {
-  }
+  static findById() {}
   // Reference to DetailProduct
   @Prop({ type: Types.ObjectId, ref: DetailProduct.name })
   detail: Types.ObjectId;

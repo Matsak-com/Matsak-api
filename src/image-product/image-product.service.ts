@@ -252,7 +252,7 @@ export class ImageProductService {
         throw error;
       }
       console.error(`Error finding image: ${error.message}`);
-  throw new NotFoundException(ERRORS.IMAGE_NOT_FOUND);
+      throw new NotFoundException(ERRORS.IMAGE_NOT_FOUND);
     }
   }
 

@@ -90,7 +90,7 @@ export const updateProductSchema = z
       ])
       .optional(),
     discounts: z.array(discountSchema).optional(),
-    
+
     isActive: z.boolean().optional(),
   })
   // 🔧 SUPPRESSION de .strict() pour plus de flexibilité
@@ -143,7 +143,7 @@ export const updateProductSchemaFlexible = z
         altText: z.string().optional(),
       })
       .optional(),
-    
+
     isActive: z.boolean().optional(),
   })
   .refine(
@@ -176,7 +176,7 @@ export const simpleUpdateSchema = z
         isRepackaged: z.boolean().optional(),
       })
       .optional(),
-    
+
     isActive: z.boolean().optional(),
     // 🔧 CORRECTION: imageData plus flexible
     imageData: z
