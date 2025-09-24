@@ -1,5 +1,6 @@
 import { CategoryRepository } from './../categories/categories.repository';
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ERRORS } from 'src/common/errors';
 import { SubCategory } from './sub-category.schema';
 import { CreateSubCategoryDto } from './dto/create-sub-category.dto';
 import { UpdateSubCategoryDto } from './dto/update-sub-category.dto';
@@ -21,9 +22,7 @@ export class SubCategoriesService {
       id: createSubCategoryDto.categoryId.toString(),
     });
     if (!category) {
-      throw new NotFoundException(
-        `Category with ID '${createSubCategoryDto.categoryId}' not found`,
-      );
+      throw new NotFoundException(ERRORS.CATEGORY_NOT_FOUND);
     }
 
     const created = await this.subCategoryRepo.create({
@@ -57,7 +56,7 @@ export class SubCategoriesService {
       },
     });
     if (!subCategory) {
-      throw new NotFoundException(`SubCategory with ID '${id}' not found`);
+      throw new NotFoundException(ERRORS.SUBCATEGORY_NOT_FOUND);
     }
     return subCategory;
   }
@@ -75,7 +74,7 @@ export class SubCategoriesService {
     });
 
     if (!updated) {
-      throw new NotFoundException(`SubCategory with ID '${id}' not found`);
+      throw new NotFoundException(ERRORS.SUBCATEGORY_NOT_FOUND);
     }
     return updated;
   }
@@ -83,7 +82,7 @@ export class SubCategoriesService {
   async remove(id: string): Promise<{ deleted: boolean }> {
     const result = await this.subCategoryRepo.delete({ id });
     if (!result) {
-      throw new NotFoundException(`SubCategory with ID '${id}' not found`);
+      throw new NotFoundException(ERRORS.SUBCATEGORY_NOT_FOUND);
     }
     return { deleted: true };
   }

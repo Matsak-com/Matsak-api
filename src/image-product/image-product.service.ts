@@ -1,5 +1,10 @@
 import { ImageProductRepository } from './image-product.repository';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { ERRORS } from '../common/errors';
 import { ImageProduct, ImageProductDocument } from './image-product.schema';
 import { CreateImageProductDto } from './dto/create-image-product.dto';
 import { encodeImageToBase64 } from 'src/helpers/base64.helper';
@@ -72,7 +77,7 @@ export class ImageProductService {
     const existingImage = await this.imageProductRepo.findById({ id });
 
     if (!existingImage) {
-      throw new NotFoundException(`Image with ID ${id} not found`);
+      throw new NotFoundException(ERRORS.IMAGE_NOT_FOUND);
     }
 
     let updateData: Partial<ImageProduct> = { ...updateImageDto };
@@ -177,9 +182,7 @@ export class ImageProductService {
 
       // Validate file exists
       if (!fs.existsSync(filePath)) {
-        throw new NotFoundException(
-          `Image file not found: ${createImageDto.filename}`,
-        );
+        throw new NotFoundException(ERRORS.IMAGE_NOT_FOUND);
       }
 
       return await this.create(createImageDto);
@@ -206,7 +209,7 @@ export class ImageProductService {
     try {
       // Validate buffer
       if (!buffer || buffer.length === 0) {
-        throw new Error('Invalid buffer provided');
+        throw new BadRequestException(ERRORS.INVALID_BUFFER);
       }
 
       // Validate mimetype
@@ -217,7 +220,7 @@ export class ImageProductService {
         'image/webp',
       ];
       if (!allowedTypes.includes(mimetype)) {
-        throw new Error(`Invalid image type: ${mimetype}`);
+        throw new BadRequestException(ERRORS.INVALID_IMAGE_TYPE);
       }
 
       return await this.createFromBuffer({
@@ -240,7 +243,7 @@ export class ImageProductService {
       const image = await this.findOne(id);
 
       if (!image) {
-        throw new NotFoundException(`Image with ID ${id} not found`);
+        throw new NotFoundException(ERRORS.IMAGE_NOT_FOUND);
       }
 
       return image;
@@ -249,7 +252,7 @@ export class ImageProductService {
         throw error;
       }
       console.error(`Error finding image: ${error.message}`);
-      throw new NotFoundException(`Image with ID ${id} not found`);
+      throw new NotFoundException(ERRORS.IMAGE_NOT_FOUND);
     }
   }
 

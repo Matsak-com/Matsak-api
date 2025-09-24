@@ -5,6 +5,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ERRORS } from '../common/errors';
 import * as bcrypt from 'bcrypt';
 
 import { CreateUserDto } from '../auth/dto/create-user.dto';
@@ -57,7 +58,7 @@ export class UsersService {
 
     // Check if the user was found
     if (!user) {
-      throw new NotFoundException(`User with ID ${userId} not found`);
+      throw new NotFoundException(ERRORS.USER_NOT_FOUND);
     }
 
     let avatarUrl = '';
@@ -89,7 +90,10 @@ export class UsersService {
     const { email, password } = createUserDto;
     const existingUser = await this.findByEmail(email);
     if (existingUser) {
-      throw new HttpException('User already exists', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        ERRORS.USER_ALREADY_EXISTS,
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -107,7 +111,7 @@ export class UsersService {
   ): Promise<{ message: string }> {
     const user = await this.userRepository.findById({ id: userId });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ERRORS.USER_NOT_FOUND);
     }
 
     if (updateUserDto.name || updateUserDto.firstname || updateUserDto.email) {
@@ -122,7 +126,7 @@ export class UsersService {
         user.password,
       );
       if (!isPasswordValid) {
-        throw new UnauthorizedException('Current password is incorrect');
+        throw new UnauthorizedException(ERRORS.INVALID_CREDENTIALS);
       }
 
       user.password = await bcrypt.hash(updateUserDto.newPassword, 10);
@@ -141,7 +145,7 @@ export class UsersService {
   ): Promise<User> {
     const user = await this.userRepository.findOne({ filter: query });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ERRORS.USER_NOT_FOUND);
     }
 
     if (updateUserDto.password) {
@@ -155,7 +159,7 @@ export class UsersService {
   async delete(id: string): Promise<void> {
     const user = await this.findOne({ _id: id });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ERRORS.USER_NOT_FOUND);
     }
     await this.userRepository.delete({ id });
   }
@@ -167,9 +171,9 @@ export class UsersService {
     const isMatch = await bcrypt.compare(pass, user.password);
     if (!isMatch) return null;
 
-    const obj = user.toObject();
-    delete (obj as any).password;
-    return obj;
+    const userObj: any = user.toObject();
+    delete userObj.password;
+    return userObj;
   }
 
   // Optional: Avatar update

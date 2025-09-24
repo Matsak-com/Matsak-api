@@ -2,6 +2,32 @@
 
 import { z } from 'zod';
 
+// Discount schema
+export const discountSchema = z.object({
+  type: z.enum(['percentage', 'fixed', 'bulk']),
+  value: z.number().min(0),
+  description: z.string().optional(),
+  startDate: z.date().optional(),
+  endDate: z.date().optional(),
+  isActive: z.boolean().default(true),
+  minQuantity: z.number().min(1).optional(),
+});
+
+// Pricing schemas
+export const setPriceSchema = z.object({
+  basePrice: z.number().min(0),
+  currency: z.string().default('MGA'),
+});
+
+export const addDiscountSchema = discountSchema;
+
+export const updateDiscountSchema = discountSchema.partial();
+
+export const calculatePriceSchema = z.object({
+  quantity: z.number().min(1).default(1),
+  calculateAt: z.date().optional(),
+});
+
 // Detail product schema
 export const createDetailProductSchema = z.object({
   name: z.string().min(1, 'Product name is required'),
@@ -44,7 +70,11 @@ export const imageBufferSchema = z.object({
 export const createProductSchema = z.object({
   detailData: createDetailProductSchema,
   imageData: createImageProductSchema.optional(),
-  subcategoryId: z.string().min(1, 'Subcategory ID is required'),
+  teamId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for teamId')
+    .min(1, 'Team ID is required'),
+  discounts: z.array(discountSchema).optional(),
   isActive: z.boolean().optional(),
 });
 
@@ -59,7 +89,8 @@ export const updateProductSchema = z
         z.string(), // Accepter aussi les strings pour les IDs d'images existantes
       ])
       .optional(),
-    subcategoryId: z.string().min(1, 'Subcategory ID is required').optional(),
+    discounts: z.array(discountSchema).optional(),
+
     isActive: z.boolean().optional(),
   })
   // 🔧 SUPPRESSION de .strict() pour plus de flexibilité
@@ -88,10 +119,7 @@ export const productIdParamSchema = z.object({
   id: z.string().min(1, 'Product ID is required'),
 });
 
-export const updateSubcategoryParamSchema = z.object({
-  id: z.string().min(1, 'Product ID is required'),
-  subcategoryId: z.string().min(1, 'Subcategory ID is required'),
-});
+// subcategory is now part of DetailProduct; updating subcategory should be done via detail endpoints
 
 export const updateProductSchemaFlexible = z
   .object({
@@ -115,7 +143,7 @@ export const updateProductSchemaFlexible = z
         altText: z.string().optional(),
       })
       .optional(),
-    subcategoryId: z.string().optional(),
+
     isActive: z.boolean().optional(),
   })
   .refine(
@@ -148,10 +176,7 @@ export const simpleUpdateSchema = z
         isRepackaged: z.boolean().optional(),
       })
       .optional(),
-    subcategoryId: z
-      .string()
-      .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId')
-      .optional(),
+
     isActive: z.boolean().optional(),
     // 🔧 CORRECTION: imageData plus flexible
     imageData: z
@@ -159,6 +184,7 @@ export const simpleUpdateSchema = z
         altText: z.string().optional(),
       })
       .optional(),
+    discounts: z.array(discountSchema).optional(),
   })
   .refine(
     (data) => {

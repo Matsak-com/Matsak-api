@@ -2,7 +2,6 @@ import { UpdateDetailProductDto } from '../../detail-product/dto/update-detail-p
 
 export class UpdateProductDto {
   detailData?: UpdateDetailProductDto;
-  subcategoryId?: string;
   isActive?: boolean;
   imageData?: {
     buffer: Buffer;

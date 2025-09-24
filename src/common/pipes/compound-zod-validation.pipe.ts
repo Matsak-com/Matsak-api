@@ -5,6 +5,7 @@ import {
   ArgumentMetadata,
 } from '@nestjs/common';
 import { ZodSchema, ZodError } from 'zod';
+import { ERRORS } from 'src/common/errors';
 
 interface CompoundValidationSchemas {
   body?: ZodSchema;
@@ -47,11 +48,11 @@ export class CompoundZodValidationPipe implements PipeTransform {
           return `${path}: ${err.message}`;
         });
         throw new BadRequestException({
-          message: 'Validation failed',
+          message: ERRORS.VALIDATION_FAILED,
           errors: errorMessages,
         });
       }
-      throw new BadRequestException('Validation failed');
+      throw new BadRequestException(ERRORS.VALIDATION_FAILED);
     }
   }
 }

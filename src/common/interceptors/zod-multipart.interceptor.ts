@@ -5,6 +5,7 @@ import {
   CallHandler,
   BadRequestException,
 } from '@nestjs/common';
+import { ERRORS } from 'src/common/errors';
 import { ZodSchema, ZodError } from 'zod';
 import { Observable } from 'rxjs';
 
@@ -27,7 +28,7 @@ export class ZodMultipartInterceptor implements NestInterceptor {
           return `${path}: ${err.message}`;
         });
         throw new BadRequestException({
-          message: 'Validation failed',
+          message: ERRORS.VALIDATION_FAILED,
           errors: errorMessages,
         });
       }

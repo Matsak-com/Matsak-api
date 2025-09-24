@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ERRORS } from '../common/errors';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { ProductRepository } from '../product/product.repository';
 
@@ -20,10 +21,7 @@ export class CartService {
       items.map(async (item) => {
         const product = await this.productRepository.findById({
           id: item.product,
-          options: {
-            populate: ['detail', 'subcategory', 'images'],
-            lean: true,
-          },
+          options: { populate: ['detail', 'images'], lean: true },
         });
 
         return {
@@ -60,7 +58,7 @@ export class CartService {
   // Récupérer le panier pour une session
   async getCart(sessionId: string) {
     const cart = this.carts.get(sessionId);
-    if (!cart) throw new NotFoundException('Panier introuvable');
+    if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
 
     const enrichedItems = await this.enrichCartItems(cart.items);
     return { items: enrichedItems };
@@ -73,11 +71,10 @@ export class CartService {
     quantity: number,
   ) {
     const cart = this.carts.get(sessionId);
-    if (!cart) throw new NotFoundException('Panier introuvable');
+    if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
 
     const item = cart.items.find((i) => i.product === productId);
-    if (!item)
-      throw new NotFoundException('Produit introuvable dans le panier');
+    if (!item) throw new NotFoundException(ERRORS.CART_PRODUCT_NOT_FOUND);
 
     item.quantity = quantity;
 
@@ -89,7 +86,7 @@ export class CartService {
   // Supprimer un produit du panier
   async deleteItem(sessionId: string, productId: string) {
     const cart = this.carts.get(sessionId);
-    if (!cart) throw new NotFoundException('Panier introuvable');
+    if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
     cart.items = cart.items.filter((i) => i.product !== productId);
     return cart;
   }
@@ -97,7 +94,7 @@ export class CartService {
   // Vider le panier
   async clearCart(sessionId: string) {
     const cart = this.carts.get(sessionId);
-    if (!cart) throw new NotFoundException('Panier introuvable');
+    if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
 
     cart.items = [];
     return cart;

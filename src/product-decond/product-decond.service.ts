@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ERRORS } from '../common/errors';
 import { ProductDecond } from './product-decond.schema';
 import { ProductDecondRepository } from './product-decond.repository';
 import { DetailProductRepository } from '../detail-product/detail-product.repository';
@@ -17,18 +18,14 @@ export class ProductDecondService {
       id: data.detailProduct as unknown as string,
     });
     if (!detailExists) {
-      throw new NotFoundException(
-        `DetailProduct with ID ${data.detailProduct} not found`,
-      );
+      throw new NotFoundException(ERRORS.DETAIL_PRODUCT_NOT_FOUND);
     }
 
     const imageExists = await this.imageProductRepository.findById({
       id: data.image as unknown as string,
     });
     if (!imageExists) {
-      throw new NotFoundException(
-        `ImageProduct with ID ${data.image} not found`,
-      );
+      throw new NotFoundException(ERRORS.IMAGE_NOT_FOUND);
     }
 
     return this.productDecondRepository.create({ doc: data });
@@ -51,7 +48,7 @@ export class ProductDecondService {
       },
     });
     if (!product) {
-      throw new NotFoundException(`ProductDecond with ID ${id} not found`);
+      throw new NotFoundException(ERRORS.PRODUCT_DECOND_NOT_FOUND);
     }
     return product;
   }
@@ -65,7 +62,7 @@ export class ProductDecondService {
       update: updateData,
     });
     if (!updated) {
-      throw new NotFoundException(`ProductDecond with ID ${id} not found`);
+      throw new NotFoundException(ERRORS.PRODUCT_DECOND_NOT_FOUND);
     }
     return updated;
   }
@@ -73,7 +70,7 @@ export class ProductDecondService {
   async remove(id: string): Promise<void> {
     const product = await this.productDecondRepository.findById({ id });
     if (!product) {
-      throw new NotFoundException(`ProductDecond with ID ${id} not found`);
+      throw new NotFoundException(ERRORS.PRODUCT_DECOND_NOT_FOUND);
     }
     await this.productDecondRepository.delete({ id });
   }

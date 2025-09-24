@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { ERRORS } from 'src/common/errors';
 
 @Injectable()
 export class FacebookProvider {
@@ -14,7 +15,7 @@ export class FacebookProvider {
       !profile.emails.length ||
       !profile.name
     ) {
-      throw new Error('Invalid Facebook profile data');
+      throw new BadRequestException(ERRORS.INVALID_FACEBOOK_PROFILE);
     }
 
     const userData = {
