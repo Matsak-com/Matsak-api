@@ -1,4 +1,6 @@
 import { MiddlewareConsumer, Module } from '@nestjs/common';
+import { APP_FILTER } from '@nestjs/core';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
@@ -16,7 +18,6 @@ import { ProductDecondModule } from './product-decond/product-decond.module';
 import { ProductModule } from './product/product.module';
 import { CartModule } from './cart-item/cart.module';
 import { SessionMiddleware } from './middleware/session.middleware';
-import { TeamProductModule } from './team-product/team-product-module';
 import { TeamParamModule } from './team-param/team-param.module';
 import { AddressModule } from './client/address.module';
 
@@ -39,12 +40,17 @@ import { AddressModule } from './client/address.module';
     ProductDecondModule,
     ProductModule,
     CartModule,
-    TeamProductModule,
     TeamParamModule,
     AddressModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
+  ],
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {

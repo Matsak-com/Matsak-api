@@ -39,7 +39,11 @@ describe('TeamsService', () => {
       const dto: CreateTeamDto = {
         name: 'Team Example',
         description: 'Team description',
-        logoUrl: 'Team logo',
+        phone: '123456789',
+        email: 'team@example.com',
+        language: 'en',
+        // logoUrl expects an uploaded file; tests can provide undefined
+        logoUrl: undefined,
       };
 
       const mockTeam = { ...dto, _id: 'abc123' } as Team;

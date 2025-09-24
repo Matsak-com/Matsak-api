@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ERRORS } from '../common/errors';
 import { UpdateDetailProductDto } from './dto/update-detail-product.dto';
 import { DetailProductRepository } from './detail-product.repository';
 import { DetailProduct } from './detail-product.schema';
@@ -32,7 +33,7 @@ export class DetailProductService {
 
   async findOne(id: string): Promise<DetailProduct> {
     const item = await this.detailProductRepository.findById({ id });
-    if (!item) throw new NotFoundException(`DetailProduct ${id} not found`);
+  if (!item) throw new NotFoundException(ERRORS.DETAIL_PRODUCT_NOT_FOUND);
     return item;
   }
 
@@ -44,13 +45,13 @@ export class DetailProductService {
       id,
       update: dto,
     });
-    if (!updated) throw new NotFoundException(`DetailProduct ${id} not found`);
+  if (!updated) throw new NotFoundException(ERRORS.DETAIL_PRODUCT_NOT_FOUND);
     return updated;
   }
 
   async remove(id: string): Promise<{ deleted: boolean }> {
     const result = await this.detailProductRepository.delete({ id });
-    if (!result) throw new NotFoundException(`DetailProduct ${id} not found`);
+  if (!result) throw new NotFoundException(ERRORS.DETAIL_PRODUCT_NOT_FOUND);
     return { deleted: true };
   }
 }

@@ -9,6 +9,8 @@ import 'dotenv/config';
 import { fileSchema } from '../users/utils/file-utils';
 import { z } from 'zod';
 import placeholder from './image-placeholder.json';
+import { InternalServerErrorException } from '@nestjs/common';
+import { ERRORS } from 'src/common/errors';
 
 const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY;
 const AWS_SECRET = process.env.AWS_SECRET;
@@ -18,14 +20,14 @@ export class AwsS3Service {
   private readonly client: S3Client;
   constructor() {
     if (!AWS_ACCESS_KEY) {
-      throw new Error('Invalid AWS_ACCESS_KEY');
+      throw new InternalServerErrorException(ERRORS.AWS_INVALID_ACCESS_KEY);
     }
 
     if (!AWS_SECRET) {
-      throw new Error('Invalid AWS_SECRET');
+      throw new InternalServerErrorException(ERRORS.AWS_INVALID_SECRET);
     }
     if (!AWS_REGION) {
-      throw new Error('Invalid AWS_REGION');
+      throw new InternalServerErrorException(ERRORS.AWS_INVALID_REGION);
     }
     const client = new S3Client({
       credentials: {

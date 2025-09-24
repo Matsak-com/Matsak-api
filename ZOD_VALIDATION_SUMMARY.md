@@ -68,7 +68,7 @@ All controllers now use ZOD validation:
 - ✅ GET /:id - ID parameter validation
 - ✅ PATCH /:id - Update product with ID validation (complex multipart form)
 - ✅ DELETE /:id - ID parameter validation
-- ✅ PATCH /:id/subcategory/:subcategoryId - Multiple parameter validation
+
 
 #### Cart Controller (`src/cart-item/cart.controller.ts`)
 - ✅ POST /add - Add to cart validation

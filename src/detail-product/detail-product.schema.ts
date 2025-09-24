@@ -1,6 +1,7 @@
 // detail-product.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
+import { Category } from '../categories/category.schema';
 
 export type DetailProductDocument = DetailProduct & Document;
 
@@ -38,6 +39,10 @@ export class DetailProduct {
 
   @Prop({ default: false })
   isRepackaged: boolean; // true si déconditionné, false sinon
+
+  // Reference to Category
+  @Prop({ type: Types.ObjectId, ref: Category.name })
+  category: Types.ObjectId;
 
   @Prop({ required: false })
   deleted_at?: Date;

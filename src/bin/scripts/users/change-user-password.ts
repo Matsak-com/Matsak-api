@@ -2,6 +2,8 @@ import { Command } from 'commander';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../../../app.module';
 import { UsersService } from '../../../users/users.service';
+import { InternalServerErrorException } from '@nestjs/common';
+import { ERRORS } from 'src/common/errors';
 import * as promptLib from 'prompt';
 import * as bcrypt from 'bcrypt';
 
@@ -64,18 +66,14 @@ async function changeUserPasswordInteractive(userService: UsersService) {
   // Step 2: Verify user exists and display info
   console.log("\n🔍 Recherche de l'utilisateur...");
   let user;
-  try {
-    user = await userService.findByEmail(userEmailInput.email);
-    if (!user) {
-      throw new Error(
-        `Utilisateur non trouvé avec l'email: ${userEmailInput.email}`,
-      );
+    try {
+      user = await userService.findByEmail(userEmailInput.email);
+      if (!user) {
+        throw new InternalServerErrorException(ERRORS.SCRIPT_USER_NOT_FOUND);
+      }
+    } catch (error) {
+      throw new InternalServerErrorException(ERRORS.SCRIPT_USER_NOT_FOUND);
     }
-  } catch (error) {
-    throw new Error(
-      `Utilisateur non trouvé avec l'email: ${userEmailInput.email}`,
-    );
-  }
 
   console.log('\n✅ Utilisateur trouvé:');
   console.log(`   - ID: ${user._id}`);
@@ -125,9 +123,7 @@ async function changeUserPasswordInteractive(userService: UsersService) {
 
   // Step 5: Validate password confirmation
   if (passwordInput.newPassword !== passwordInput.confirmPassword) {
-    throw new Error(
-      'Les mots de passe ne correspondent pas. Opération annulée.',
-    );
+    throw new InternalServerErrorException(ERRORS.PASSWORDS_NOT_MATCH);
   }
 
   // Step 6: Final confirmation
@@ -170,9 +166,7 @@ async function changeUserPasswordInteractive(userService: UsersService) {
       "\n🔐 L'utilisateur peut maintenant se connecter avec son nouveau mot de passe.",
     );
   } catch (error) {
-    throw new Error(
-      `Erreur lors de la mise à jour du mot de passe: ${(error as Error).message}`,
-    );
+    throw new InternalServerErrorException(ERRORS.PASSWORD_UPDATE_FAILED);
   }
 }
 

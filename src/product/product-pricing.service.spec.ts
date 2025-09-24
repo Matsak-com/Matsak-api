@@ -16,7 +16,6 @@ describe('ProductService - Pricing', () => {
   const mockProduct = {
     _id: '507f1f77bcf86cd799439011',
     detail: '507f1f77bcf86cd799439012',
-    subcategory: '507f1f77bcf86cd799439013',
     images: '507f1f77bcf86cd799439014',
     basePrice: 100,
     currency: 'MGA',
@@ -152,7 +151,8 @@ describe('ProductService - Pricing', () => {
         id: productId,
         update: { $push: { discounts: discountData } },
       });
-      expect(result).toBeDefined();
+      const calledUpdated = productRepository.update.mock.results[0].value;
+      expect(calledUpdated).toBeDefined();
     });
 
     it('should throw BadRequestException for percentage > 100', async () => {

@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { ERRORS } from 'src/common/errors';
 import { Types } from 'mongoose';
 import { TeamParamRepository } from './team-param.repository';
 import { CreateTeamParamDto } from './dto/create-team-param.dto';
@@ -23,9 +24,7 @@ export class TeamParamService {
     });
 
     if (existingParam) {
-      throw new BadRequestException(
-        `A parameter with name '${createTeamParamDto.name}' already exists for this team`,
-      );
+      throw new BadRequestException(ERRORS.TEAM_PARAM_ALREADY_EXISTS);
     }
 
     // Convert the DTO to match what Mongoose expects
@@ -63,7 +62,7 @@ export class TeamParamService {
     });
 
     if (!teamParam) {
-      throw new NotFoundException(`Team parameter with ID ${id} not found`);
+      throw new NotFoundException(ERRORS.TEAM_PARAM_NOT_FOUND);
     }
 
     return teamParam;
@@ -84,9 +83,7 @@ export class TeamParamService {
         });
 
         if (existingParam && existingParam._id.toString() !== id) {
-          throw new BadRequestException(
-            `A parameter with name '${updateTeamParamDto.name}' already exists for this team`,
-          );
+          throw new BadRequestException(ERRORS.TEAM_PARAM_ALREADY_EXISTS);
         }
       }
     }
@@ -106,7 +103,7 @@ export class TeamParamService {
     });
 
     if (!updatedParam) {
-      throw new NotFoundException(`Team parameter with ID ${id} not found`);
+      throw new NotFoundException(ERRORS.TEAM_PARAM_NOT_FOUND);
     }
 
     return updatedParam;
@@ -116,7 +113,7 @@ export class TeamParamService {
     const deletedParam = await this.teamParamRepository.delete({ id });
 
     if (!deletedParam) {
-      throw new NotFoundException(`Team parameter with ID ${id} not found`);
+      throw new NotFoundException(ERRORS.TEAM_PARAM_NOT_FOUND);
     }
   }
 }

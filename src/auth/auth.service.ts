@@ -4,6 +4,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ERRORS } from '../common/errors';
 import { JwtService } from '@nestjs/jwt';
 import { v4 as uuidv4 } from 'uuid';
 import { UsersService } from '../users/users.service';
@@ -37,7 +38,7 @@ export class AuthService {
         );
       }
       if (!user) {
-        throw new UnauthorizedException('Invalid credentials');
+        throw new UnauthorizedException(ERRORS.INVALID_CREDENTIALS);
       }
 
       const authResponse = await this.authenticateUser({
@@ -63,10 +64,16 @@ export class AuthService {
 
       if (existingUser) {
         if (existingUser.name === createUserDto.name) {
-          throw new HttpException('User already exists', HttpStatus.CONFLICT);
+          throw new HttpException(
+            ERRORS.USER_ALREADY_EXISTS,
+            HttpStatus.CONFLICT,
+          );
         }
         if (existingUser.email === createUserDto.email) {
-          throw new HttpException('Email already exists', HttpStatus.CONFLICT);
+          throw new HttpException(
+            ERRORS.EMAIL_ALREADY_EXISTS,
+            HttpStatus.CONFLICT,
+          );
         }
       }
 
@@ -97,13 +104,11 @@ export class AuthService {
       const existingUser = await this.usersService.findByEmail(email);
 
       if (!existingUser) {
-        throw new HttpException('user already exists', HttpStatus.CONFLICT);
+        throw new HttpException(ERRORS.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       if (existingUser.isResettingPassword === true) {
-        throw new Error(
-          'A password reset request is already in progress. Please check your emails.',
-        );
+        throw new HttpException(ERRORS.RESET_ALREADY_IN_PROGRESS, HttpStatus.BAD_REQUEST);
       }
 
       const createdId = uuidv4();
@@ -133,13 +138,11 @@ export class AuthService {
       });
 
       if (!existingUser) {
-        throw new Error("L'utilisateur n'existe pas.");
+        throw new HttpException(ERRORS.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       if (existingUser.isResettingPassword === false) {
-        throw new Error(
-          "Aucune demande de réinitialisation de mot de passe n'est en cours.",
-        );
+        throw new HttpException(ERRORS.RESET_NOT_REQUESTED, HttpStatus.BAD_REQUEST);
       }
 
       return {
@@ -166,13 +169,11 @@ export class AuthService {
       });
 
       if (!existingUser) {
-        throw new Error("L'utilisateur n'existe pas.");
+        throw new HttpException(ERRORS.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       if (existingUser.isResettingPassword === false) {
-        throw new Error(
-          "Aucune demande de réinitialisation de mot de passe n'est en cours.",
-        );
+        throw new HttpException(ERRORS.RESET_NOT_REQUESTED, HttpStatus.BAD_REQUEST);
       }
 
       const hashedPassword = await this.hashPassword({

@@ -3,16 +3,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Product, ProductDocument } from './product.schema';
+import { ERRORS } from '../common/errors';
+import { Product } from './product.schema';
 import { ProductRepository } from './product.repository';
 import { DetailProductRepository } from '../detail-product/detail-product.repository';
-import { Model, Types } from 'mongoose';
+import { Types } from 'mongoose';
 import { ImageProductService } from 'src/image-product/image-product.service';
-import { InjectModel } from '@nestjs/mongoose';
 import { DetailProductService } from 'src/detail-product/detail-product.service';
 import { DetailProduct } from 'src/detail-product/detail-product.schema';
 
-// Import des types Zod
 import { z } from 'zod';
 import { createProductSchema } from '../common/schemas/product.schemas';
 
@@ -22,7 +21,6 @@ type ValidatedCreateProductDto = z.infer<typeof createProductSchema>;
 @Injectable()
 export class ProductService {
   constructor(
-    @InjectModel(Product.name) private productModel: Model<ProductDocument>,
     private readonly productRepo: ProductRepository,
     private readonly detailRepo: DetailProductRepository,
     private readonly imageservice: ImageProductService,
@@ -39,31 +37,44 @@ export class ProductService {
         createDto.detailData,
       )) as DetailProduct & { _id: string };
 
-      // 2️⃣ Créer le produit en DB
-      const product = new this.productModel({
+      // 2️⃣ Créer le produit en DB via repository
+      const productDoc: any = {
         detail: detail._id,
-        subcategory: new Types.ObjectId(createDto.subcategoryId),
+        team: new Types.ObjectId(createDto.teamId),
         images: null,
-      });
-      await product.save();
+        discounts: createDto.discounts
+          ? createDto.discounts.map((d) => ({
+              ...d,
+              startDate: d.startDate ? new Date(d.startDate) : undefined,
+              endDate: d.endDate ? new Date(d.endDate) : undefined,
+            }))
+          : [],
+      };
+
+      const created = await this.productRepo.create({ doc: productDoc });
 
       // 3️⃣ Si fichier image fourni, créer et associer directement depuis buffer
-      if (file) {
+      if (file && created) {
         const uploadedImage = await this.imageservice.createFromBuffer({
           buffer: file.buffer,
           originalname: file.originalname,
           mimetype: file.mimetype,
           altText: '',
         });
-        product.images = new Types.ObjectId(uploadedImage._id as string);
-        await product.save();
+        await this.productRepo.update({
+          id: (created as any)._id.toString(),
+          update: { images: new Types.ObjectId(uploadedImage._id as string) },
+        });
       }
 
-      await product.populate(['detail', 'images']);
-      return product;
+      const populated = await this.productRepo.findById({
+        id: (created as any)._id.toString(),
+        options: { populate: ['detail', 'images', 'team'] },
+      });
+      return populated as Product;
     } catch (error) {
       if (error.code === 11000) {
-        throw new BadRequestException('Product already exists');
+        throw new BadRequestException(ERRORS.PRODUCT_ALREADY_EXISTS);
       }
       throw error;
     }
@@ -73,7 +84,7 @@ export class ProductService {
     return this.productRepo.findAll({
       filter: {},
       options: {
-        populate: ['detail', 'subcategory', 'images'],
+        populate: ['detail', 'images'],
       },
     });
   }
@@ -82,11 +93,11 @@ export class ProductService {
     const product = await this.productRepo.findById({
       id,
       options: {
-        populate: ['detail', 'subcategory', 'images'],
+        populate: ['detail', 'images'],
       },
     });
     if (!product) {
-      throw new NotFoundException(`Product with id ${id} not found`);
+      throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
     }
     return product;
   }
@@ -99,7 +110,7 @@ export class ProductService {
     // Vérifier que le produit existe
     const existingProduct = await this.productRepo.findById({ id });
     if (!existingProduct) {
-      throw new NotFoundException(`Product with id ${id} not found`);
+      throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
     }
 
     // Mise à jour du detailProduct
@@ -134,18 +145,20 @@ export class ProductService {
       updatedAt: new Date(),
     };
 
-    if (updateProductDto.subcategoryId) {
-      updateData.subcategory = new Types.ObjectId(
-        updateProductDto.subcategoryId,
-      );
-    }
-
     if (typeof updateProductDto.isActive !== 'undefined') {
       updateData.isActive = updateProductDto.isActive;
     }
 
     if (imageId) {
       updateData.images = imageId;
+    }
+
+    if (updateProductDto.discounts) {
+      updateData.discounts = updateProductDto.discounts.map((d: any) => ({
+        ...d,
+        startDate: d.startDate ? new Date(d.startDate) : undefined,
+        endDate: d.endDate ? new Date(d.endDate) : undefined,
+      }));
     }
 
     // Appliquer la mise à jour
@@ -155,7 +168,7 @@ export class ProductService {
     });
 
     // Populate et retourner
-    await updatedProduct.populate(['detail', 'subcategory', 'images']);
+    await updatedProduct.populate(['detail', 'images']);
     return updatedProduct;
   }
 
@@ -166,19 +179,6 @@ export class ProductService {
     }
   }
 
-  async updateSubcategory(id: string, subcategoryId: string): Promise<Product> {
-    const updatedProduct = await this.productRepo.update({
-      id,
-      update: {
-        subcategory: new Types.ObjectId(subcategoryId),
-      },
-    });
-    if (!updatedProduct) {
-      throw new NotFoundException(`Product with id ${id} not found`);
-    }
-    return updatedProduct;
-  }
-
   // Pricing methods
   async setPrice(
     id: string,
@@ -187,7 +187,7 @@ export class ProductService {
   ): Promise<Product> {
     const product = await this.productRepo.findById({ id });
     if (!product) {
-      throw new NotFoundException(`Product with id ${id} not found`);
+      throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
     }
 
     const updatedProduct = await this.productRepo.update({
@@ -198,7 +198,7 @@ export class ProductService {
       },
     });
 
-    await updatedProduct.populate(['detail', 'subcategory', 'images']);
+    await updatedProduct.populate(['detail', 'images']);
     return updatedProduct;
   }
 
@@ -216,16 +216,16 @@ export class ProductService {
   ): Promise<Product> {
     const product = await this.productRepo.findById({ id });
     if (!product) {
-      throw new NotFoundException(`Product with id ${id} not found`);
+      throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
     }
 
     // Validate discount data
     if (discountData.type === 'percentage' && discountData.value > 100) {
-      throw new BadRequestException('Percentage discount cannot exceed 100%');
+      throw new BadRequestException(ERRORS.PERCENTAGE_DISCOUNT_EXCEEDS);
     }
 
     if (discountData.type === 'bulk' && !discountData.minQuantity) {
-      throw new BadRequestException('Bulk discount requires minimum quantity');
+      throw new BadRequestException(ERRORS.BULK_DISCOUNT_MIN_QTY_REQUIRED);
     }
 
     const discount = {
@@ -240,14 +240,14 @@ export class ProductService {
       },
     });
 
-    await updatedProduct.populate(['detail', 'subcategory', 'images']);
+    await updatedProduct.populate(['detail', 'images']);
     return updatedProduct;
   }
 
   async removeDiscount(id: string, discountIndex: number): Promise<Product> {
     const product = await this.productRepo.findById({ id });
     if (!product) {
-      throw new NotFoundException(`Product with id ${id} not found`);
+      throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
     }
 
     if (
@@ -255,7 +255,7 @@ export class ProductService {
       discountIndex < 0 ||
       discountIndex >= product.discounts.length
     ) {
-      throw new BadRequestException('Invalid discount index');
+  throw new BadRequestException(ERRORS.INVALID_DISCOUNT_INDEX);
     }
 
     // Remove null elements from array
@@ -267,7 +267,7 @@ export class ProductService {
     });
 
     const finalProduct = await this.productRepo.findById({ id });
-    await finalProduct.populate(['detail', 'subcategory', 'images']);
+    await finalProduct.populate(['detail', 'images']);
     return finalProduct;
   }
 
@@ -286,7 +286,7 @@ export class ProductService {
   ): Promise<Product> {
     const product = await this.productRepo.findById({ id });
     if (!product) {
-      throw new NotFoundException(`Product with id ${id} not found`);
+      throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
     }
 
     if (
@@ -294,16 +294,16 @@ export class ProductService {
       discountIndex < 0 ||
       discountIndex >= product.discounts.length
     ) {
-      throw new BadRequestException('Invalid discount index');
+  throw new BadRequestException(ERRORS.INVALID_DISCOUNT_INDEX);
     }
 
     // Validate updated data
     if (updateData.type === 'percentage' && updateData.value > 100) {
-      throw new BadRequestException('Percentage discount cannot exceed 100%');
+      throw new BadRequestException(ERRORS.PERCENTAGE_DISCOUNT_EXCEEDS);
     }
 
     if (updateData.type === 'bulk' && !updateData.minQuantity) {
-      throw new BadRequestException('Bulk discount requires minimum quantity');
+      throw new BadRequestException(ERRORS.BULK_DISCOUNT_MIN_QTY_REQUIRED);
     }
 
     // Prepare update object
@@ -317,7 +317,7 @@ export class ProductService {
       update: { $set: updateFields },
     });
 
-    await updatedProduct.populate(['detail', 'subcategory', 'images']);
+    await updatedProduct.populate(['detail', 'images']);
     return updatedProduct;
   }
 
@@ -333,7 +333,7 @@ export class ProductService {
     currency: string;
   } {
     if (!product.basePrice) {
-      throw new BadRequestException('Product has no base price set');
+      throw new BadRequestException(ERRORS.PRODUCT_BASE_PRICE_MISSING);
     }
 
     const currentDate = calculateAt || new Date();

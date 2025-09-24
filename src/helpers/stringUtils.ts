@@ -1,4 +1,5 @@
 import { remove } from 'remove-accents';
+import { ERRORS } from 'src/common/errors';
 
 /**
  * Converts a string to start case.
@@ -382,7 +383,7 @@ const noIsoLocale = (locale: any) => locale.split('-')[0];
  */
 function formatCaseForLanguageCode(locale: string): string {
   if (!locale || typeof locale !== 'string') {
-    throw new Error('Locale should be a string');
+    throw new Error(ERRORS.LOCALE_INVALID);
   }
   const splittedLocale = locale.split('-');
   const firstPart = splittedLocale[0].toLowerCase();

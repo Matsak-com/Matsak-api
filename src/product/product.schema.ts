@@ -1,7 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { DetailProduct } from '../detail-product/detail-product.schema';
-import { SubCategory } from '../sub-categories/sub-category.schema';
 import { ImageProduct } from '../image-product/image-product.schema';
 
 export type ProductDocument = Product & Document;
@@ -34,17 +33,12 @@ export class Discount {
 @Schema({ timestamps: true })
 export class Product {
   static findById() {
-    throw new Error('Method not implemented.');
   }
   // Reference to DetailProduct
   @Prop({ type: Types.ObjectId, ref: DetailProduct.name })
   detail: Types.ObjectId;
 
-  // Reference to SubCategory
-  @Prop({ type: Types.ObjectId, ref: SubCategory.name })
-  subcategory: Types.ObjectId;
-
-  //references to ImageProduct
+  // references to ImageProduct
   @Prop({ type: Types.ObjectId, ref: ImageProduct.name })
   images: Types.ObjectId;
 
@@ -60,6 +54,10 @@ export class Product {
 
   @Prop({ required: false })
   deleted_at?: Date;
+
+  // Reference to Team: each product belongs to one Team
+  @Prop({ type: Types.ObjectId, ref: 'Team', required: true, index: true })
+  team: Types.ObjectId;
 }
 
 export const DiscountSchema = SchemaFactory.createForClass(Discount);

@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ERRORS } from '../common/errors';
 import { Types } from 'mongoose';
 import { Category } from './category.schema';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -23,14 +24,12 @@ export class CategoriesService {
 
   async findOne(id: string): Promise<Category> {
     if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException(
-        `Category with ID '${id}' is not a valid ObjectId`,
-      );
+      throw new NotFoundException(ERRORS.CATEGORY_NOT_FOUND);
     }
 
     const category = await this.categoryRepository.findById({ id });
     if (!category) {
-      throw new NotFoundException(`Category with ID '${id}' not found`);
+      throw new NotFoundException(ERRORS.CATEGORY_NOT_FOUND);
     }
     return category;
   }
@@ -44,7 +43,7 @@ export class CategoriesService {
       update: updateCategoryDto,
     });
     if (!updatedCategory) {
-      throw new NotFoundException(`Category with ID '${id}' not found`);
+      throw new NotFoundException(ERRORS.CATEGORY_NOT_FOUND);
     }
     return updatedCategory;
   }
@@ -55,7 +54,7 @@ export class CategoriesService {
 
     const result = await this.categoryRepository.delete({ id });
     if (!result) {
-      throw new NotFoundException(`Category with ID '${id}' not found`);
+      throw new NotFoundException(ERRORS.CATEGORY_NOT_FOUND);
     }
     return { deleted: true };
   }

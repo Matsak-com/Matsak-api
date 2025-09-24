@@ -57,7 +57,8 @@ describe('ImageProductService', () => {
 
       const result = await service.create(createImageDto);
       expect(result).toEqual(mockImageProduct);
-      expect(model.save).toHaveBeenCalledWith(createImageDto); // Vérifie que save a bien été appelé avec les bons paramètres
+  // model is a Mongoose Model, cast to any to access mocked save
+  expect((model as any).save).toHaveBeenCalledWith(createImageDto); // Vérifie que save a bien été appelé avec les bons paramètres
     });
   });
 
@@ -81,7 +82,7 @@ describe('ImageProductService', () => {
   describe('update', () => {
     it('should update an image product and return the updated one', async () => {
       const id = '1';
-      const updateImageDto = { url: 'http://example.com/updated-image.png' };
+  const updateImageDto = { filename: 'updated-image.png' };
 
       const result = await service.update(id, updateImageDto);
       expect(result).toEqual(mockImageProduct);
