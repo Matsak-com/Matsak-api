@@ -8,12 +8,16 @@ import {
   ShowNumberParamSchema,
   ShowEmailParamSchema,
   CurrencyParamSchema,
+  OpeningsParamSchema,
+  ClosingsParamSchema,
 } from './discriminators';
 
 // Setup discriminators on the base schema
 TeamParamSchema.discriminator('ShowNumberParam', ShowNumberParamSchema);
 TeamParamSchema.discriminator('ShowEmailParam', ShowEmailParamSchema);
 TeamParamSchema.discriminator('CurrencyParam', CurrencyParamSchema);
+TeamParamSchema.discriminator('OpeningsParam', OpeningsParamSchema);
+TeamParamSchema.discriminator('ClosingsParam', ClosingsParamSchema);
 
 @Module({
   imports: [

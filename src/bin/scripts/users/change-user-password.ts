@@ -7,13 +7,6 @@ import { ERRORS } from 'src/common/errors';
 import * as promptLib from 'prompt';
 import * as bcrypt from 'bcrypt';
 
-interface PasswordChangeInput {
-  email: string;
-  newPassword: string;
-  confirmPassword: string;
-  confirm: string;
-}
-
 async function main() {
   const program = new Command();
 
@@ -66,14 +59,14 @@ async function changeUserPasswordInteractive(userService: UsersService) {
   // Step 2: Verify user exists and display info
   console.log("\n🔍 Recherche de l'utilisateur...");
   let user;
-    try {
-      user = await userService.findByEmail(userEmailInput.email);
-      if (!user) {
-        throw new InternalServerErrorException(ERRORS.SCRIPT_USER_NOT_FOUND);
-      }
-    } catch (error) {
+  try {
+    user = await userService.findByEmail(userEmailInput.email);
+    if (!user) {
       throw new InternalServerErrorException(ERRORS.SCRIPT_USER_NOT_FOUND);
     }
+  } catch (error) {
+    throw new InternalServerErrorException(ERRORS.SCRIPT_USER_NOT_FOUND);
+  }
 
   console.log('\n✅ Utilisateur trouvé:');
   console.log(`   - ID: ${user._id}`);

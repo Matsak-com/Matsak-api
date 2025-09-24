@@ -19,10 +19,14 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
   constructor(protected readonly model: Model<T>) {}
 
   withNotDeleted(filter?: FilterQuery<T>) {
+    // Use $exists:false so we match documents where `deleted_at` is not set
+    // (some repositories use `{ deleted_at: { $exists: false } }`). This
+    // ensures consistency across the codebase and avoids missing results
+    // when the field is absent.
     return {
       ...(filter ?? {}),
-      deleted_at: null,
-    };
+      deleted_at: { $exists: false },
+    } as FilterQuery<T>;
   }
 
   async create({

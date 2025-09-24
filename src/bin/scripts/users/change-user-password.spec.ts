@@ -1,3 +1,6 @@
+import fs from 'fs';
+import path from 'path';
+
 /**
  * Change User Password Script Tests
  *
@@ -56,16 +59,12 @@ describe('ChangeUserPassword Script Components', () => {
 
   describe('Script file structure', () => {
     it('should have script file accessible', () => {
-      const fs = require('fs');
-      const path = require('path');
       const scriptPath = path.join(__dirname, './change-user-password.ts');
 
       expect(fs.existsSync(scriptPath)).toBe(true);
     });
 
     it('should contain required modules in script', () => {
-      const fs = require('fs');
-      const path = require('path');
       const scriptPath = path.join(__dirname, './change-user-password.ts');
       const scriptContent = fs.readFileSync(scriptPath, 'utf8');
 

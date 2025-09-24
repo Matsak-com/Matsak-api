@@ -31,7 +31,10 @@ export class GoogleService {
         picture: data.picture,
       };
     } catch (error) {
-      throw new HttpException(ERRORS.GOOGLE_FETCH_FAILED, HttpStatus.UNAUTHORIZED);
+      throw new HttpException(
+        ERRORS.GOOGLE_FETCH_FAILED,
+        HttpStatus.UNAUTHORIZED,
+      );
     }
   }
 }

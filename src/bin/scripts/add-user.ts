@@ -1,7 +1,7 @@
-const { Command } = require('commander');
-const { NestFactory } = require('@nestjs/core');
-const { AppModule } = require('../../app.module');
-const { UsersService } = require('../../users/users.service');
+import { Command } from 'commander';
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from '../../app.module';
+import { UsersService } from '../../users/users.service';
 
 const program = new Command();
 
