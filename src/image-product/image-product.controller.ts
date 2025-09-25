@@ -21,6 +21,7 @@ import { UpdateImageProductDto } from './dto/update-image-product.dto';
 import { CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
 import { updateImageProductSchema } from '../common/schemas/product.schemas';
 import { idParamSchema } from '../common/schemas/common.schemas';
+import { ERRORS } from '../common/errors';
 
 @Controller('image-product')
 export class ImageProductController {
@@ -39,7 +40,7 @@ export class ImageProductController {
       fileFilter: (req, file, callback) => {
         if (!file.mimetype.startsWith('image/')) {
           callback(
-            new BadRequestException('Seuls les fichiers image sont autorisés'),
+            new BadRequestException(ERRORS.ONLY_IMAGE_FILES_ARE_ALLOWED),
             false,
           );
         } else {
@@ -91,7 +92,7 @@ export class ImageProductController {
       updateImageDto,
     );
     if (!updatedImage) {
-      throw new NotFoundException(`Image with ID ${params.id} not found`);
+      throw new NotFoundException(ERRORS.IMAGE_NOT_FOUND);
     }
     return updatedImage;
   }
