@@ -41,6 +41,7 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
   if (typeof raw !== 'object' || raw === null) return raw;
   const cloned: any = { ...(raw as Record<string, any>) };
 
+  // Parse detailData JSON string
   if (typeof cloned.detailData === 'string') {
     try {
       cloned.detailData = JSON.parse(cloned.detailData);
@@ -49,26 +50,70 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
     }
   }
 
-  if (cloned.discounts) {
-    try {
-      const parsed =
-        typeof cloned.discounts === 'string'
-          ? JSON.parse(cloned.discounts)
-          : cloned.discounts;
-      if (Array.isArray(parsed)) {
-        cloned.discounts = parsed.map((d: any) => ({
-          ...d,
-          startDate: d.startDate ? new Date(d.startDate) : undefined,
-          endDate: d.endDate ? new Date(d.endDate) : undefined,
-        }));
-      }
-    } catch {
-      // ignore parse errors; validation will handle issues
-    }
+  // Handle team from detailData
+  if (cloned.detailData?.team) {
+    cloned.teamId = cloned.detailData.team;
+    delete cloned.detailData.team;
   }
 
-  if (cloned.isActive === 'true' || cloned.isActive === 'false') {
+  // Map categoryId to detailData.categoryId
+  if (cloned.categoryId) {
+    cloned.detailData = cloned.detailData || {};
+    cloned.detailData.categoryId = cloned.categoryId;
+    delete cloned.categoryId;
+  }
+
+  // Handle pricing and discount data
+  if (cloned.price) {
+    cloned.basePrice = parseFloat(cloned.price);
+    delete cloned.price;
+  }
+
+  // Handle discount information
+  if (cloned.discountType && cloned.discountType !== 'no-discount') {
+    const discountValue = parseFloat(cloned.discountValue || '0');
+    if (discountValue > 0) {
+      // Map discount types to valid enum values
+      let mappedType = cloned.discountType;
+      if (cloned.discountType === 'percent') {
+        mappedType = 'percentage';
+      } else if (!['percentage', 'fixed', 'bulk'].includes(cloned.discountType)) {
+        mappedType = 'fixed'; // Default fallback
+      }
+      
+      cloned.discounts = [{
+        type: mappedType,
+        value: discountValue,
+        isActive: true,
+      }];
+    }
+  }
+  
+  // Clean up discount fields
+  delete cloned.discountType;
+  delete cloned.discountValue;
+
+  // Handle dates in detailData
+  if (cloned.detailData?.expirationDate) {
+    cloned.detailData.expirationDate = new Date(cloned.detailData.expirationDate);
+  }
+
+  // Handle boolean fields
+  if (typeof cloned.isActive === 'string') {
     cloned.isActive = cloned.isActive === 'true';
+  }
+
+  if (typeof cloned.detailData.isRepackaged === 'string') {
+    cloned.detailData.isRepackaged = cloned.detailData.isRepackaged === 'true';
+  }
+
+  // Clean up empty strings in optional fields
+  if (cloned.detailData) {
+    Object.keys(cloned.detailData).forEach(key => {
+      if (cloned.detailData[key] === '' && key !== 'name' && key !== 'description') {
+        cloned.detailData[key] = undefined;
+      }
+    });
   }
 
   return cloned;
@@ -78,6 +123,7 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
   if (typeof raw !== 'object' || raw === null) return raw;
   const cloned: any = { ...(raw as Record<string, any>) };
 
+  // Parse detailData JSON string
   if (cloned.detailData && typeof cloned.detailData === 'string') {
     try {
       cloned.detailData = JSON.parse(cloned.detailData);
@@ -94,26 +140,60 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
     }
   }
 
-  if (cloned.discounts) {
-    try {
-      const parsed =
-        typeof cloned.discounts === 'string'
-          ? JSON.parse(cloned.discounts)
-          : cloned.discounts;
-      if (Array.isArray(parsed)) {
-        cloned.discounts = parsed.map((d: any) => ({
-          ...d,
-          startDate: d.startDate ? new Date(d.startDate) : undefined,
-          endDate: d.endDate ? new Date(d.endDate) : undefined,
-        }));
-      }
-    } catch {
-      // ignore parse errors
-    }
+  // Handle team from detailData
+  if (cloned.detailData?.team) {
+    cloned.teamId = cloned.detailData.team;
+    delete cloned.detailData.team;
   }
 
-  if (cloned.isActive === 'true' || cloned.isActive === 'false') {
+  // Map categoryId to detailData.categoryId
+  if (cloned.categoryId) {
+    cloned.detailData = cloned.detailData || {};
+    cloned.detailData.categoryId = cloned.categoryId;
+    delete cloned.categoryId;
+  }
+
+  // Handle pricing
+  if (cloned.price) {
+    cloned.basePrice = parseFloat(cloned.price);
+    delete cloned.price;
+  }
+
+  // Handle discount information
+  if (cloned.discountType && cloned.discountType !== 'no-discount') {
+    const discountValue = parseFloat(cloned.discountValue || '0');
+    if (discountValue > 0) {
+      // Map discount types to valid enum values
+      let mappedType = cloned.discountType;
+      if (cloned.discountType === 'percent') {
+        mappedType = 'percentage';
+      } else if (!['percentage', 'fixed', 'bulk'].includes(cloned.discountType)) {
+        mappedType = 'fixed'; // Default fallback
+      }
+      
+      cloned.discounts = [{
+        type: mappedType,
+        value: discountValue,
+        isActive: true,
+      }];
+    }
+  }
+  
+  delete cloned.discountType;
+  delete cloned.discountValue;
+
+  // Handle dates
+  if (cloned.detailData?.expirationDate) {
+    cloned.detailData.expirationDate = new Date(cloned.detailData.expirationDate);
+  }
+
+  // Handle booleans
+  if (typeof cloned.isActive === 'string') {
     cloned.isActive = cloned.isActive === 'true';
+  }
+
+  if (typeof cloned.detailData.isRepackaged === 'string') {
+    cloned.detailData.isRepackaged = cloned.detailData.isRepackaged === 'true';
   }
 
   return cloned;
