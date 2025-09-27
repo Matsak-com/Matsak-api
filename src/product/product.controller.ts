@@ -6,25 +6,25 @@ import {
   Param,
   Delete,
   UseGuards,
+  HttpCode,
+  HttpStatus,
   UploadedFile,
-  UseInterceptors,
   BadRequestException,
   Put,
   Query,
+  ParseFilePipe,
+  FileTypeValidator,
+  MaxFileSizeValidator,
 } from '@nestjs/common';
 import { ERRORS } from '../common/errors';
 import { ProductService } from './product.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
-import { ZodMultipartInterceptor } from 'src/common/interceptors/zod-multipart.interceptor';
 import { productIdParamSchema } from '../common/schemas/product.schemas';
-import { memoryStorage } from 'multer';
 import {
   createProductMultipartSchema,
   simpleUpdateMultipartSchema,
 } from './dto/create-product.dto';
-import { ImageProductService } from 'src/image-product/image-product.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import {
   SetPriceDto,
@@ -32,46 +32,70 @@ import {
   UpdateDiscountDto,
   CalculatePriceDto,
 } from './dto/pricing.dto';
+import { ZodMultipart } from 'src/common/decorators/zod-multipart.decorator';
 
 @Controller('products')
 export class ProductController {
-  constructor(
-    private readonly productService: ProductService,
-    private readonly imageProductService: ImageProductService,
-  ) {}
+  constructor(private readonly productService: ProductService) {}
 
   // Preprocess schemas moved into DTO: import createProductMultipartSchema and simpleUpdateMultipartSchema
 
   @Post()
-  @UseInterceptors(
-    FileInterceptor('productImage', { storage: memoryStorage() }),
-    new ZodMultipartInterceptor(createProductMultipartSchema),
-  )
+  @HttpCode(HttpStatus.CREATED)
+  @ZodMultipart(createProductMultipartSchema, 'productImage')
   async create(
     @Body() body: CreateProductDto,
-    @UploadedFile() productImage?: Express.Multer.File,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new FileTypeValidator({ fileType: 'image/*' }),
+          new MaxFileSizeValidator({ maxSize: 3 * 1024 * 1024 }),
+        ],
+        fileIsRequired: false,
+      }),
+    )
+    productImage?: Express.Multer.File,
   ) {
-    // Body has been validated and preprocessed by ZodMultipartInterceptor
-    return this.productService.createProduct(body as any, productImage);
+    try {
+      // Body has been validated and preprocessed by ZodMultipartInterceptor
+      const validated = body;
+      
+      return await this.productService.createProduct(validated as any, productImage);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to create product');
+    }
   }
 
   @Put(':id')
-  @UseInterceptors(
-    FileInterceptor('productImage', { storage: memoryStorage() }),
-    new ZodMultipartInterceptor(simpleUpdateMultipartSchema),
-  )
+  @ZodMultipart(simpleUpdateMultipartSchema, 'productImage')
   async update(
     @Param('id') id: string,
     @Body() body: CreateProductDto,
-    @UploadedFile() productImage?: Express.Multer.File,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new FileTypeValidator({ fileType: 'image/*' }),
+          new MaxFileSizeValidator({ maxSize: 3 * 1024 * 1024 }),
+        ],
+        fileIsRequired: false,
+      }),
+    )
+    productImage?: Express.Multer.File,
   ) {
-    // Body preprocessed and validated by ZodMultipartInterceptor
-    const validatedData: any = body as any;
-    if (productImage) {
-      validatedData.imageData = validatedData.imageData || { altText: '' };
-    }
+    try {
+      // Body preprocessed and validated by ZodMultipartInterceptor
+      const validatedData = body;
 
-    return await this.productService.update(id, validatedData, productImage);
+      return await this.productService.update(id, validatedData, productImage);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to update product');
+    }
   }
 
   // @UseGuards(JwtAuthGuard)

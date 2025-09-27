@@ -39,20 +39,29 @@ export const createDetailProductSchema = z.object({
   sideEffects: z.string().optional(),
   precautions: z.string().optional(),
   expirationDate: z
-    .string()
+    .union([z.string(), z.date()])
     .optional()
-    .refine((val) => !val || !isNaN(new Date(val).getTime()), {
-      message: 'Invalid datetime',
+    .transform((val) => {
+      if (!val) return undefined;
+      if (typeof val === 'string') {
+        const date = new Date(val);
+        return isNaN(date.getTime()) ? undefined : date;
+      }
+      return val;
     }),
   manufacturer: z.string().optional(),
   isRepackaged: z.boolean().optional(),
+  categoryId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for categoryId')
+    .optional(),
 });
 
 export const updateDetailProductSchema = createDetailProductSchema.partial();
 
 // Image product schema
 export const createImageProductSchema = z.object({
-  filename: z.string().min(1, 'Filename is required'),
+  filename: z.string().min(1, 'Filename is required').optional(),
   altText: z.string().optional(),
 });
 
@@ -74,6 +83,8 @@ export const createProductSchema = z.object({
     .string()
     .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for teamId')
     .min(1, 'Team ID is required'),
+  basePrice: z.number().min(0, 'Base price must be positive').optional(),
+  currency: z.string().default('MGA'),
   discounts: z.array(discountSchema).optional(),
   isActive: z.boolean().optional(),
 });
@@ -136,6 +147,10 @@ export const updateProductSchemaFlexible = z
         expirationDate: z.date().optional(), // 🔧 Accepter directement Date
         manufacturer: z.string().optional(),
         isRepackaged: z.boolean().optional(),
+        subcategoryId: z
+          .string()
+          .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for subcategoryId')
+          .optional(),
       })
       .optional(),
     imageData: z
@@ -174,9 +189,15 @@ export const simpleUpdateSchema = z
         expirationDate: z.date().optional(),
         manufacturer: z.string().optional(),
         isRepackaged: z.boolean().optional(),
+        categoryId: z
+          .string()
+          .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for categoryId')
+          .optional(),
       })
       .optional(),
 
+    basePrice: z.number().min(0).optional(),
+    currency: z.string().optional(),
     isActive: z.boolean().optional(),
     // 🔧 CORRECTION: imageData plus flexible
     imageData: z
