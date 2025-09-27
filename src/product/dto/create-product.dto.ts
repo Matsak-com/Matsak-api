@@ -69,10 +69,6 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
     delete cloned.price;
   }
 
-  if (cloned.currency) {
-    cloned.currency = cloned.currency;
-  }
-
   // Handle discount information
   if (cloned.discountType && cloned.discountType !== 'no-discount') {
     const discountValue = parseFloat(cloned.discountValue || '0');
@@ -107,7 +103,7 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
     cloned.isActive = cloned.isActive === 'true';
   }
 
-  if (cloned.detailData?.isRepackaged !== undefined && typeof cloned.detailData.isRepackaged === 'string') {
+  if (typeof cloned.detailData.isRepackaged === 'string') {
     cloned.detailData.isRepackaged = cloned.detailData.isRepackaged === 'true';
   }
 
@@ -163,10 +159,6 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
     delete cloned.price;
   }
 
-  if (cloned.currency) {
-    cloned.currency = cloned.currency;
-  }
-
   // Handle discount information
   if (cloned.discountType && cloned.discountType !== 'no-discount') {
     const discountValue = parseFloat(cloned.discountValue || '0');
@@ -200,7 +192,7 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
     cloned.isActive = cloned.isActive === 'true';
   }
 
-  if (cloned.detailData?.isRepackaged && typeof cloned.detailData.isRepackaged === 'string') {
+  if (typeof cloned.detailData.isRepackaged === 'string') {
     cloned.detailData.isRepackaged = cloned.detailData.isRepackaged === 'true';
   }
 
