@@ -59,8 +59,10 @@ export class ProductController {
     try {
       // Body has been validated and preprocessed by ZodMultipartInterceptor
       const validated = body;
-      
-      return await this.productService.createProduct(validated as any, productImage);
+      return await this.productService.createProduct(
+        validated as any,
+        productImage,
+      );
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;

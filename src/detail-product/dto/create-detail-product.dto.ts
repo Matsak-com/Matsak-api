@@ -1,4 +1,4 @@
-import { IsBoolean, IsDateString, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsDateString, IsOptional, IsString, IsMongoId } from 'class-validator';
 
 export class CreateDetailProductDto {
   @IsString()
@@ -42,4 +42,11 @@ export class CreateDetailProductDto {
   @IsOptional()
   @IsBoolean()
   isRepackaged?: boolean;
+
+  @IsMongoId()
+  categoryId: string;
+
+  @IsOptional()
+  @IsMongoId()
+  subcategoryId?: string;
 }

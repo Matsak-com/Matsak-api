@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { ERRORS } from '../common/errors';
 import { UpdateDetailProductDto } from './dto/update-detail-product.dto';
 import { DetailProductRepository } from './detail-product.repository';
 import { DetailProduct } from './detail-product.schema';
 import { CreateDetailProductDto } from 'src/common/schemas/product.schemas';
+import { Types } from 'mongoose';
 
 @Injectable()
 export class DetailProductService {
@@ -12,13 +13,24 @@ export class DetailProductService {
   ) {}
 
   async create(dto: CreateDetailProductDto): Promise<DetailProduct> {
-    const docToCreate = {
+    const docToCreate: any = {
       ...dto,
       // Convert string to Date if expirationDate exists
       ...(dto.expirationDate && {
         expirationDate: new Date(dto.expirationDate),
       }),
     };
+
+    // Convert categoryId and subcategoryId to ObjectIds
+    if (dto.categoryId) {
+      docToCreate.category = new Types.ObjectId(dto.categoryId);
+      delete docToCreate.categoryId;
+    }
+
+    if (dto.subcategoryId) {
+      docToCreate.subcategory = new Types.ObjectId(dto.subcategoryId);
+      delete docToCreate.subcategoryId;
+    }
 
     const created = await this.detailProductRepository.create({
       doc: docToCreate,
@@ -41,9 +53,25 @@ export class DetailProductService {
     id: string,
     dto: UpdateDetailProductDto,
   ): Promise<DetailProduct> {
+    const updateData: any = { ...dto };
+
+    // Convert categoryId and subcategoryId to ObjectIds if provided
+    if (dto.categoryId) {
+      updateData.category = new Types.ObjectId(dto.categoryId);
+      delete updateData.categoryId;
+    }
+
+    if (dto.subcategoryId) {
+      updateData.subcategory = new Types.ObjectId(dto.subcategoryId);
+      delete updateData.subcategoryId;
+    } else if (dto.subcategoryId === null || dto.subcategoryId === '') {
+      // Allow clearing subcategory
+      updateData.subcategory = undefined;
+    }
+
     const updated = await this.detailProductRepository.update({
       id,
-      update: dto,
+      update: updateData,
     });
     if (!updated) throw new NotFoundException(ERRORS.DETAIL_PRODUCT_NOT_FOUND);
     return updated;
