@@ -121,15 +121,17 @@ export class ProductService {
       );
     }
 
-    // Gestion de l'image
+    // Gestion de l'image (file upload ou base64 data)
     let imageId = existingProduct.images;
+    
+    // Priority 1: Handle file upload from multipart
     if (file) {
       // Supprimer l'ancienne image si elle existe
       if (existingProduct.images) {
         await this.imageservice.remove(existingProduct.images.toString());
       }
 
-      // Créer la nouvelle image
+      // Créer la nouvelle image à partir du fichier
       const uploadedImage = await this.imageservice.createFromBuffer({
         buffer: file.buffer,
         originalname: file.originalname,
@@ -139,17 +141,72 @@ export class ProductService {
 
       imageId = new Types.ObjectId(uploadedImage._id as string);
     }
+    // Priority 2: Handle base64 image data from productImage payload
+    else if (updateProductDto.imageData?.data) {
+      // Supprimer l'ancienne image si elle existe
+      if (existingProduct.images) {
+        await this.imageservice.remove(existingProduct.images.toString());
+      }
 
-    // Construire les données de mise à jour
+      // Convert base64 data to Buffer
+      let buffer: Buffer;
+      let mimeType = updateProductDto.imageData.mimeType || 'image/jpeg';
+      
+      try {
+        // Handle data URL format (data:image/jpeg;base64,...)
+        if (updateProductDto.imageData.data.startsWith('data:')) {
+          const matches = updateProductDto.imageData.data.match(
+            /^data:([^;]+);base64,(.+)$/,
+          );
+          if (matches) {
+            mimeType = matches[1];
+            buffer = Buffer.from(matches[2], 'base64');
+          } else {
+            throw new Error('Invalid data URL format');
+          }
+        } else {
+          // Plain base64 string
+          buffer = Buffer.from(updateProductDto.imageData.data, 'base64');
+        }
+
+        // Créer la nouvelle image à partir des données base64
+        const uploadedImage = await this.imageservice.createFromBuffer({
+          buffer,
+          originalname: updateProductDto.imageData.name || 'uploaded-image.jpg',
+          mimetype: mimeType,
+          altText: updateProductDto.imageData.altText || '',
+        });
+
+        imageId = new Types.ObjectId(uploadedImage._id as string);
+      } catch (error) {
+        console.warn('Failed to process base64 image data:', error.message);
+        // Continue without updating image
+      }
+    }
+
+    // Construire les données de mise à jour du produit
     const updateData: any = {
       updatedAt: new Date(),
     };
 
+    // Handle product-level fields
     if (typeof updateProductDto.isActive !== 'undefined') {
       updateData.isActive = updateProductDto.isActive;
     }
 
-    if (imageId) {
+    if (typeof updateProductDto.basePrice !== 'undefined') {
+      updateData.basePrice = updateProductDto.basePrice;
+    }
+
+    if (updateProductDto.currency) {
+      updateData.currency = updateProductDto.currency;
+    }
+
+    if (updateProductDto.teamId) {
+      updateData.team = new Types.ObjectId(updateProductDto.teamId);
+    }
+
+    if (imageId && imageId !== existingProduct.images) {
       updateData.images = imageId;
     }
 

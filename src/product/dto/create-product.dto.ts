@@ -63,6 +63,13 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
     delete cloned.categoryId;
   }
 
+  // Handle subcategory mapping (optional)
+  if (cloned.subcategoryId) {
+    cloned.detailData = cloned.detailData || {};
+    cloned.detailData.subcategoryId = cloned.subcategoryId;
+    delete cloned.subcategoryId;
+  }
+
   // Handle pricing and discount data
   if (cloned.price) {
     cloned.basePrice = parseFloat(cloned.price);
@@ -130,33 +137,47 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
     } catch {
       // leave as-is; validation will catch it
     }
-    if (
-      cloned.detailData?.expirationDate &&
-      typeof cloned.detailData.expirationDate === 'string'
-    ) {
+  }
+
+  // Handle dates in detailData
+  if (cloned.detailData?.expirationDate) {
+    if (typeof cloned.detailData.expirationDate === 'string') {
       cloned.detailData.expirationDate = new Date(
         cloned.detailData.expirationDate,
       );
     }
   }
 
-  // Handle team from detailData
+  // Handle team from detailData OR from top level
   if (cloned.detailData?.team) {
     cloned.teamId = cloned.detailData.team;
     delete cloned.detailData.team;
+  } else if (cloned.teamId) {
+    // teamId is already at the right level, keep it
   }
 
-  // Map categoryId to detailData.categoryId
+  // Handle category and subcategory mapping
   if (cloned.categoryId) {
     cloned.detailData = cloned.detailData || {};
     cloned.detailData.categoryId = cloned.categoryId;
     delete cloned.categoryId;
   }
 
+  if (cloned.subcategoryId) {
+    cloned.detailData = cloned.detailData || {};
+    cloned.detailData.subcategoryId = cloned.subcategoryId;
+    delete cloned.subcategoryId;
+  }
+
   // Handle pricing
   if (cloned.price) {
     cloned.basePrice = parseFloat(cloned.price);
     delete cloned.price;
+  }
+
+  // Handle currency
+  if (cloned.currency) {
+    // Keep currency at product level
   }
 
   // Handle discount information
@@ -167,24 +188,47 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
       let mappedType = cloned.discountType;
       if (cloned.discountType === 'percent') {
         mappedType = 'percentage';
-      } else if (!['percentage', 'fixed', 'bulk'].includes(cloned.discountType)) {
+      } else if (
+        !['percentage', 'fixed', 'bulk'].includes(cloned.discountType)
+      ) {
         mappedType = 'fixed'; // Default fallback
       }
-      
-      cloned.discounts = [{
-        type: mappedType,
-        value: discountValue,
-        isActive: true,
-      }];
+
+      cloned.discounts = [
+        {
+          type: mappedType,
+          value: discountValue,
+          isActive: true,
+        },
+      ];
     }
   }
-  
+
   delete cloned.discountType;
   delete cloned.discountValue;
 
-  // Handle dates
-  if (cloned.detailData?.expirationDate) {
-    cloned.detailData.expirationDate = new Date(cloned.detailData.expirationDate);
+  // Handle productImage object (with data, name, mimeType, altText, url structure)
+  if (cloned.productImage) {
+    if (typeof cloned.productImage === 'string') {
+      try {
+        cloned.productImage = JSON.parse(cloned.productImage);
+      } catch {
+        // leave as-is
+      }
+    }
+
+    if (cloned.productImage && typeof cloned.productImage === 'object') {
+      // Map productImage structure to imageData
+      cloned.imageData = {
+        altText: cloned.productImage.altText || '',
+        // If it has base64 data, we'll handle it in the service
+        data: cloned.productImage.data,
+        name: cloned.productImage.name,
+        mimeType: cloned.productImage.mimeType,
+        url: cloned.productImage.url,
+      };
+      delete cloned.productImage;
+    }
   }
 
   // Handle booleans
@@ -192,8 +236,21 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
     cloned.isActive = cloned.isActive === 'true';
   }
 
-  if (typeof cloned.detailData.isRepackaged === 'string') {
+  if (cloned.detailData && typeof cloned.detailData.isRepackaged === 'string') {
     cloned.detailData.isRepackaged = cloned.detailData.isRepackaged === 'true';
+  }
+
+  // Clean up empty strings in optional fields
+  if (cloned.detailData) {
+    Object.keys(cloned.detailData).forEach((key) => {
+      if (
+        cloned.detailData[key] === '' &&
+        key !== 'name' &&
+        key !== 'description'
+      ) {
+        cloned.detailData[key] = undefined;
+      }
+    });
   }
 
   return cloned;

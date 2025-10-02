@@ -31,6 +31,7 @@ export const ERRORS = {
   AWS_INVALID_REGION: 'AWS_INVALID_REGION',
   VALIDATION_FAILED: 'VALIDATION_FAILED',
   SUBCATEGORY_NOT_FOUND: 'SUBCATEGORY_NOT_FOUND',
+  CATEGORY_SUBCATEGORY_MISMATCH: 'CATEGORY_SUBCATEGORY_MISMATCH',
   TEAM_PARAM_ALREADY_EXISTS: 'TEAM_PARAM_ALREADY_EXISTS',
   TEAM_PARAM_NOT_FOUND: 'TEAM_PARAM_NOT_FOUND',
   FILE_NOT_FOUND: 'FILE_NOT_FOUND',
@@ -132,6 +133,10 @@ export const TOKEN_MAP: Record<string, { status: number; message: string }> = {
   [ERRORS.SUBCATEGORY_NOT_FOUND]: {
     status: HttpStatus.NOT_FOUND,
     message: 'SubCategory not found',
+  },
+  [ERRORS.CATEGORY_SUBCATEGORY_MISMATCH]: {
+    status: HttpStatus.BAD_REQUEST,
+    message: 'Subcategory must belong to the specified category',
   },
   [ERRORS.TEAM_PARAM_ALREADY_EXISTS]: {
     status: HttpStatus.BAD_REQUEST,

@@ -53,7 +53,10 @@ export const createDetailProductSchema = z.object({
   isRepackaged: z.boolean().optional(),
   categoryId: z
     .string()
-    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for categoryId')
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for categoryId'),
+  subcategoryId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for subcategoryId')
     .optional(),
 });
 
@@ -193,16 +196,28 @@ export const simpleUpdateSchema = z
           .string()
           .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for categoryId')
           .optional(),
+        subcategoryId: z
+          .string()
+          .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for subcategoryId')
+          .optional(),
       })
       .optional(),
 
     basePrice: z.number().min(0).optional(),
     currency: z.string().optional(),
+    teamId: z
+      .string()
+      .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for teamId')
+      .optional(),
     isActive: z.boolean().optional(),
-    // 🔧 CORRECTION: imageData plus flexible
+    // Enhanced imageData to handle base64 data from productImage
     imageData: z
       .object({
         altText: z.string().optional(),
+        data: z.string().optional(), // base64 data
+        name: z.string().optional(), // filename
+        mimeType: z.string().optional(), // mime type
+        url: z.string().optional(), // data URL
       })
       .optional(),
     discounts: z.array(discountSchema).optional(),
