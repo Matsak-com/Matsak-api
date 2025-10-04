@@ -164,9 +164,6 @@ export class TeamsService {
     if (Object.keys(updateData).length === 0) {
       return existingTeam;
     }
-
-    console.log('Update Data:', updateData);
-
     return await this.teamsRepository.update({ id, update: updateData });
   }
 
