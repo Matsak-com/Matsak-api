@@ -37,11 +37,12 @@ export class ProductService {
         createDto.detailData,
       )) as DetailProduct & { _id: string };
 
-      // 2️⃣ Créer le produit en DB via repository
       const productDoc: any = {
         detail: detail._id,
         team: new Types.ObjectId(createDto.teamId),
         images: null,
+        basePrice: createDto.basePrice,
+        currency: createDto.currency || 'MGA',
         discounts: createDto.discounts
           ? createDto.discounts.map((d) => ({
               ...d,
@@ -121,17 +122,13 @@ export class ProductService {
       );
     }
 
-    // Gestion de l'image (file upload ou base64 data)
     let imageId = existingProduct.images;
-    
-    // Priority 1: Handle file upload from multipart
-    if (file) {
-      // Supprimer l'ancienne image si elle existe
+    let shouldUpdateImage = false;
+    if (file && file instanceof Object && file.buffer) {
       if (existingProduct.images) {
         await this.imageservice.remove(existingProduct.images.toString());
       }
 
-      // Créer la nouvelle image à partir du fichier
       const uploadedImage = await this.imageservice.createFromBuffer({
         buffer: file.buffer,
         originalname: file.originalname,
@@ -140,6 +137,7 @@ export class ProductService {
       });
 
       imageId = new Types.ObjectId(uploadedImage._id as string);
+      shouldUpdateImage = true;
     }
     // Priority 2: Handle base64 image data from productImage payload
     else if (updateProductDto.imageData?.data) {
@@ -178,11 +176,26 @@ export class ProductService {
         });
 
         imageId = new Types.ObjectId(uploadedImage._id as string);
+        shouldUpdateImage = true;
       } catch (error) {
         console.warn('Failed to process base64 image data:', error.message);
         // Continue without updating image
       }
     }
+    // Priority 3: Handle explicit image removal (when productImage payload is null)
+    else if (
+      updateProductDto.imageData === null ||
+      (updateProductDto.imageData && updateProductDto.imageData.data === null)
+    ) {
+      // Remove existing image if any
+      if (existingProduct.images) {
+        await this.imageservice.remove(existingProduct.images.toString());
+      }
+      imageId = null;
+      shouldUpdateImage = true;
+    }
+    // Priority 4: No change to image (when productImage is not provided or not a File)
+    // In this case, keep the existing image and don't update
 
     // Construire les données de mise à jour du produit
     const updateData: any = {
@@ -206,8 +219,9 @@ export class ProductService {
       updateData.team = new Types.ObjectId(updateProductDto.teamId);
     }
 
-    if (imageId && imageId !== existingProduct.images) {
-      updateData.images = imageId;
+    // Only update image if we explicitly changed it (file upload, base64 data, or removal)
+    if (shouldUpdateImage) {
+      updateData.images = imageId; // Can be new ObjectId or null for removal
     }
 
     if (updateProductDto.discounts) {
