@@ -4,6 +4,7 @@ import {
   UpdateQuery,
   PopulateOptions,
   ProjectionType,
+  Types,
 } from 'mongoose';
 
 type QueryOptionsExtended<T> = {
@@ -17,6 +18,18 @@ type QueryOptionsExtended<T> = {
 
 export class BaseRepository<T extends { deleted_at?: Date }> {
   constructor(protected readonly model: Model<T>) {}
+
+  /**
+   * Ensures the id is converted to Types.ObjectId
+   * @param id - String or ObjectId
+   * @returns ObjectId
+   */
+  private ensureObjectId(id: string | Types.ObjectId): Types.ObjectId {
+    if (typeof id === 'string') {
+      return new Types.ObjectId(id);
+    }
+    return id;
+  }
 
   withNotDeleted(filter?: FilterQuery<T>) {
     // Use $exists:false so we match documents where `deleted_at` is not set
@@ -77,11 +90,12 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
     id,
     options = {},
   }: {
-    id: string;
+    id: string | Types.ObjectId;
     options?: QueryOptionsExtended<T>;
   }): Promise<T | null> {
+    const objectId = this.ensureObjectId(id);
     const query = this.model.findOne(
-      this.withNotDeleted({ _id: id } as FilterQuery<T>),
+      this.withNotDeleted({ _id: objectId } as FilterQuery<T>),
       options.projection,
     );
     this.applyQueryOptions(query, options);
@@ -93,16 +107,17 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
     update,
     options = {},
   }: {
-    id: string;
+    id: string | Types.ObjectId;
     update: UpdateQuery<T>;
     options?: QueryOptionsExtended<T>;
   }): Promise<T | null> {
+    const objectId = this.ensureObjectId(id);
     const query = this.model.findOneAndUpdate(
-      this.withNotDeleted({ _id: id } as FilterQuery<T>),
+      this.withNotDeleted({ _id: objectId } as FilterQuery<T>),
       update,
       { new: true, runValidators: true },
     );
-    this.applyQueryOptions(query, options);
+    this.applyUpdateQueryOptions(query, options);
     return query.exec();
   }
 
@@ -110,12 +125,13 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
     id,
     options = {},
   }: {
-    id: string;
+    id: string | Types.ObjectId;
     options?: QueryOptionsExtended<T>;
   }): Promise<T | null> {
+    const objectId = this.ensureObjectId(id);
     const update: UpdateQuery<T> = { deleted_at: new Date() } as any;
     const query = this.model.findOneAndUpdate(
-      this.withNotDeleted({ _id: id } as FilterQuery<T>),
+      this.withNotDeleted({ _id: objectId } as FilterQuery<T>),
       update,
       { new: true, runValidators: true },
     );
@@ -128,6 +144,16 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
     if (options.sort) query.sort(options.sort);
     if (options.limit !== undefined) query.limit(options.limit);
     if (options.skip !== undefined) query.skip(options.skip);
+    if (options.lean) query.lean();
+  }
+
+  private applyUpdateQueryOptions(
+    query: any,
+    options: QueryOptionsExtended<T>,
+  ) {
+    // For update operations, we don't apply projection as it can interfere with the update
+    // We also skip sort, limit, skip as they don't make sense for findOneAndUpdate
+    if (options.populate) query.populate(options.populate);
     if (options.lean) query.lean();
   }
 }

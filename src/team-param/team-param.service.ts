@@ -96,11 +96,13 @@ export class TeamParamService {
       }),
     };
 
-    const updatedParam = await this.teamParamRepository.update({
-      id,
-      update: updateData,
-      options: { populate: [{ path: 'team' }] },
-    });
+    const updatedParam = await this.teamParamRepository.updateWithDiscriminator(
+      {
+        id,
+        update: updateData,
+        options: { populate: [{ path: 'team' }] },
+      },
+    );
 
     if (!updatedParam) {
       throw new NotFoundException(ERRORS.TEAM_PARAM_NOT_FOUND);
