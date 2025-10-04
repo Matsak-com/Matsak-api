@@ -208,27 +208,32 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
   delete cloned.discountValue;
 
   // Handle productImage object (with data, name, mimeType, altText, url structure)
-  if (cloned.productImage) {
-    if (typeof cloned.productImage === 'string') {
-      try {
-        cloned.productImage = JSON.parse(cloned.productImage);
-      } catch {
-        // leave as-is
+  if (cloned.hasOwnProperty('productImage')) {
+    if (cloned.productImage === null || cloned.productImage === 'null') {
+      // Explicit image removal
+      cloned.imageData = null;
+    } else if (cloned.productImage) {
+      if (typeof cloned.productImage === 'string') {
+        try {
+          cloned.productImage = JSON.parse(cloned.productImage);
+        } catch {
+          // leave as-is
+        }
+      }
+
+      if (cloned.productImage && typeof cloned.productImage === 'object') {
+        // Map productImage structure to imageData
+        cloned.imageData = {
+          altText: cloned.productImage.altText || '',
+          // If it has base64 data, we'll handle it in the service
+          data: cloned.productImage.data,
+          name: cloned.productImage.name,
+          mimeType: cloned.productImage.mimeType,
+          url: cloned.productImage.url,
+        };
       }
     }
-
-    if (cloned.productImage && typeof cloned.productImage === 'object') {
-      // Map productImage structure to imageData
-      cloned.imageData = {
-        altText: cloned.productImage.altText || '',
-        // If it has base64 data, we'll handle it in the service
-        data: cloned.productImage.data,
-        name: cloned.productImage.name,
-        mimeType: cloned.productImage.mimeType,
-        url: cloned.productImage.url,
-      };
-      delete cloned.productImage;
-    }
+    delete cloned.productImage;
   }
 
   // Handle booleans
