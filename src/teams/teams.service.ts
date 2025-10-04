@@ -40,7 +40,7 @@ export class TeamsService {
       region: createTeamDto.region,
       timezone: createTeamDto.timezone,
       countryCode: createTeamDto.countryCode,
-      coordinates: createTeamDto.coordinates,
+      coordinates: createTeamDto.coordinates, // Now maps directly to coordinates
       slug: slugify(createTeamDto.name),
       language: createTeamDto.language || 'fr',
     };
@@ -117,7 +117,6 @@ export class TeamsService {
       'region',
       'timezone',
       'countryCode',
-      'coordinates',
       'language',
     ];
 
@@ -129,6 +128,16 @@ export class TeamsService {
         if (existingTeam[schemaField] !== dtoValue) {
           updateData[schemaField] = dtoValue;
         }
+      }
+    }
+
+    // Handle coordinates separately - now maps directly to coordinates field
+    if (typeof updateTeamDto.coordinates !== 'undefined') {
+      if (
+        JSON.stringify(existingTeam.coordinates) !==
+        JSON.stringify(updateTeamDto.coordinates)
+      ) {
+        updateData.coordinates = updateTeamDto.coordinates;
       }
     }
 
@@ -155,7 +164,6 @@ export class TeamsService {
     if (Object.keys(updateData).length === 0) {
       return existingTeam;
     }
-
     return await this.teamsRepository.update({ id, update: updateData });
   }
 

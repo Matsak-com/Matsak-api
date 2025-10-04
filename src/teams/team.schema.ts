@@ -67,7 +67,7 @@ export class Team extends Document {
 
   @Prop({ required: false, type: Object })
   @IsOptional()
-  geoLoc?: Record<string, any>;
+  coordinates?: Record<string, any>;
 
   @Prop({ required: true })
   @IsString()
