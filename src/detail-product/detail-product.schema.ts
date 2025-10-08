@@ -6,6 +6,35 @@ import { SubCategory } from 'src/sub-categories/sub-category.schema';
 
 export type DetailProductDocument = DetailProduct & Document;
 
+// SEO subdocument schema
+@Schema({ _id: false })
+export class SEO {
+  @Prop({ required: false, default: '' })
+  title: string;
+
+  @Prop({ required: false, default: '' })
+  description: string;
+
+  @Prop({ required: false, default: '' })
+  keywords: string;
+}
+
+// Dimensions subdocument schema
+@Schema({ _id: false })
+export class Dimensions {
+  @Prop({ required: false })
+  length?: number;
+
+  @Prop({ required: false })
+  width?: number;
+
+  @Prop({ required: false })
+  height?: number;
+
+  @Prop({ required: false, default: 'cm' })
+  unit?: string;
+}
+
 @Schema({ timestamps: true })
 export class DetailProduct {
   @Prop({ required: true })
@@ -41,21 +70,40 @@ export class DetailProduct {
   @Prop({ default: false })
   isRepackaged: boolean; // true si déconditionné, false sinon
 
+  // New properties added from the request
+  @Prop({ required: false, unique: true, sparse: true })
+  sku?: string;
+
+  @Prop({ required: false })
+  barcode?: string;
+
+  @Prop({ required: false, min: 0 })
+  weight?: number; // in grams
+
+  @Prop({ type: Dimensions, required: false })
+  dimensions?: Dimensions;
+
+  @Prop({ type: SEO, required: false, default: () => ({}) })
+  seo: SEO;
+
+  @Prop({ required: false, default: '' })
+  additionalInfo?: string;
+
   // Category reference (required)
-  @Prop({ 
-    type: Types.ObjectId, 
+  @Prop({
+    type: Types.ObjectId,
     ref: Category.name,
     required: true,
-    index: true 
+    index: true,
   })
   category: Types.ObjectId;
 
   // SubCategory reference (optional - more specific categorization)
-  @Prop({ 
-    type: Types.ObjectId, 
+  @Prop({
+    type: Types.ObjectId,
     ref: SubCategory.name,
     required: false,
-    index: true 
+    index: true,
   })
   subcategory?: Types.ObjectId;
 
@@ -63,17 +111,22 @@ export class DetailProduct {
   deleted_at?: Date;
 }
 
+export const SEOSchema = SchemaFactory.createForClass(SEO);
+export const DimensionsSchema = SchemaFactory.createForClass(Dimensions);
 export const DetailProductSchema = SchemaFactory.createForClass(DetailProduct);
 
 // Add compound index for efficient category/subcategory queries
 DetailProductSchema.index({ category: 1, subcategory: 1 });
 
+// Add index for SKU for efficient product lookups
+DetailProductSchema.index({ sku: 1 });
+
 // Add validation to ensure subcategory belongs to the specified category
-DetailProductSchema.pre('save', async function() {
+DetailProductSchema.pre('save', async function () {
   if (this.subcategory && this.category) {
     const SubCategoryModel = this.db.model('SubCategory');
     const subcategory = await SubCategoryModel.findById(this.subcategory);
-    
+
     if (subcategory && !subcategory.categoryId.equals(this.category)) {
       throw new Error('Subcategory must belong to the specified category');
     }

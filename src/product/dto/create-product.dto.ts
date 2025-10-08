@@ -3,6 +3,9 @@ import {
   IsBoolean,
   ValidateNested,
   IsMongoId,
+  IsString,
+  IsNumber,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { CreateDetailProductDto } from '../../detail-product/dto/create-detail-product.dto';
@@ -14,6 +17,41 @@ import {
   simpleUpdateSchema as _simpleUpdateSchema,
 } from '../../common/schemas/product.schemas';
 
+// DTO for advanced data
+export class AdvanceDataDto {
+  @IsOptional()
+  @IsString()
+  sku?: string;
+
+  @IsOptional()
+  @IsString()
+  barcode?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  weight?: number;
+
+  @IsOptional()
+  dimensions?: {
+    length?: number;
+    width?: number;
+    height?: number;
+    unit?: string;
+  };
+
+  @IsOptional()
+  seo?: {
+    title?: string;
+    description?: string;
+    keywords?: string;
+  };
+
+  @IsOptional()
+  @IsString()
+  additionalInfo?: string;
+}
+
 export class CreateProductDto {
   @ValidateNested()
   @Type(() => CreateDetailProductDto)
@@ -22,8 +60,49 @@ export class CreateProductDto {
   @ValidateNested()
   @Type(() => CreateImageProductDto)
   imageData?: CreateImageProductDto;
+  
   @IsMongoId()
   teamId: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  price?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  basePrice?: number;
+
+  @IsOptional()
+  @IsString()
+  currency?: string;
+
+  @IsOptional()
+  @IsString()
+  discountType?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  discountValue?: number;
+
+  @IsOptional()
+  @IsString()
+  productImage?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  categoryId?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  subcategoryId?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AdvanceDataDto)
+  advanceData?: AdvanceDataDto;
 
   @IsOptional()
   @ValidateNested({ each: true })
@@ -33,7 +112,10 @@ export class CreateProductDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
-  altText: string;
+  
+  @IsOptional()
+  @IsString()
+  altText?: string;
 }
 
 // Preprocess schemas for multipart/form-data bodies (parse JSON strings, coerce dates/bools)
@@ -56,8 +138,11 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
     delete cloned.detailData.team;
   }
 
-  // Map categoryId to detailData.categoryId
-  if (cloned.categoryId) {
+  // Handle category from detailData.category OR top level categoryId
+  if (cloned.detailData?.category) {
+    cloned.detailData.categoryId = cloned.detailData.category;
+    delete cloned.detailData.category;
+  } else if (cloned.categoryId) {
     cloned.detailData = cloned.detailData || {};
     cloned.detailData.categoryId = cloned.categoryId;
     delete cloned.categoryId;
@@ -67,7 +152,16 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
   if (cloned.subcategoryId) {
     cloned.detailData = cloned.detailData || {};
     cloned.detailData.subcategoryId = cloned.subcategoryId;
-    delete cloned.subcategoryId;
+  }
+  // Clean up subcategoryId whether it's null or not
+  delete cloned.subcategoryId;
+
+  // Clean up MongoDB-specific fields that shouldn't be in creation
+  if (cloned.detailData) {
+    delete cloned.detailData._id;
+    delete cloned.detailData.createdAt;
+    delete cloned.detailData.updatedAt;
+    delete cloned.detailData.__v;
   }
 
   // Handle pricing and discount data
@@ -84,15 +178,19 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
       let mappedType = cloned.discountType;
       if (cloned.discountType === 'percent') {
         mappedType = 'percentage';
-      } else if (!['percentage', 'fixed', 'bulk'].includes(cloned.discountType)) {
+      } else if (
+        !['percentage', 'fixed', 'bulk'].includes(cloned.discountType)
+      ) {
         mappedType = 'fixed'; // Default fallback
       }
       
-      cloned.discounts = [{
-        type: mappedType,
-        value: discountValue,
-        isActive: true,
-      }];
+      cloned.discounts = [
+        {
+          type: mappedType,
+          value: discountValue,
+          isActive: true,
+        },
+      ];
     }
   }
   
@@ -100,9 +198,47 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
   delete cloned.discountType;
   delete cloned.discountValue;
 
+  // Handle advanceData
+  if (cloned.advanceData) {
+    if (typeof cloned.advanceData === 'string') {
+      try {
+        cloned.advanceData = JSON.parse(cloned.advanceData);
+      } catch {
+        // leave as-is; validation will catch it
+      }
+    }
+    
+    // Merge advanceData fields into detailData where they belong
+    if (cloned.advanceData && typeof cloned.advanceData === 'object') {
+      cloned.detailData = cloned.detailData || {};
+      
+      // Map advance data fields to detailData
+      if (cloned.advanceData.sku) {
+        cloned.detailData.sku = cloned.advanceData.sku;
+      }
+      if (cloned.advanceData.barcode) {
+        cloned.detailData.barcode = cloned.advanceData.barcode;
+      }
+      if (cloned.advanceData.weight !== undefined) {
+        cloned.detailData.weight = cloned.advanceData.weight;
+      }
+      if (cloned.advanceData.dimensions) {
+        cloned.detailData.dimensions = cloned.advanceData.dimensions;
+      }
+      if (cloned.advanceData.seo) {
+        cloned.detailData.seo = cloned.advanceData.seo;
+      }
+      if (cloned.advanceData.additionalInfo) {
+        cloned.detailData.additionalInfo = cloned.advanceData.additionalInfo;
+      }
+    }
+  }
+
   // Handle dates in detailData
   if (cloned.detailData?.expirationDate) {
-    cloned.detailData.expirationDate = new Date(cloned.detailData.expirationDate);
+    cloned.detailData.expirationDate = new Date(
+      cloned.detailData.expirationDate,
+    );
   }
 
   // Handle boolean fields
@@ -116,8 +252,12 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
 
   // Clean up empty strings in optional fields
   if (cloned.detailData) {
-    Object.keys(cloned.detailData).forEach(key => {
-      if (cloned.detailData[key] === '' && key !== 'name' && key !== 'description') {
+    Object.keys(cloned.detailData).forEach((key) => {
+      if (
+        cloned.detailData[key] === '' &&
+        key !== 'name' &&
+        key !== 'description'
+      ) {
         cloned.detailData[key] = undefined;
       }
     });
@@ -156,8 +296,12 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
     // teamId is already at the right level, keep it
   }
 
-  // Handle category and subcategory mapping
-  if (cloned.categoryId) {
+  // Handle category from detailData.category OR top level categoryId
+  if (cloned.detailData?.category) {
+    cloned.detailData = cloned.detailData || {};
+    cloned.detailData.categoryId = cloned.detailData.category;
+    delete cloned.detailData.category;
+  } else if (cloned.categoryId) {
     cloned.detailData = cloned.detailData || {};
     cloned.detailData.categoryId = cloned.categoryId;
     delete cloned.categoryId;
@@ -166,7 +310,16 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
   if (cloned.subcategoryId) {
     cloned.detailData = cloned.detailData || {};
     cloned.detailData.subcategoryId = cloned.subcategoryId;
-    delete cloned.subcategoryId;
+  }
+  // Clean up subcategoryId whether it's null or not
+  delete cloned.subcategoryId;
+
+  // Clean up MongoDB-specific fields that shouldn't be in updates
+  if (cloned.detailData) {
+    delete cloned.detailData._id;
+    delete cloned.detailData.createdAt;
+    delete cloned.detailData.updatedAt;
+    delete cloned.detailData.__v;
   }
 
   // Handle pricing
@@ -206,6 +359,42 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
 
   delete cloned.discountType;
   delete cloned.discountValue;
+
+  // Handle advanceData for updates
+  if (cloned.advanceData) {
+    if (typeof cloned.advanceData === 'string') {
+      try {
+        cloned.advanceData = JSON.parse(cloned.advanceData);
+      } catch {
+        // leave as-is; validation will catch it
+      }
+    }
+    
+    // Merge advanceData fields into detailData where they belong
+    if (cloned.advanceData && typeof cloned.advanceData === 'object') {
+      cloned.detailData = cloned.detailData || {};
+      
+      // Map advance data fields to detailData
+      if (cloned.advanceData.sku !== undefined) {
+        cloned.detailData.sku = cloned.advanceData.sku;
+      }
+      if (cloned.advanceData.barcode !== undefined) {
+        cloned.detailData.barcode = cloned.advanceData.barcode;
+      }
+      if (cloned.advanceData.weight !== undefined) {
+        cloned.detailData.weight = cloned.advanceData.weight;
+      }
+      if (cloned.advanceData.dimensions !== undefined) {
+        cloned.detailData.dimensions = cloned.advanceData.dimensions;
+      }
+      if (cloned.advanceData.seo !== undefined) {
+        cloned.detailData.seo = cloned.advanceData.seo;
+      }
+      if (cloned.advanceData.additionalInfo !== undefined) {
+        cloned.detailData.additionalInfo = cloned.advanceData.additionalInfo;
+      }
+    }
+  }
 
   // Handle productImage object (with data, name, mimeType, altText, url structure)
   if (cloned.hasOwnProperty('productImage')) {

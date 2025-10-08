@@ -1,12 +1,38 @@
 import { UpdateDetailProductDto } from '../../detail-product/dto/update-detail-product.dto';
 import { DiscountDto } from './pricing.dto';
 
+// DTO for advanced data (for updates)
+export class AdvanceDataUpdateDto {
+  sku?: string;
+  barcode?: string;
+  weight?: number;
+  dimensions?: {
+    length?: number;
+    width?: number;
+    height?: number;
+    unit?: string;
+  };
+  seo?: {
+    title?: string;
+    description?: string;
+    keywords?: string;
+  };
+  additionalInfo?: string;
+}
+
 export class UpdateProductDto {
   detailData?: UpdateDetailProductDto;
   isActive?: boolean;
   basePrice?: number;
+  price?: number;
   currency?: string;
   teamId?: string;
+  discountType?: string;
+  discountValue?: number;
+  productImage?: string;
+  categoryId?: string;
+  subcategoryId?: string;
+  advanceData?: AdvanceDataUpdateDto;
   discounts?: DiscountDto[];
   imageData?: {
     buffer?: Buffer;

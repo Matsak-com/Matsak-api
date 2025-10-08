@@ -26,6 +26,7 @@ import {
   simpleUpdateMultipartSchema,
 } from './dto/create-product.dto';
 import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 import {
   SetPriceDto,
   AddDiscountDto,
@@ -75,7 +76,7 @@ export class ProductController {
   @ZodMultipart(simpleUpdateMultipartSchema, 'productImage')
   async update(
     @Param('id') id: string,
-    @Body() body: CreateProductDto,
+    @Body() body: UpdateProductDto,
     @UploadedFile(
       new ParseFilePipe({
         validators: [

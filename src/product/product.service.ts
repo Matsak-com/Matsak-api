@@ -11,6 +11,7 @@ import { Types } from 'mongoose';
 import { ImageProductService } from 'src/image-product/image-product.service';
 import { DetailProductService } from 'src/detail-product/detail-product.service';
 import { DetailProduct } from 'src/detail-product/detail-product.schema';
+import { UpdateProductDto } from './dto/update-product.dto';
 
 import { z } from 'zod';
 import { createProductSchema } from '../common/schemas/product.schemas';
@@ -105,7 +106,7 @@ export class ProductService {
 
   async update(
     id: string,
-    updateProductDto,
+    updateProductDto: UpdateProductDto,
     file?: Express.Multer.File,
   ): Promise<Product> {
     // Vérifier que le produit existe
@@ -114,12 +115,50 @@ export class ProductService {
       throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
     }
 
-    // Mise à jour du detailProduct
+    // Log incoming advanceData for debugging
+    if (updateProductDto.advanceData) {
+      console.log('Received advanceData:', updateProductDto.advanceData);
+    }
+
+    // Mise à jour du detailProduct avec les données avancées
     if (updateProductDto.detailData) {
+      // The advanceData fields should already be merged into detailData by the DTO preprocessing
+      console.log('Updating detailData with:', updateProductDto.detailData);
       await this.detailProductService.update(
         existingProduct.detail.toString(),
         updateProductDto.detailData,
       );
+    }
+
+    // Handle advanceData explicitly if it wasn't merged into detailData
+    if (updateProductDto.advanceData && !updateProductDto.detailData) {
+      console.log(
+        'Processing standalone advanceData:',
+        updateProductDto.advanceData,
+      );
+      // Map advanceData to detailData structure
+      const advancedDetailData = {
+        sku: updateProductDto.advanceData.sku,
+        barcode: updateProductDto.advanceData.barcode,
+        weight: updateProductDto.advanceData.weight,
+        dimensions: updateProductDto.advanceData.dimensions,
+        seo: updateProductDto.advanceData.seo,
+        additionalInfo: updateProductDto.advanceData.additionalInfo,
+      };
+      
+      // Filter out undefined values
+      const filteredDetailData = Object.fromEntries(
+        Object.entries(advancedDetailData).filter(
+          ([, value]) => value !== undefined,
+        ),
+      );
+      
+      if (Object.keys(filteredDetailData).length > 0) {
+        await this.detailProductService.update(
+          existingProduct.detail.toString(),
+          filteredDetailData,
+        );
+      }
     }
 
     let imageId = existingProduct.images;
@@ -211,6 +250,11 @@ export class ProductService {
       updateData.basePrice = updateProductDto.basePrice;
     }
 
+    // Handle price field (alias for basePrice)
+    if (typeof updateProductDto.price !== 'undefined') {
+      updateData.basePrice = updateProductDto.price;
+    }
+
     if (updateProductDto.currency) {
       updateData.currency = updateProductDto.currency;
     }
@@ -224,7 +268,40 @@ export class ProductService {
       updateData.images = imageId; // Can be new ObjectId or null for removal
     }
 
-    if (updateProductDto.discounts) {
+    // Handle discount data - prioritize new fields over existing discounts array
+    if (updateProductDto.discountType !== undefined) {
+      if (updateProductDto.discountType === 'no-discount') {
+        // Clear discounts when explicitly set to no-discount
+        updateData.discounts = [];
+      } else {
+        const discountValue = updateProductDto.discountValue || 0;
+        if (discountValue > 0) {
+          // Map discount types to valid enum values
+          let mappedType = updateProductDto.discountType;
+          if (updateProductDto.discountType === 'percent') {
+            mappedType = 'percentage';
+          } else if (
+            !['percentage', 'fixed', 'bulk'].includes(
+              updateProductDto.discountType,
+            )
+          ) {
+            mappedType = 'fixed'; // Default fallback
+          }
+          
+          updateData.discounts = [
+            {
+              type: mappedType,
+              value: discountValue,
+              isActive: true,
+            },
+          ];
+        } else {
+          // If discountValue is 0 or undefined, clear discounts
+          updateData.discounts = [];
+        }
+      }
+    } else if (updateProductDto.discounts) {
+      // Fall back to existing discounts array structure if new fields not provided
       updateData.discounts = updateProductDto.discounts.map((d: any) => ({
         ...d,
         startDate: d.startDate ? new Date(d.startDate) : undefined,
