@@ -56,7 +56,6 @@ export class UsersService {
       },
     });
 
-    // Check if the user was found
     if (!user) {
       throw new NotFoundException(ERRORS.USER_NOT_FOUND);
     }
@@ -68,11 +67,10 @@ export class UsersService {
           fileKey: user.avatarFileKey,
         });
       } catch (error) {
-        console.error(`Error fetching avatar for user ${userId}:`, error);
+        
       }
     }
 
-    // Return the user with the avatarUrl
     const userObj = user.toObject();
     delete userObj.password;
     return { ...userObj, avatarUrl };
@@ -108,18 +106,21 @@ export class UsersService {
   async updateUser(
     userId: string,
     updateUserDto: UpdateUserDto & UpdatePasswordDto,
-  ): Promise<{ message: string }> {
+    avatarFile?: Express.Multer.File,
+  ): Promise<{ message: string; user?: any }> {
     const user = await this.userRepository.findById({ id: userId });
     if (!user) {
       throw new NotFoundException(ERRORS.USER_NOT_FOUND);
     }
 
+    // Mise à jour des informations de base
     if (updateUserDto.name || updateUserDto.firstname || updateUserDto.email) {
       user.name = updateUserDto.name ?? user.name;
       user.firstname = updateUserDto.firstname ?? user.firstname;
       user.email = updateUserDto.email ?? user.email;
     }
 
+    // Mise à jour du mot de passe
     if (updateUserDto.currentPassword && updateUserDto.newPassword) {
       const isPasswordValid = await bcrypt.compare(
         updateUserDto.currentPassword,
@@ -132,10 +133,80 @@ export class UsersService {
       user.password = await bcrypt.hash(updateUserDto.newPassword, 10);
     }
 
+    // Mise à jour de l'avatar
+    if (avatarFile) {
+      try {
+  
+        // Valider le fichier
+        const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowedMimeTypes.includes(avatarFile.mimetype)) {
+          throw new HttpException(
+            'Type de fichier non autorisé. Formats acceptés: JPG, PNG, GIF, WEBP',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (avatarFile.size > maxSize) {
+          throw new HttpException(
+            'Fichier trop volumineux. Taille maximale: 5MB',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+
+        // Générer un fileKey unique pour le fichier
+        const timestamp = Date.now();
+        const randomString = Math.random().toString(36).substring(2, 15);
+        const extension = avatarFile.originalname.split('.').pop();
+        const fileKey = `avatars/${userId}-${timestamp}-${randomString}.${extension}`;
+
+        // Upload vers S3
+        const uploadResult = await this.awsS3Service.uploadFile({ 
+          file: avatarFile,
+          fileKey: fileKey
+        });
+
+        // Supprimer l'ancien avatar s'il existe
+        if (user.avatarFileKey) {
+          try {
+            await this.awsS3Service.deleteFile({ 
+              fileKey: user.avatarFileKey 
+            });
+          } catch (error) {
+            
+          }
+        }
+
+        // Mettre à jour la clé de l'avatar
+        user.avatarFileKey = uploadResult.fileKey || fileKey;
+      } catch (error) {
+        throw new HttpException(
+          error.message || 'Erreur lors de l\'upload de l\'avatar',
+          error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+    }
+
+    // Sauvegarder les modifications
     await user.save();
 
+    // Récupérer l'URL de l'avatar pour la réponse
+    let avatarUrl = '';
+    if (user.avatarFileKey) {
+      try {
+        avatarUrl = await this.awsS3Service.getFileUrl({
+          fileKey: user.avatarFileKey,
+        });
+      } catch (error) {
+      }
+    }
+
+    const userObj = user.toObject();
+    delete userObj.password;
+
     return {
-      message: 'Profile and/or password updated successfully',
+      message: 'Profil mis à jour avec succès',
+      user: { ...userObj, avatarUrl },
     };
   }
 
@@ -161,6 +232,16 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException(ERRORS.USER_NOT_FOUND);
     }
+
+    // Supprimer l'avatar de S3 s'il existe
+    if (user.avatarFileKey) {
+      try {
+        await this.awsS3Service.deleteFile({ fileKey: user.avatarFileKey });
+      } catch (error) {
+        
+      }
+    }
+
     await this.userRepository.delete({ id });
   }
 
@@ -175,36 +256,4 @@ export class UsersService {
     delete userObj.password;
     return userObj;
   }
-
-  // Optional: Avatar update
-  // async updateUserAvatar({ userId, submittedFile }: {
-  //   userId: string;
-  //   submittedFile: z.infer<typeof fileSchema>;
-  // }) {
-  //   try {
-  //     const existingUser = await this.userRepository.findById(userId, {
-  //       projection: { avatarFileKey: 1 },
-  //     });
-  //     if (!existingUser) {
-  //       throw new HttpException('User not exists', HttpStatus.BAD_REQUEST);
-  //     }
-
-  //     const { fileKey } = await this.awsS3Service.uploadFile({ file: submittedFile });
-
-  //     // Supprimer l'ancien avatar
-  //     if (existingUser.avatarFileKey) {
-  //       await this.awsS3Service.deleteFile({ fileKey: existingUser.avatarFileKey });
-  //     }
-
-  //     existingUser.avatarFileKey = fileKey;
-  //     await existingUser.save();
-
-  //     return { error: false, message: "Avatar updated successfully" };
-  //   } catch (error) {
-  //     return {
-  //       error: true,
-  //       message: error instanceof Error ? error.message : 'Unexpected error occurred',
-  //     };
-  //   }
-  // }
 }
