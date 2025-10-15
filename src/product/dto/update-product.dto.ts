@@ -29,7 +29,7 @@ export class UpdateProductDto {
   teamId?: string;
   discountType?: string;
   discountValue?: number;
-  productImage?: string;
+  productImage?: string | null; // Allow null for image removal
   categoryId?: string;
   subcategoryId?: string;
   advanceData?: AdvanceDataUpdateDto;
@@ -44,5 +44,5 @@ export class UpdateProductDto {
     name?: string;
     mimeType?: string;
     url?: string;
-  };
+  } | null; // Allow null for image removal
 }

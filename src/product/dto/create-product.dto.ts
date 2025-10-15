@@ -166,13 +166,19 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
 
   // Handle pricing and discount data
   if (cloned.price) {
-    cloned.basePrice = parseFloat(cloned.price);
+    cloned.basePrice =
+      typeof cloned.price === 'string'
+        ? parseFloat(cloned.price)
+        : cloned.price;
     delete cloned.price;
   }
 
   // Handle discount information
   if (cloned.discountType && cloned.discountType !== 'no-discount') {
-    const discountValue = parseFloat(cloned.discountValue || '0');
+    const discountValue =
+      typeof cloned.discountValue === 'string'
+        ? parseFloat(cloned.discountValue || '0')
+        : cloned.discountValue || 0;
     if (discountValue > 0) {
       // Map discount types to valid enum values
       let mappedType = cloned.discountType;
@@ -183,7 +189,7 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
       ) {
         mappedType = 'fixed'; // Default fallback
       }
-      
+
       cloned.discounts = [
         {
           type: mappedType,
@@ -211,24 +217,22 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
     // Merge advanceData fields into detailData where they belong
     if (cloned.advanceData && typeof cloned.advanceData === 'object') {
       cloned.detailData = cloned.detailData || {};
-      
-      // Map advance data fields to detailData
-      if (cloned.advanceData.sku) {
+      if (cloned.advanceData.sku !== undefined) {
         cloned.detailData.sku = cloned.advanceData.sku;
       }
-      if (cloned.advanceData.barcode) {
+      if (cloned.advanceData.barcode !== undefined) {
         cloned.detailData.barcode = cloned.advanceData.barcode;
       }
       if (cloned.advanceData.weight !== undefined) {
         cloned.detailData.weight = cloned.advanceData.weight;
       }
-      if (cloned.advanceData.dimensions) {
+      if (cloned.advanceData.dimensions !== undefined) {
         cloned.detailData.dimensions = cloned.advanceData.dimensions;
       }
-      if (cloned.advanceData.seo) {
+      if (cloned.advanceData.seo !== undefined) {
         cloned.detailData.seo = cloned.advanceData.seo;
       }
-      if (cloned.advanceData.additionalInfo) {
+      if (cloned.advanceData.additionalInfo !== undefined) {
         cloned.detailData.additionalInfo = cloned.advanceData.additionalInfo;
       }
     }
@@ -246,7 +250,7 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
     cloned.isActive = cloned.isActive === 'true';
   }
 
-  if (typeof cloned.detailData.isRepackaged === 'string') {
+  if (typeof cloned.detailData?.isRepackaged === 'string') {
     cloned.detailData.isRepackaged = cloned.detailData.isRepackaged === 'true';
   }
 
@@ -324,7 +328,10 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
 
   // Handle pricing
   if (cloned.price) {
-    cloned.basePrice = parseFloat(cloned.price);
+    cloned.basePrice =
+      typeof cloned.price === 'string'
+        ? parseFloat(cloned.price)
+        : cloned.price;
     delete cloned.price;
   }
 
@@ -335,7 +342,10 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
 
   // Handle discount information
   if (cloned.discountType && cloned.discountType !== 'no-discount') {
-    const discountValue = parseFloat(cloned.discountValue || '0');
+    const discountValue =
+      typeof cloned.discountValue === 'string'
+        ? parseFloat(cloned.discountValue || '0')
+        : cloned.discountValue || 0;
     if (discountValue > 0) {
       // Map discount types to valid enum values
       let mappedType = cloned.discountType;

@@ -56,7 +56,7 @@ export const advanceDataSchema = z.object({
 // Detail product schema
 export const createDetailProductSchema = z.object({
   name: z.string().min(1, 'Product name is required'),
-  description: z.string().min(1, 'Product description is required'),
+  description: z.string().optional().default(''), // Allow empty description for creation
   composition: z.string().optional(),
   form: z.string().optional(),
   indications: z.string().optional(),
@@ -84,10 +84,10 @@ export const createDetailProductSchema = z.object({
     .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for subcategoryId')
     .optional(),
   // New fields added
-  sku: z.string().min(1, 'SKU must not be empty').optional(),
+  sku: z.string().optional(), // Remove min(1) requirement for creation
   barcode: z.string().optional(),
-  weight: z.number().min(0, 'Weight must be positive').optional(),
-  dimensions: dimensionsSchema.optional(),
+  weight: z.number().min(0).nullable().optional(), // Allow null values
+  dimensions: dimensionsSchema.nullable().optional(), // Allow null values
   seo: seoSchema.optional().default(() => ({})),
   additionalInfo: z.string().optional().default(''),
 });
@@ -119,7 +119,38 @@ export const createProductSchema = z.object({
     .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for teamId')
     .min(1, 'Team ID is required'),
   basePrice: z.number().min(0, 'Base price must be positive').optional(),
+  price: z
+    .union([z.string(), z.number()])
+    .transform((val) => {
+      if (typeof val === 'string') {
+        const parsed = parseFloat(val);
+        return isNaN(parsed) ? 0 : parsed;
+      }
+      return val;
+    })
+    .optional(),
   currency: z.string().default('MGA'),
+  discountType: z.string().optional(),
+  discountValue: z
+    .union([z.string(), z.number()])
+    .transform((val) => {
+      if (typeof val === 'string') {
+        const parsed = parseFloat(val);
+        return isNaN(parsed) ? 0 : parsed;
+      }
+      return val;
+    })
+    .optional(),
+  productImage: z.union([z.string(), z.null()]).optional(),
+  categoryId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for categoryId')
+    .optional(),
+  subcategoryId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for subcategoryId')
+    .optional(),
+  advanceData: advanceDataSchema.optional(),
   discounts: z.array(discountSchema).optional(),
   isActive: z.boolean().optional(),
 });
@@ -280,13 +311,16 @@ export const simpleUpdateSchema = z
     isActive: z.boolean().optional(),
     // Enhanced imageData to handle base64 data from productImage
     imageData: z
-      .object({
-        altText: z.string().optional(),
-        data: z.string().optional(), // base64 data
-        name: z.string().optional(), // filename
-        mimeType: z.string().optional(), // mime type
-        url: z.string().optional(), // data URL
-      })
+      .union([
+        z.object({
+          altText: z.string().optional(),
+          data: z.string().optional(), // base64 data
+          name: z.string().optional(), // filename
+          mimeType: z.string().optional(), // mime type
+          url: z.string().optional(), // data URL
+        }),
+        z.null(), // Allow null for image removal
+      ])
       .optional(),
     discounts: z.array(discountSchema).optional(),
     // 🔧 NEW: Advanced data support

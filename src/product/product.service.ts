@@ -33,7 +33,6 @@ export class ProductService {
     file?: Express.Multer.File,
   ): Promise<Product> {
     try {
-      // 1️⃣ Créer le detailProduct
       const detail = (await this.detailProductService.create(
         createDto.detailData,
       )) as DetailProduct & { _id: string };
@@ -42,7 +41,7 @@ export class ProductService {
         detail: detail._id,
         team: new Types.ObjectId(createDto.teamId),
         images: null,
-        basePrice: createDto.basePrice,
+        basePrice: createDto.basePrice || createDto.price || 0, // Handle both basePrice and price
         currency: createDto.currency || 'MGA',
         discounts: createDto.discounts
           ? createDto.discounts.map((d) => ({
@@ -51,6 +50,7 @@ export class ProductService {
               endDate: d.endDate ? new Date(d.endDate) : undefined,
             }))
           : [],
+        isActive: createDto.isActive !== undefined ? createDto.isActive : true, // Default to active
       };
 
       const created = await this.productRepo.create({ doc: productDoc });
@@ -115,50 +115,11 @@ export class ProductService {
       throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
     }
 
-    // Log incoming advanceData for debugging
-    if (updateProductDto.advanceData) {
-      console.log('Received advanceData:', updateProductDto.advanceData);
-    }
-
-    // Mise à jour du detailProduct avec les données avancées
     if (updateProductDto.detailData) {
-      // The advanceData fields should already be merged into detailData by the DTO preprocessing
-      console.log('Updating detailData with:', updateProductDto.detailData);
       await this.detailProductService.update(
         existingProduct.detail.toString(),
         updateProductDto.detailData,
       );
-    }
-
-    // Handle advanceData explicitly if it wasn't merged into detailData
-    if (updateProductDto.advanceData && !updateProductDto.detailData) {
-      console.log(
-        'Processing standalone advanceData:',
-        updateProductDto.advanceData,
-      );
-      // Map advanceData to detailData structure
-      const advancedDetailData = {
-        sku: updateProductDto.advanceData.sku,
-        barcode: updateProductDto.advanceData.barcode,
-        weight: updateProductDto.advanceData.weight,
-        dimensions: updateProductDto.advanceData.dimensions,
-        seo: updateProductDto.advanceData.seo,
-        additionalInfo: updateProductDto.advanceData.additionalInfo,
-      };
-      
-      // Filter out undefined values
-      const filteredDetailData = Object.fromEntries(
-        Object.entries(advancedDetailData).filter(
-          ([, value]) => value !== undefined,
-        ),
-      );
-      
-      if (Object.keys(filteredDetailData).length > 0) {
-        await this.detailProductService.update(
-          existingProduct.detail.toString(),
-          filteredDetailData,
-        );
-      }
     }
 
     let imageId = existingProduct.images;
@@ -216,8 +177,7 @@ export class ProductService {
 
         imageId = new Types.ObjectId(uploadedImage._id as string);
         shouldUpdateImage = true;
-      } catch (error) {
-        console.warn('Failed to process base64 image data:', error.message);
+      } catch {
         // Continue without updating image
       }
     }

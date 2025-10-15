@@ -74,7 +74,7 @@ export class DetailProduct {
   @Prop({ required: false, unique: true, sparse: true })
   sku?: string;
 
-  @Prop({ required: false })
+  @Prop({ required: false, unique: true, sparse: true })
   barcode?: string;
 
   @Prop({ required: false, min: 0 })
@@ -115,20 +115,32 @@ export const SEOSchema = SchemaFactory.createForClass(SEO);
 export const DimensionsSchema = SchemaFactory.createForClass(Dimensions);
 export const DetailProductSchema = SchemaFactory.createForClass(DetailProduct);
 
-// Add compound index for efficient category/subcategory queries
 DetailProductSchema.index({ category: 1, subcategory: 1 });
 
-// Add index for SKU for efficient product lookups
 DetailProductSchema.index({ sku: 1 });
+DetailProductSchema.index({ barcode: 1 });
+DetailProductSchema.index({ sku: 1, barcode: 1 });
 
-// Add validation to ensure subcategory belongs to the specified category
 DetailProductSchema.pre('save', async function () {
   if (this.subcategory && this.category) {
-    const SubCategoryModel = this.db.model('SubCategory');
-    const subcategory = await SubCategoryModel.findById(this.subcategory);
+    try {
+      const SubCategoryModel = this.db.model('SubCategory');
+      const subcategory = await SubCategoryModel.findById(this.subcategory);
 
-    if (subcategory && !subcategory.categoryId.equals(this.category)) {
-      throw new Error('Subcategory must belong to the specified category');
+      if (subcategory && subcategory.categoryId) {
+        const subcategoryCategoryId = subcategory.categoryId.toString();
+        const productCategoryId = this.category.toString();
+        if (subcategoryCategoryId !== productCategoryId) {
+          throw new Error('Subcategory must belong to the specified category');
+        }
+      } else if (subcategory && !subcategory.categoryId) {
+        throw new Error('Subcategory does not have a valid category reference');
+      } else if (!subcategory) {
+        throw new Error('Subcategory not found');
+      }
+    } catch (error) {
+      console.error('Pre-save validation error:', error);
+      throw error;
     }
   }
 });
