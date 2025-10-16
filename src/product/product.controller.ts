@@ -91,7 +91,6 @@ export class ProductController {
     productImage?: Express.Multer.File,
   ) {
     try {
-      // Body preprocessed and validated by ZodMultipartInterceptor
       const validatedData = body;
 
       return await this.productService.update(id, validatedData, productImage);
