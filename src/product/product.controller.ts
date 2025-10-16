@@ -58,7 +58,6 @@ export class ProductController {
     productImage?: Express.Multer.File,
   ) {
     try {
-      // Body has been validated and preprocessed by ZodMultipartInterceptor
       const validated = body;
       return await this.productService.createProduct(
         validated as any,

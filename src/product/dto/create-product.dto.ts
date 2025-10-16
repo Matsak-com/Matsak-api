@@ -173,6 +173,11 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
     delete cloned.price;
   }
 
+  // Handle basePrice conversion from string to number
+  if (cloned.basePrice && typeof cloned.basePrice === 'string') {
+    cloned.basePrice = parseFloat(cloned.basePrice);
+  }
+
   // Handle discount information
   if (cloned.discountType && cloned.discountType !== 'no-discount') {
     const discountValue =
@@ -259,8 +264,7 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
     Object.keys(cloned.detailData).forEach((key) => {
       if (
         cloned.detailData[key] === '' &&
-        key !== 'name' &&
-        key !== 'description'
+        key !== 'name' // Only name is required, keep it as string even if empty
       ) {
         cloned.detailData[key] = undefined;
       }
@@ -333,6 +337,11 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
         ? parseFloat(cloned.price)
         : cloned.price;
     delete cloned.price;
+  }
+
+  // Handle basePrice conversion from string to number
+  if (cloned.basePrice && typeof cloned.basePrice === 'string') {
+    cloned.basePrice = parseFloat(cloned.basePrice);
   }
 
   // Handle currency

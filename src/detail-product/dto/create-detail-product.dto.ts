@@ -5,7 +5,6 @@ import {
   IsString,
   IsMongoId,
   IsNumber,
-  IsObject,
   ValidateNested,
   Min,
 } from 'class-validator';
@@ -50,8 +49,9 @@ export class CreateDetailProductDto {
   @IsString()
   name: string;
 
+  @IsOptional()
   @IsString()
-  description: string;
+  description?: string;
 
   @IsOptional()
   @IsString()
