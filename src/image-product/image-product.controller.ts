@@ -52,16 +52,12 @@ export class ImageProductController {
       },
     }),
   )
-  async create(
-    @UploadedFile() file: Express.Multer.File,
-    @Body('altText') altText: string,
-  ) {
+  async create(@UploadedFile() file: Express.Multer.File) {
     const filePath = path.resolve('uploads', 'image-products', file.filename);
 
     // Crée le DTO manuellement
     const createImageDto: CreateImageProductDto = {
       filename: filePath,
-      altText,
     };
 
     return this.imageProductService.create(createImageDto);

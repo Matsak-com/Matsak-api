@@ -112,10 +112,6 @@ export class CreateProductDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
-  
-  @IsOptional()
-  @IsString()
-  altText?: string;
 }
 
 // Preprocess schemas for multipart/form-data bodies (parse JSON strings, coerce dates/bools)
@@ -415,7 +411,7 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
     }
   }
 
-  // Handle productImage object (with data, name, mimeType, altText, url structure)
+  // Handle productImage object (with data, name, mimeType, url structure)
   if (cloned.hasOwnProperty('productImage')) {
     if (cloned.productImage === null || cloned.productImage === 'null') {
       // Explicit image removal
@@ -432,7 +428,6 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
       if (cloned.productImage && typeof cloned.productImage === 'object') {
         // Map productImage structure to imageData
         cloned.imageData = {
-          altText: cloned.productImage.altText || '',
           // If it has base64 data, we'll handle it in the service
           data: cloned.productImage.data,
           name: cloned.productImage.name,

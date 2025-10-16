@@ -128,9 +128,7 @@ DetailProductSchema.pre('save', async function () {
       const subcategory = await SubCategoryModel.findById(this.subcategory);
 
       if (subcategory && subcategory.categoryId) {
-        const subcategoryCategoryId = subcategory.categoryId.toString();
-        const productCategoryId = this.category.toString();
-        if (subcategoryCategoryId !== productCategoryId) {
+        if (!subcategory.categoryId.equals(this.category)) {
           throw new Error('Subcategory must belong to the specified category');
         }
       } else if (subcategory && !subcategory.categoryId) {

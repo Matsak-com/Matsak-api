@@ -97,7 +97,6 @@ export const updateDetailProductSchema = createDetailProductSchema.partial();
 // Image product schema
 export const createImageProductSchema = z.object({
   filename: z.string().min(1, 'Filename is required').optional(),
-  altText: z.string().optional(),
 });
 
 export const updateImageProductSchema = createImageProductSchema.partial();
@@ -107,7 +106,6 @@ export const imageBufferSchema = z.object({
   buffer: z.instanceof(Buffer).optional(),
   originalname: z.string().optional(),
   mimetype: z.string().optional(),
-  altText: z.string().optional(),
 });
 
 // 🔧 CORRECTION 2: Schéma de produit plus flexible
@@ -226,11 +224,7 @@ export const updateProductSchemaFlexible = z
         additionalInfo: z.string().optional(),
       })
       .optional(),
-    imageData: z
-      .object({
-        altText: z.string().optional(),
-      })
-      .optional(),
+    imageData: z.object({}).optional(),
 
     isActive: z.boolean().optional(),
   })
@@ -313,7 +307,6 @@ export const simpleUpdateSchema = z
     imageData: z
       .union([
         z.object({
-          altText: z.string().optional(),
           data: z.string().optional(), // base64 data
           name: z.string().optional(), // filename
           mimeType: z.string().optional(), // mime type

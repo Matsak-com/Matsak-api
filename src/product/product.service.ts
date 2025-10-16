@@ -41,7 +41,7 @@ export class ProductService {
         detail: detail._id,
         team: new Types.ObjectId(createDto.teamId),
         images: null,
-        basePrice: createDto.basePrice || createDto.price || 0, // Handle both basePrice and price
+        basePrice: createDto.basePrice ?? createDto.price ?? 0,
         currency: createDto.currency || 'MGA',
         discounts: createDto.discounts
           ? createDto.discounts.map((d) => ({
@@ -57,11 +57,10 @@ export class ProductService {
 
       // 3️⃣ Si fichier image fourni, créer et associer directement depuis buffer
       if (file && created) {
-        const uploadedImage = await this.imageservice.createFromBuffer({
+        const uploadedImage = await this.imageservice.upload({
           buffer: file.buffer,
           originalname: file.originalname,
           mimetype: file.mimetype,
-          altText: '',
         });
         await this.productRepo.update({
           id: (created as any)._id.toString(),
@@ -129,11 +128,10 @@ export class ProductService {
         await this.imageservice.remove(existingProduct.images.toString());
       }
 
-      const uploadedImage = await this.imageservice.createFromBuffer({
+      const uploadedImage = await this.imageservice.upload({
         buffer: file.buffer,
         originalname: file.originalname,
         mimetype: file.mimetype,
-        altText: updateProductDto.imageData?.altText || '',
       });
 
       imageId = new Types.ObjectId(uploadedImage._id as string);
@@ -168,11 +166,10 @@ export class ProductService {
         }
 
         // Créer la nouvelle image à partir des données base64
-        const uploadedImage = await this.imageservice.createFromBuffer({
+        const uploadedImage = await this.imageservice.upload({
           buffer,
           originalname: updateProductDto.imageData.name || 'uploaded-image.jpg',
           mimetype: mimeType,
-          altText: updateProductDto.imageData.altText || '',
         });
 
         imageId = new Types.ObjectId(uploadedImage._id as string);

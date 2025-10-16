@@ -38,7 +38,6 @@ export class UpdateProductDto {
     buffer?: Buffer;
     originalname?: string;
     mimetype?: string;
-    altText?: string;
     // For base64 data from productImage payload
     data?: string;
     name?: string;
