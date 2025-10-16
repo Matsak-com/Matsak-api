@@ -14,9 +14,6 @@ export class ImageProduct {
   @Prop({ required: true })
   mimeType: string; // ex: image/png, image/jpeg
 
-  @Prop()
-  altText: string;
-
   @Prop({ required: false })
   deleted_at?: Date;
 }

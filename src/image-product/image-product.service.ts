@@ -16,22 +16,19 @@ import * as fs from 'fs';
 export class ImageProductService {
   constructor(private readonly imageProductRepo: ImageProductRepository) {}
 
-  async createFromBuffer({
+  async upload({
     buffer,
     originalname,
     mimetype,
-    altText,
   }: {
     buffer: Buffer;
     originalname: string;
     mimetype: string;
-    altText?: string;
   }): Promise<ImageProductDocument> {
     const imageToSave = {
       data: buffer.toString('base64'),
       mimeType: mimetype,
       name: originalname,
-      altText: altText || '',
     };
 
     // ✅ Use standard BaseRepository create method
@@ -52,7 +49,6 @@ export class ImageProductService {
     const imageToSave = {
       mimeType,
       data,
-      altText: createImageDto.altText || '',
       name: path.basename(createImageDto.filename),
     };
     const savedImage = await this.imageProductRepo.create({ doc: imageToSave });
@@ -80,7 +76,12 @@ export class ImageProductService {
       throw new NotFoundException(ERRORS.IMAGE_NOT_FOUND);
     }
 
-    let updateData: Partial<ImageProduct> = { ...updateImageDto };
+    let updateData: Partial<ImageProduct> = {};
+
+    // Only update filename if provided
+    if (updateImageDto.filename) {
+      updateData.name = updateImageDto.filename;
+    }
 
     if (updateImageDto.filename) {
       const oldFilePath = path.resolve(
@@ -136,7 +137,6 @@ export class ImageProductService {
     const imageToSave = {
       mimeType,
       data,
-      altText: createImageDto.altText || '',
       name: path.basename(createImageDto.filename),
     };
 
@@ -148,18 +148,15 @@ export class ImageProductService {
     buffer,
     originalname,
     mimetype,
-    altText,
   }: {
     buffer: Buffer;
     originalname: string;
     mimetype: string;
-    altText?: string;
   }): Promise<ImageProduct> {
     const imageToSave = {
       data: buffer.toString('base64'),
       mimeType: mimetype,
       name: originalname,
-      altText: altText || '',
     };
 
     return this.imageProductRepo.create({ doc: imageToSave });
@@ -199,12 +196,10 @@ export class ImageProductService {
     buffer,
     originalname,
     mimetype,
-    altText,
   }: {
     buffer: Buffer;
     originalname: string;
     mimetype: string;
-    altText?: string;
   }): Promise<ImageProductDocument> {
     try {
       // Validate buffer
@@ -223,11 +218,10 @@ export class ImageProductService {
         throw new BadRequestException(ERRORS.INVALID_IMAGE_TYPE);
       }
 
-      return await this.createFromBuffer({
+      return await this.upload({
         buffer,
         originalname,
         mimetype,
-        altText,
       });
     } catch (error) {
       console.error(`Error creating image from buffer: ${error.message}`);

@@ -28,10 +28,35 @@ export const calculatePriceSchema = z.object({
   calculateAt: z.date().optional(),
 });
 
+// SEO subdocument schema
+export const seoSchema = z.object({
+  title: z.string().optional().default(''),
+  description: z.string().optional().default(''),
+  keywords: z.string().optional().default(''),
+});
+
+// Dimensions subdocument schema
+export const dimensionsSchema = z.object({
+  length: z.number().min(0).optional(),
+  width: z.number().min(0).optional(),
+  height: z.number().min(0).optional(),
+  unit: z.string().optional().default('cm'),
+});
+
+// 🔧 NEW: Advanced data schema
+export const advanceDataSchema = z.object({
+  sku: z.string().optional(),
+  barcode: z.string().optional(),
+  weight: z.number().min(0).nullable().optional(),
+  dimensions: dimensionsSchema.nullable().optional(),
+  seo: seoSchema.optional(),
+  additionalInfo: z.string().optional(),
+});
+
 // Detail product schema
 export const createDetailProductSchema = z.object({
   name: z.string().min(1, 'Product name is required'),
-  description: z.string().min(1, 'Product description is required'),
+  description: z.string().optional().default(''), // Allow empty description for creation
   composition: z.string().optional(),
   form: z.string().optional(),
   indications: z.string().optional(),
@@ -58,6 +83,13 @@ export const createDetailProductSchema = z.object({
     .string()
     .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for subcategoryId')
     .optional(),
+  // New fields added
+  sku: z.string().optional(), // Remove min(1) requirement for creation
+  barcode: z.string().optional(),
+  weight: z.number().min(0).nullable().optional(), // Allow null values
+  dimensions: dimensionsSchema.nullable().optional(), // Allow null values
+  seo: seoSchema.optional().default(() => ({})),
+  additionalInfo: z.string().optional().default(''),
 });
 
 export const updateDetailProductSchema = createDetailProductSchema.partial();
@@ -65,7 +97,6 @@ export const updateDetailProductSchema = createDetailProductSchema.partial();
 // Image product schema
 export const createImageProductSchema = z.object({
   filename: z.string().min(1, 'Filename is required').optional(),
-  altText: z.string().optional(),
 });
 
 export const updateImageProductSchema = createImageProductSchema.partial();
@@ -75,7 +106,6 @@ export const imageBufferSchema = z.object({
   buffer: z.instanceof(Buffer).optional(),
   originalname: z.string().optional(),
   mimetype: z.string().optional(),
-  altText: z.string().optional(),
 });
 
 // 🔧 CORRECTION 2: Schéma de produit plus flexible
@@ -87,7 +117,38 @@ export const createProductSchema = z.object({
     .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for teamId')
     .min(1, 'Team ID is required'),
   basePrice: z.number().min(0, 'Base price must be positive').optional(),
+  price: z
+    .union([z.string(), z.number()])
+    .transform((val) => {
+      if (typeof val === 'string') {
+        const parsed = parseFloat(val);
+        return isNaN(parsed) ? 0 : parsed;
+      }
+      return val;
+    })
+    .optional(),
   currency: z.string().default('MGA'),
+  discountType: z.string().optional(),
+  discountValue: z
+    .union([z.string(), z.number()])
+    .transform((val) => {
+      if (typeof val === 'string') {
+        const parsed = parseFloat(val);
+        return isNaN(parsed) ? 0 : parsed;
+      }
+      return val;
+    })
+    .optional(),
+  productImage: z.union([z.string(), z.null()]).optional(),
+  categoryId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for categoryId')
+    .optional(),
+  subcategoryId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for subcategoryId')
+    .optional(),
+  advanceData: advanceDataSchema.optional(),
   discounts: z.array(discountSchema).optional(),
   isActive: z.boolean().optional(),
 });
@@ -154,13 +215,16 @@ export const updateProductSchemaFlexible = z
           .string()
           .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for subcategoryId')
           .optional(),
+        // New fields added
+        sku: z.string().min(1, 'SKU must not be empty').optional(),
+        barcode: z.string().optional(),
+        weight: z.number().min(0, 'Weight must be positive').optional(),
+        dimensions: dimensionsSchema.optional(),
+        seo: seoSchema.optional(),
+        additionalInfo: z.string().optional(),
       })
       .optional(),
-    imageData: z
-      .object({
-        altText: z.string().optional(),
-      })
-      .optional(),
+    imageData: z.object({}).optional(),
 
     isActive: z.boolean().optional(),
   })
@@ -182,14 +246,24 @@ export const simpleUpdateSchema = z
     detailData: z
       .object({
         name: z.string().min(1).optional(),
-        description: z.string().min(1).optional(),
+        description: z.string().optional(), // Remove min(1) requirement for updates
         composition: z.string().optional(),
         form: z.string().optional(),
         indications: z.string().optional(),
         contraindications: z.string().optional(),
         sideEffects: z.string().optional(),
         precautions: z.string().optional(),
-        expirationDate: z.date().optional(),
+        expirationDate: z
+          .union([z.string(), z.date()])
+          .optional()
+          .transform((val) => {
+            if (!val) return undefined;
+            if (typeof val === 'string') {
+              const date = new Date(val);
+              return isNaN(date.getTime()) ? undefined : date;
+            }
+            return val;
+          }),
         manufacturer: z.string().optional(),
         isRepackaged: z.boolean().optional(),
         categoryId: z
@@ -200,11 +274,30 @@ export const simpleUpdateSchema = z
           .string()
           .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for subcategoryId')
           .optional(),
+        // New fields added
+        sku: z.string().optional(), // Remove min(1) requirement for updates
+        barcode: z.string().optional(),
+        weight: z.number().min(0).nullable().optional(),
+        dimensions: dimensionsSchema.nullable().optional(),
+        seo: seoSchema.optional(),
+        additionalInfo: z.string().optional(),
       })
       .optional(),
 
     basePrice: z.number().min(0).optional(),
+    price: z.number().min(0).optional(), // Added price field from payload
+    discountType: z.string().optional(), // Added discountType field
+    discountValue: z.number().min(0).optional(), // Added discountValue field
     currency: z.string().optional(),
+    categoryId: z
+      .string()
+      .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for categoryId')
+      .optional(),
+    subcategoryId: z
+      .string()
+      .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for subcategoryId')
+      .optional(),
+    productImage: z.union([z.string(), z.null()]).optional(), // Allow null for productImage
     teamId: z
       .string()
       .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for teamId')
@@ -212,16 +305,21 @@ export const simpleUpdateSchema = z
     isActive: z.boolean().optional(),
     // Enhanced imageData to handle base64 data from productImage
     imageData: z
-      .object({
-        altText: z.string().optional(),
-        data: z.string().optional(), // base64 data
-        name: z.string().optional(), // filename
-        mimeType: z.string().optional(), // mime type
-        url: z.string().optional(), // data URL
-      })
+      .union([
+        z.object({
+          data: z.string().optional(), // base64 data
+          name: z.string().optional(), // filename
+          mimeType: z.string().optional(), // mime type
+          url: z.string().optional(), // data URL
+        }),
+        z.null(), // Allow null for image removal
+      ])
       .optional(),
     discounts: z.array(discountSchema).optional(),
+    // 🔧 NEW: Advanced data support
+    advanceData: advanceDataSchema.optional(),
   })
+  .passthrough() // Allow additional fields to pass through without validation errors
   .refine(
     (data) => {
       return Object.keys(data).some((key) => data[key] !== undefined);
@@ -244,3 +342,6 @@ export type UpdateImageProductDto = z.infer<typeof updateImageProductSchema>;
 
 // 🔧 NOUVEAU: Type pour les données d'image avec buffer
 export type ImageBufferDto = z.infer<typeof imageBufferSchema>;
+
+// 🔧 NEW: Type for advanced data
+export type AdvanceDataDto = z.infer<typeof advanceDataSchema>;

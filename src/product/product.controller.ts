@@ -26,6 +26,7 @@ import {
   simpleUpdateMultipartSchema,
 } from './dto/create-product.dto';
 import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 import {
   SetPriceDto,
   AddDiscountDto,
@@ -57,7 +58,6 @@ export class ProductController {
     productImage?: Express.Multer.File,
   ) {
     try {
-      // Body has been validated and preprocessed by ZodMultipartInterceptor
       const validated = body;
       return await this.productService.createProduct(
         validated as any,
@@ -67,7 +67,9 @@ export class ProductController {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new BadRequestException('Failed to create product');
+      throw new BadRequestException(
+        `Failed to create product: ${error.message}`,
+      );
     }
   }
 
@@ -75,7 +77,7 @@ export class ProductController {
   @ZodMultipart(simpleUpdateMultipartSchema, 'productImage')
   async update(
     @Param('id') id: string,
-    @Body() body: CreateProductDto,
+    @Body() body: UpdateProductDto,
     @UploadedFile(
       new ParseFilePipe({
         validators: [
@@ -88,7 +90,6 @@ export class ProductController {
     productImage?: Express.Multer.File,
   ) {
     try {
-      // Body preprocessed and validated by ZodMultipartInterceptor
       const validatedData = body;
 
       return await this.productService.update(id, validatedData, productImage);
