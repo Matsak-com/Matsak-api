@@ -20,6 +20,7 @@ import { CartModule } from './cart-item/cart.module';
 import { SessionMiddleware } from './middleware/session.middleware';
 import { TeamParamModule } from './team-param/team-param.module';
 import { AddressModule } from './client/address.module';
+import { InventoryModule } from './inventory/inventory.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { AddressModule } from './client/address.module';
     CartModule,
     TeamParamModule,
     AddressModule,
+    InventoryModule,
   ],
   controllers: [AppController],
   providers: [
