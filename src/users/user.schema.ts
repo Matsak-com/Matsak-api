@@ -47,6 +47,10 @@ export class User extends Document {
   @IsString()
   avatarFileKey?: string | null;
 
+  @Prop({ required: false })
+  @IsString()
+  phone?: string;
+
   // Champ pour définir le rôle de l'utilisateur (user ou admin)
   @Prop({ required: true, enum: UserRole, default: UserRole.USER })
   @IsEnum(UserRole)
