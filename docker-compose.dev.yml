@@ -19,6 +19,25 @@ services:
     networks:
       - matsak-dev-network
 
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: matsak-mailhog-dev
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+    networks:
+      - matsak-dev-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: matsak-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - matsak-dev-network
+
   api:
     build:
       context: .
@@ -34,8 +53,16 @@ services:
       DB_URI: "mongodb://${MONGO_APP_USERNAME:-matsak_user}:${MONGO_APP_PASSWORD:-dev_user_password}@mongodb:27017/matsak?authSource=matsak"
       JWT_SECRET: "${JWT_SECRET:-development-jwt-secret}"
       CORS_ORIGIN: '["http://localhost:3000","http://localhost:8080"]'
+      MAIL_HOST: mailhog
+      MAIL_PORT: "1025"
+      MAIL_SECURE: "false"
+      MAIL_FROM: "Matsak <noreply@matsak.com>"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
     depends_on:
       - mongodb
+      - mailhog
+      - redis
     volumes:
       - .:/app
       - matsak_node_modules:/app/node_modules

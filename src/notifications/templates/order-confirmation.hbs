@@ -1,0 +1,13 @@
+<h2>Order Confirmation</h2>
+<p>Hello {{name}},</p>
+<p>Thank you for your order! We've received your order #{{orderNumber}} and it's being processed.</p>
+<h3>Order Details:</h3>
+<ul>
+{{#each items}}
+    <li>{{this.name}} - Quantity: {{this.quantity}} - Price: {{this.price}}</li>
+{{/each}}
+</ul>
+<p><strong>Total: {{total}}</strong></p>
+<a href="{{orderUrl}}" class="button">View Order</a>
+<p>We'll send you another email when your order has been shipped.</p>
+<p>Best regards,<br>The Matsak Team</p>
