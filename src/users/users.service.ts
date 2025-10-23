@@ -91,7 +91,7 @@ export class UsersService {
           _id: 1,
           name: 1,
           email: 1,
-          firstName: 1,
+          firstname: 1,
           phone: 1,
           avatarFileKey: 1,
           createdAt: 1,
