@@ -11,6 +11,7 @@ import { Member, MemberStatus } from './member.schema';
 import { MemberRepository } from './member.repository';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../users/user.schema';
+import { populate } from 'dotenv';
 
 interface MemberQuery {
   teamId?: string;
@@ -128,6 +129,7 @@ export class MembersService {
     }
 
     const options: any = {
+      populate: ['user', 'role', 'team'],
       skip: (page - 1) * limit,
       limit,
       sort: { createdAt: -1 },
