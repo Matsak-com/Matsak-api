@@ -52,6 +52,11 @@ export class TeamsController {
     return this.teamsService.findAll();
   }
 
+  @Get('user/:userId')
+  async findByUser(@Param() params: { userId: string }) {
+    return this.teamsService.findByUser(params.userId);
+  }
+
   @Get(':id')
   @CompoundZodValidation({ params: teamIdParamSchema })
   async findOne(@Param() params: { id: string }) {
