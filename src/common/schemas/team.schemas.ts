@@ -40,6 +40,7 @@ export const createTeamSchema = z.object({
   coordinates: coordinatesSchema.optional(),
   logoUrl: z.any().optional(), // File upload handled by multer
   language: z.string().min(1, 'Language is required'),
+  userId: z.string().optional(),
 });
 
 export const updateTeamSchema = createTeamSchema.partial();

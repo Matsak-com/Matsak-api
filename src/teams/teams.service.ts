@@ -67,10 +67,9 @@ export class TeamsService {
     }
     team.picture = picture;
     if (createTeamDto.userId) {
-      const roles = await this.rolesService.findAll();
-      const adminRole = roles.find(
-        (role) => role.name.toLowerCase() === 'admin',
-      );
+      const adminRole = await this.rolesService.findOne({
+        filter: { name: 'admin' },
+      });
       if (adminRole) {
         await this.membersService.create({
           userId: createTeamDto.userId,

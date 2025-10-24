@@ -11,7 +11,6 @@ import { Member, MemberStatus } from './member.schema';
 import { MemberRepository } from './member.repository';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../users/user.schema';
-import { populate } from 'dotenv';
 
 interface MemberQuery {
   teamId?: string;
@@ -286,5 +285,119 @@ export class MembersService {
     }
 
     return member.permissions.includes(permission);
+  }
+
+  /**
+   * Returns all members of teams where the specified user is a member
+   * @param userId - The ID of the user
+   * @returns Array of members from all teams where the user is a member
+   */
+  async getTeamMembersByUserId(userId: string): Promise<Member[]> {
+    const aggregationPipeline = [
+      {
+        $match: {
+          user: new Types.ObjectId(userId),
+          deleted_at: { $exists: false },
+          status: { $ne: MemberStatus.INACTIVE },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          teamIds: { $addToSet: '$team' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'members',
+          let: { teamIds: '$teamIds' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $in: ['$team', '$$teamIds'] },
+                deleted_at: { $exists: false },
+                status: { $ne: MemberStatus.INACTIVE },
+              },
+            },
+            {
+              $lookup: {
+                from: 'users',
+                localField: 'user',
+                foreignField: '_id',
+                as: 'userInfo',
+                pipeline: [
+                  {
+                    $project: {
+                      _id: 1,
+                      firstName: 1,
+                      lastName: 1,
+                      email: 1,
+                      phone: 1,
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              $lookup: {
+                from: 'teams',
+                localField: 'team',
+                foreignField: '_id',
+                as: 'teamInfo',
+                pipeline: [
+                  {
+                    $project: {
+                      _id: 1,
+                      name: 1,
+                      slug: 1,
+                      email: 1,
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              $lookup: {
+                from: 'roles',
+                localField: 'role',
+                foreignField: '_id',
+                as: 'roleInfo',
+                pipeline: [
+                  {
+                    $project: {
+                      _id: 1,
+                      name: 1,
+                      level: 1,
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              $project: {
+                _id: 1,
+                user: { $arrayElemAt: ['$userInfo', 0] },
+                team: { $arrayElemAt: ['$teamInfo', 0] },
+                role: { $arrayElemAt: ['$roleInfo', 0] },
+                status: 1,
+                permissions: 1,
+                joinedAt: '$createdAt',
+                notes: 1,
+              },
+            },
+          ],
+          as: 'allTeamMembers',
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          members: '$allTeamMembers',
+        },
+      },
+    ];
+
+    const result = await this.memberRepository.aggregate(aggregationPipeline);
+    return result.length > 0 ? result[0].members : [];
   }
 }

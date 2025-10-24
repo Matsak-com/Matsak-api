@@ -20,7 +20,7 @@ import { ERRORS } from '../common/errors';
 import { ProductService } from './product.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
-import { productIdParamSchema } from '../common/schemas/product.schemas';
+import { productIdParamSchema, teamIdParamSchema, userIdParamSchema } from '../common/schemas/product.schemas';
 import {
   createProductMultipartSchema,
   simpleUpdateMultipartSchema,
@@ -34,13 +34,15 @@ import {
   CalculatePriceDto,
 } from './dto/pricing.dto';
 import { ZodMultipart } from 'src/common/decorators/zod-multipart.decorator';
+import { Types } from 'mongoose';
+import { MembersService } from 'src/members/members.service';
 
 @Controller('products')
 export class ProductController {
-  constructor(private readonly productService: ProductService) {}
-
-  // Preprocess schemas moved into DTO: import createProductMultipartSchema and simpleUpdateMultipartSchema
-
+  constructor(
+    private readonly productService: ProductService,
+    private readonly membersService: MembersService,
+  ) {}
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ZodMultipart(createProductMultipartSchema, 'productImage')
@@ -107,7 +109,27 @@ export class ProductController {
     return this.productService.findAll();
   }
 
-  // @UseGuards(JwtAuthGuard)
+  @Get('team/:teamId')
+  @CompoundZodValidation({ params: teamIdParamSchema })
+  findByTeam(@Param() params: { teamId: string }) {
+    return this.productService.findBy({
+      filter: { team: new Types.ObjectId(params.teamId) },
+    });
+  }
+
+   @UseGuards(JwtAuthGuard)
+  @Get('user/:userId')
+  @CompoundZodValidation({ params: userIdParamSchema })
+  async findByUser(@Param() params: { userId: string }) {
+    const members = await this.membersService.getTeamMembersByUserId(
+      params.userId,
+    );
+    const results = await this.productService.findBy({
+      filter: { team: { $in: members.map((member) => member.team._id) } },
+    });
+    return results;
+  }
+
   @Get(':id')
   @CompoundZodValidation({ params: productIdParamSchema })
   findOne(@Param() params: { id: string }) {
