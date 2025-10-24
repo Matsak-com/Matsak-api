@@ -93,7 +93,6 @@ export class ProductController {
   ) {
     try {
       const validatedData = body;
-
       return await this.productService.update(id, validatedData, productImage);
     } catch (error) {
       if (error instanceof BadRequestException) {
