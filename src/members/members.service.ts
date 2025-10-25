@@ -30,13 +30,6 @@ export class MembersService {
   async create(createMemberDto: CreateMemberDto): Promise<Member[]> {
     let userId: string;
 
-    // Validate that either user or userId is provided
-    if (!createMemberDto.user && !createMemberDto.userId) {
-      throw new BadRequestException(
-        'Either user information or userId must be provided',
-      );
-    }
-
     // If user information is provided, create a new user
     if (createMemberDto.user) {
       const newUser = await this.usersService.create({
@@ -80,7 +73,18 @@ export class MembersService {
         };
 
         if (createMemberDto.invitedBy) {
-          (memberData as any).invitedBy = new Types.ObjectId(
+          interface MemberData {
+            user: Types.ObjectId;
+            role: Types.ObjectId;
+            team: Types.ObjectId;
+            status: MemberStatus;
+            permissions: string[];
+            joinedAt: Date;
+            notes?: string;
+            invitedBy?: Types.ObjectId;
+          }
+
+          (memberData as MemberData).invitedBy = new Types.ObjectId(
             createMemberDto.invitedBy,
           );
         }

@@ -108,6 +108,7 @@ export class ProductController {
     return this.productService.findAll();
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('team/:teamId')
   @CompoundZodValidation({ params: teamIdParamSchema })
   findByTeam(@Param() params: { teamId: string }) {
@@ -116,7 +117,7 @@ export class ProductController {
     });
   }
 
-   @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Get('user/:userId')
   @CompoundZodValidation({ params: userIdParamSchema })
   async findByUser(@Param() params: { userId: string }) {

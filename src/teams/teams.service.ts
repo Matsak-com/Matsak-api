@@ -70,14 +70,18 @@ export class TeamsService {
       const adminRole = await this.rolesService.findOne({
         filter: { name: 'admin' },
       });
-      if (adminRole) {
-        await this.membersService.create({
-          userId: createTeamDto.userId,
-          role: adminRole._id.toString(),
-          teams: [team._id.toString()],
-          status: MemberStatus.ACTIVE,
-        });
+      if (!adminRole) {
+        const message =
+          'Default admin role "admin" not found — cannot add user as team member. Please ensure roles are seeded.';
+        console.warn(message);
+        throw new Error(message);
       }
+      await this.membersService.create({
+        userId: createTeamDto.userId,
+        role: adminRole._id.toString(),
+        teams: [team._id.toString()],
+        status: MemberStatus.ACTIVE,
+      });
     }
     return await this.teamsRepository.create({ doc: team });
   }

@@ -8,6 +8,7 @@ import {
   Body,
   Query,
   Patch,
+  UseGuards,
 } from '@nestjs/common';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
@@ -22,6 +23,7 @@ import {
   updateMemberSchema,
   memberIdParamSchema,
 } from '../common/schemas/member.schemas';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 
 @Controller('members')
 export class MembersController {
@@ -139,12 +141,14 @@ export class MembersController {
     return await this.membersService.findOne(params.id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post()
   @ZodValidation(createMemberSchema)
   async create(@Body() createMemberDto: CreateMemberDto) {
     return await this.membersService.create(createMemberDto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Put(':id')
   @CompoundZodValidation({
     params: memberIdParamSchema,
@@ -157,6 +161,7 @@ export class MembersController {
     return await this.membersService.update(params.id, updateMemberDto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id/status')
   async updateStatus(
     @Param('id') id: string,
@@ -165,6 +170,7 @@ export class MembersController {
     return await this.membersService.updateStatus(id, body.status);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id/permissions')
   async updatePermissions(
     @Param('id') id: string,
@@ -173,6 +179,7 @@ export class MembersController {
     return await this.membersService.updatePermissions(id, body.permissions);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   @CompoundZodValidation({ params: memberIdParamSchema })
   async remove(@Param() params: { id: string }) {

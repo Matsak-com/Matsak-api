@@ -12,6 +12,7 @@ import {
   ParseFilePipe,
   FileTypeValidator,
   MaxFileSizeValidator,
+  UseGuards,
 } from '@nestjs/common';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
@@ -23,11 +24,13 @@ import {
   updateTeamSchema,
   teamIdParamSchema,
 } from '../common/schemas/team.schemas';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 
 @Controller('teams')
 export class TeamsController {
   constructor(private readonly teamsService: TeamsService) {}
 
+  @UseGuards(JwtAuthGuard)
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ZodMultipart(createTeamSchema)
@@ -52,6 +55,7 @@ export class TeamsController {
     return this.teamsService.findAll();
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('user/:userId')
   async findByUser(@Param() params: { userId: string }) {
     return this.teamsService.findByUser(params.userId);
@@ -63,6 +67,7 @@ export class TeamsController {
     return this.teamsService.findOne(params.id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Put(':id')
   @ZodMultipart(updateTeamSchema)
   @CompoundZodValidation({ params: teamIdParamSchema })
@@ -83,6 +88,7 @@ export class TeamsController {
     return this.teamsService.update(params.id, { ...updateTeamDto, logoUrl });
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @CompoundZodValidation({ params: teamIdParamSchema })
