@@ -5,6 +5,10 @@ import { UpdateTeamDto } from './dto/update-team.dto';
 import { AwsS3Service } from '../aws/aws-s3.service';
 import { Team } from './team.schema';
 import { slugify } from 'src/helpers/stringUtils';
+import { FilterQuery, Types } from 'mongoose';
+import { MembersService } from '../members/members.service';
+import { RolesService } from '../roles/roles.service';
+import { MemberStatus } from '../members/member.schema';
 
 /**
  * Service for managing teams, including creation, retrieval, updating, and deletion.
@@ -16,10 +20,14 @@ export class TeamsService {
    * Constructs the TeamsService.
    * @param teamsRepository - Repository for team data operations.
    * @param awsS3Service - Service for AWS S3 file operations.
+   * @param membersService - Service for member management operations.
+   * @param rolesService - Service for role management operations.
    */
   constructor(
     private readonly teamsRepository: TeamsRepository,
     private readonly awsS3Service: AwsS3Service,
+    private readonly membersService: MembersService,
+    private readonly rolesService: RolesService,
   ) {}
 
   /**
@@ -58,6 +66,23 @@ export class TeamsService {
       ).fileKey;
     }
     team.picture = picture;
+    if (createTeamDto.userId) {
+      const adminRole = await this.rolesService.findOne({
+        filter: { name: 'admin' },
+      });
+      if (!adminRole) {
+        const message =
+          'Default admin role "admin" not found — cannot add user as team member. Please ensure roles are seeded.';
+        console.warn(message);
+        throw new Error(message);
+      }
+      await this.membersService.create({
+        userId: createTeamDto.userId,
+        role: adminRole._id.toString(),
+        teams: [team._id.toString()],
+        status: MemberStatus.ACTIVE,
+      });
+    }
     return await this.teamsRepository.create({ doc: team });
   }
 
@@ -65,14 +90,60 @@ export class TeamsService {
    * Retrieves all teams, sorted by name.
    * @returns An array of teams or null if none found.
    */
-  async findAll(): Promise<Team[] | null> {
+  async findAll({
+    filter,
+  }: {
+    filter?: FilterQuery<Team>;
+  } = {}): Promise<Team[] | null> {
     const teams = await this.teamsRepository.findAll({
-      filter: {},
+      filter: filter || {},
       options: {
         sort: { name: 1 },
       },
     });
     return teams;
+  }
+
+  async findByUser(userId: string): Promise<Team[] | null> {
+    // Use aggregation to find teams where user is a member
+    const aggregationPipeline = [
+      {
+        $lookup: {
+          from: 'members',
+          let: { teamId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$team', '$$teamId'] },
+                    { $eq: ['$user', new Types.ObjectId(userId)] },
+                    { $ne: ['$status', 'INACTIVE'] },
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'members',
+        },
+      },
+      {
+        $match: {
+          'members.0': { $exists: true }, // Only teams where user is a member
+        },
+      },
+      {
+        $project: {
+          members: 0, // Remove the members array from final result
+        },
+      },
+      {
+        $sort: { name: 1 }, // Sort by name like findAll
+      },
+    ];
+
+    const teams = await this.teamsRepository.aggregate(aggregationPipeline);
+    return teams.length > 0 ? teams : null;
   }
 
   /**

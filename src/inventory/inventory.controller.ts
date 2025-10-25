@@ -16,6 +16,7 @@ import {
   StockOutDto,
   StockAdjustmentDto,
   QueryInventoryDto,
+  BulkUpdateDto,
 } from './dto/inventory.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -65,5 +66,12 @@ export class InventoryController {
   @UseGuards(JwtAuthGuard)
   async getLowStockProducts(@Query('teamId') teamId?: string) {
     return this.inventoryService.getLowStockProducts(teamId);
+  }
+
+  @Post('bulk-update')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async bulkUpdateStock(@Body() bulkUpdateDto: BulkUpdateDto) {
+    return this.inventoryService.bulkUpdateStock(bulkUpdateDto);
   }
 }

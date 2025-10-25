@@ -7,7 +7,7 @@ import { ERRORS } from '../common/errors';
 import { Product } from './product.schema';
 import { ProductRepository } from './product.repository';
 import { DetailProductRepository } from '../detail-product/detail-product.repository';
-import { Types } from 'mongoose';
+import { FilterQuery, Types } from 'mongoose';
 import { ImageProductService } from 'src/image-product/image-product.service';
 import { DetailProductService } from 'src/detail-product/detail-product.service';
 import { DetailProduct } from 'src/detail-product/detail-product.schema';
@@ -84,6 +84,19 @@ export class ProductService {
   async findAll(): Promise<Product[]> {
     return this.productRepo.findAll({
       filter: {},
+      options: {
+        populate: ['detail', 'images'],
+      },
+    });
+  }
+
+  async findBy({
+    filter,
+  }: {
+    filter: FilterQuery<Product>;
+  }): Promise<Product[]> {
+    return this.productRepo.findAll({
+      filter,
       options: {
         populate: ['detail', 'images'],
       },

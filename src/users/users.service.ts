@@ -5,6 +5,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Types } from 'mongoose';
 import { ERRORS } from '../common/errors';
 import * as bcrypt from 'bcrypt';
 
@@ -40,42 +41,68 @@ export class UsersService {
     );
   }
 
-  async getUser({ userId }: { userId: string }): Promise<any> {
-    const user = await this.userRepository.findOne({
-      filter: { _id: userId },
-      options: {
-        projection: {
-          _id: 1,
-          name: 1,
-          firstname: 1,
-          email: 1,
-          password: 1,
-          firstName: 1,
-          avatarFileKey: 1,
+  async getUser(id: string) {
+    // Use aggregation pipeline for optimized memory usage and team projection
+    const aggregationPipeline = [
+      { $match: { _id: new Types.ObjectId(id) } },
+      {
+        $lookup: {
+          from: 'members',
+          let: { userId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$user', '$$userId'] },
+                status: { $ne: 'INACTIVE' },
+              },
+            },
+            {
+              $lookup: {
+                from: 'roles',
+                localField: 'role',
+                foreignField: '_id',
+                as: 'roleData',
+                pipeline: [
+                  {
+                    $project: {
+                      _id: 1,
+                      name: 1,
+                      level: 1,
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              $project: {
+                _id: 1,
+                status: 1,
+                joinedAt: '$createdAt',
+                team: '$team',
+                role: { $arrayElemAt: ['$roleData', 0] },
+              },
+            },
+          ],
+          as: 'memberships',
         },
       },
-    });
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          email: 1,
+          firstname: 1,
+          phone: 1,
+          avatarFileKey: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          memberAt: '$memberships',
+        },
+      },
+    ];
 
-    // Check if the user was found
-    if (!user) {
-      throw new NotFoundException(ERRORS.USER_NOT_FOUND);
-    }
-
-    let avatarUrl = '';
-    if (user.avatarFileKey) {
-      try {
-        avatarUrl = await this.awsS3Service.getFileUrl({
-          fileKey: user.avatarFileKey,
-        });
-      } catch (error) {
-        console.error(`Error fetching avatar for user ${userId}:`, error);
-      }
-    }
-
-    // Return the user with the avatarUrl
-    const userObj = user.toObject();
-    delete userObj.password;
-    return { ...userObj, avatarUrl };
+    const result = await this.userRepository.aggregate(aggregationPipeline);
+    return result[0] || null;
   }
 
   async findOne(query: Record<string, any>): Promise<User | null> {
