@@ -138,7 +138,10 @@ export class MembersService {
   }
 
   async findOne(id: string): Promise<Member | null> {
-    const member = await this.memberRepository.findById({ id });
+    const member = await this.memberRepository.findById({
+      id,
+      options: { populate: ['user', 'role', 'team'] },
+    });
     if (!member) {
       throw new NotFoundException('Member not found');
     }
@@ -163,7 +166,10 @@ export class MembersService {
     id: string,
     updateMemberDto: UpdateMemberDto,
   ): Promise<Member | null> {
-    const existingMember = await this.memberRepository.findById({ id });
+    const existingMember = await this.memberRepository.findById({
+      id,
+      options: { populate: ['user', 'role', 'team'] },
+    });
     if (!existingMember) {
       throw new NotFoundException('Member not found');
     }
