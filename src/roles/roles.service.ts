@@ -3,6 +3,7 @@ import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { Role } from './role.schema';
 import { RolesRepository } from './roles.repository';
+import { FilterQuery } from 'mongoose';
 
 @Injectable()
 export class RolesService {
@@ -16,7 +17,15 @@ export class RolesService {
     return this.rolesRepository.findAll();
   }
 
-  async findOne(id: string): Promise<Role | null> {
+  async findOne({
+    filter,
+  }: {
+    filter: FilterQuery<Role>;
+  }): Promise<Role | null> {
+    return this.rolesRepository.findOne({ filter });
+  }
+
+  async findById(id: string): Promise<Role | null> {
     return this.rolesRepository.findById({ id });
   }
 

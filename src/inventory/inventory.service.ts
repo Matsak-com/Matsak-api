@@ -13,6 +13,7 @@ import {
   StockOutDto,
   StockAdjustmentDto,
   QueryInventoryDto,
+  BulkUpdateDto,
 } from './dto/inventory.dto';
 
 @Injectable()
@@ -229,5 +230,96 @@ export class InventoryService {
         populate: ['detail', 'images'],
       },
     });
+  }
+
+  async bulkUpdateStock(bulkUpdateDto: BulkUpdateDto): Promise<{
+    successful: any[];
+    failed: any[];
+    summary: {
+      total: number;
+      successful: number;
+      failed: number;
+    };
+  }> {
+    const results = {
+      successful: [],
+      failed: [],
+      summary: {
+        total: bulkUpdateDto.updates.length,
+        successful: 0,
+        failed: 0,
+      },
+    };
+
+    // Process each update
+    for (const update of bulkUpdateDto.updates) {
+      try {
+        const product = await this.productRepo.findById({
+          id: update.productId,
+        });
+
+        if (!product) {
+          results.failed.push({
+            productId: update.productId,
+            error: 'Product not found',
+            ...update,
+          });
+          continue;
+        }
+
+        if (!product.trackStock) {
+          results.failed.push({
+            productId: update.productId,
+            error: 'Stock tracking not enabled for this product',
+            ...update,
+          });
+          continue;
+        }
+
+        const previousStock = product.stockQuantity || 0;
+        const newStock = update.newQuantity;
+        const difference = newStock - previousStock;
+
+        // Create inventory transaction
+        await this.inventoryRepo.create({
+          doc: {
+            product: new Types.ObjectId(update.productId),
+            type: 'adjustment',
+            quantity: Math.abs(difference),
+            previousStock,
+            newStock,
+            reason:
+              update.reason || bulkUpdateDto.batchReason || 'Bulk adjustment',
+            reference: update.reference,
+            performedBy: new Types.ObjectId(bulkUpdateDto.performedBy),
+            team: product.team,
+          },
+        });
+
+        // Update product stock
+        await this.productRepo.update({
+          id: update.productId,
+          update: { stockQuantity: newStock },
+        });
+
+        results.successful.push({
+          productId: update.productId,
+          previousStock,
+          newStock,
+          difference,
+          ...update,
+        });
+        results.summary.successful++;
+      } catch (error) {
+        results.failed.push({
+          productId: update.productId,
+          error: error.message || 'Unknown error occurred',
+          ...update,
+        });
+        results.summary.failed++;
+      }
+    }
+
+    return results;
   }
 }

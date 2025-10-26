@@ -136,12 +136,15 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
 
   // Handle category from detailData.category OR top level categoryId
   if (cloned.detailData?.category) {
+    cloned.detailData = cloned.detailData || {};
     cloned.detailData.categoryId = cloned.detailData.category;
+    // Also set categoryId at top level for validation
+    cloned.categoryId = cloned.detailData.category;
     delete cloned.detailData.category;
   } else if (cloned.categoryId) {
     cloned.detailData = cloned.detailData || {};
     cloned.detailData.categoryId = cloned.categoryId;
-    delete cloned.categoryId;
+    // Don't delete categoryId here - keep it for validation
   }
 
   // Handle subcategory mapping (optional)
@@ -304,18 +307,27 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
   if (cloned.detailData?.category) {
     cloned.detailData = cloned.detailData || {};
     cloned.detailData.categoryId = cloned.detailData.category;
+    // Also set categoryId at top level for validation
+    cloned.categoryId = cloned.detailData.category;
     delete cloned.detailData.category;
   } else if (cloned.categoryId) {
     cloned.detailData = cloned.detailData || {};
     cloned.detailData.categoryId = cloned.categoryId;
-    delete cloned.categoryId;
   }
 
-  if (cloned.subcategoryId) {
+  // Handle subcategory
+  if (cloned.detailData?.subcategory && cloned.detailData.subcategory !== null) {
+    cloned.detailData.subcategoryId = cloned.detailData.subcategory;
+    cloned.subcategoryId = cloned.detailData.subcategory;
+    delete cloned.detailData.subcategory;
+  } else if (cloned.subcategoryId) {
     cloned.detailData = cloned.detailData || {};
     cloned.detailData.subcategoryId = cloned.subcategoryId;
   }
-  // Clean up subcategoryId whether it's null or not
+  // Clean up subcategory and subcategoryId if they're null
+  if (cloned.detailData?.subcategory === null) {
+    delete cloned.detailData.subcategory;
+  }
   delete cloned.subcategoryId;
 
   // Clean up MongoDB-specific fields that shouldn't be in updates
@@ -374,6 +386,22 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
 
   delete cloned.discountType;
   delete cloned.discountValue;
+
+  // Handle discounts array from payload
+  if (cloned.discounts) {
+    if (typeof cloned.discounts === 'string') {
+      try {
+        cloned.discounts = JSON.parse(cloned.discounts);
+      } catch {
+        // If parsing fails, set to empty array
+        cloned.discounts = [];
+      }
+    }
+    // Ensure it's an array
+    if (!Array.isArray(cloned.discounts)) {
+      cloned.discounts = [];
+    }
+  }
 
   // Handle advanceData for updates
   if (cloned.advanceData) {

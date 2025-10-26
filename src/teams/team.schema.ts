@@ -15,7 +15,7 @@ export class Team extends Document {
   @IsOptional()
   mobile?: string;
 
-  @Prop({ required: true, unique: true, trim: true })
+  @Prop({ required: true, trim: true })
   @IsEmail()
   @IsNotEmpty()
   email: string;

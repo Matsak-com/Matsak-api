@@ -194,6 +194,14 @@ export const productIdParamSchema = z.object({
   id: z.string().min(1, 'Product ID is required'),
 });
 
+export const teamIdParamSchema = z.object({
+  teamId: z.string().min(1, 'Team ID is required'),
+});
+
+export const userIdParamSchema = z.object({
+  userId: z.string().min(1, 'User ID is required'),
+});
+
 // subcategory is now part of DetailProduct; updating subcategory should be done via detail endpoints
 
 export const updateProductSchemaFlexible = z
