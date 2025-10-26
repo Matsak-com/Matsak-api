@@ -82,4 +82,8 @@ export class CreateTeamDto {
   @IsString()
   @IsNotEmpty()
   language: string;
+
+  @IsString()
+  @IsOptional()
+  userId?: string;
 }

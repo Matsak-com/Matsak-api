@@ -20,12 +20,17 @@ import { ERRORS } from '../common/errors';
 import { ProductService } from './product.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
-import { productIdParamSchema } from '../common/schemas/product.schemas';
+import {
+  productIdParamSchema,
+  teamIdParamSchema,
+  userIdParamSchema,
+} from '../common/schemas/product.schemas';
 import {
   createProductMultipartSchema,
   simpleUpdateMultipartSchema,
 } from './dto/create-product.dto';
 import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 import {
   SetPriceDto,
   AddDiscountDto,
@@ -33,11 +38,17 @@ import {
   CalculatePriceDto,
 } from './dto/pricing.dto';
 import { ZodMultipart } from 'src/common/decorators/zod-multipart.decorator';
+import { Types } from 'mongoose';
+import { MembersService } from 'src/members/members.service';
 
 @Controller('products')
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
+  constructor(
+    private readonly productService: ProductService,
+    private readonly membersService: MembersService,
+  ) {}
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ZodMultipart(createProductMultipartSchema, 'productImage')
@@ -64,7 +75,9 @@ export class ProductController {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new BadRequestException('Failed to create product');
+      throw new BadRequestException(
+        `Failed to create product: ${error.message}`,
+      );
     }
   }
 
@@ -72,7 +85,7 @@ export class ProductController {
   @ZodMultipart(simpleUpdateMultipartSchema, 'productImage')
   async update(
     @Param('id') id: string,
-    @Body() body: CreateProductDto,
+    @Body() body: UpdateProductDto,
     @UploadedFile(
       new ParseFilePipe({
         validators: [
@@ -106,6 +119,26 @@ export class ProductController {
       throw new BadRequestException('Search keyword is required');
     }
     return this.productService.search(keyword.trim());
+  @UseGuards(JwtAuthGuard)
+  @Get('team/:teamId')
+  @CompoundZodValidation({ params: teamIdParamSchema })
+  findByTeam(@Param() params: { teamId: string }) {
+    return this.productService.findBy({
+      filter: { team: new Types.ObjectId(params.teamId) },
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('user/:userId')
+  @CompoundZodValidation({ params: userIdParamSchema })
+  async findByUser(@Param() params: { userId: string }) {
+    const members = await this.membersService.getTeamMembersByUserId(
+      params.userId,
+    );
+    const results = await this.productService.findBy({
+      filter: { team: { $in: members.map((member) => member.team._id) } },
+    });
+    return results;
   }
 
   @Get(':id')

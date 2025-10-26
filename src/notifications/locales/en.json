@@ -1,0 +1,57 @@
+{
+  "email": {
+    "welcome": {
+      "subject": "Welcome to Matsak!",
+      "greeting": "Hello {{name}}",
+      "title": "Welcome to Matsak!",
+      "thankYou": "Thank you for joining Matsak. We're excited to have you on board!",
+      "accountCreated": "Your account has been successfully created and you can now start exploring our platform.",
+      "getStarted": "Get Started",
+      "support": "If you have any questions or need assistance, feel free to reach out to our support team.",
+      "signature": "Best regards,<br>The Matsak Team"
+    },
+    "resetPassword": {
+      "subject": "Reset Your Password",
+      "greeting": "Hello {{name}}",
+      "title": "Password Reset Request",
+      "instruction": "We received a request to reset your password. Click the button below to create a new password:",
+      "resetButton": "Reset Password",
+      "validFor": "This link is valid for {{hours}} hours.",
+      "noRequest": "If you didn't request a password reset, you can safely ignore this email.",
+      "signature": "Best regards,<br>The Matsak Team"
+    },
+    "orderConfirmation": {
+      "subject": "Order Confirmation #{{orderId}}",
+      "greeting": "Hello {{customerName}}",
+      "title": "Order Confirmation",
+      "thankYou": "Thank you for your order! We're processing it now.",
+      "orderId": "Order ID",
+      "orderDate": "Order Date",
+      "items": "Order Items",
+      "itemName": "Item",
+      "quantity": "Quantity",
+      "price": "Price",
+      "subtotal": "Subtotal",
+      "tax": "Tax",
+      "total": "Total",
+      "shippingAddress": "Shipping Address",
+      "tracking": "You'll receive a shipping confirmation email with tracking information once your order ships.",
+      "signature": "Best regards,<br>The Matsak Team"
+    },
+    "verifyEmail": {
+      "subject": "Verify Your Email Address",
+      "greeting": "Hello {{name}}",
+      "title": "Verify Your Email",
+      "instruction": "Please verify your email address by clicking the button below:",
+      "verifyButton": "Verify Email",
+      "validFor": "This verification link is valid for {{hours}} hours.",
+      "noAccount": "If you didn't create an account, you can safely ignore this email.",
+      "signature": "Best regards,<br>The Matsak Team"
+    },
+    "common": {
+      "footer": "© {{year}} Matsak. All rights reserved.",
+      "contactUs": "Contact us",
+      "unsubscribe": "Unsubscribe"
+    }
+  }
+}

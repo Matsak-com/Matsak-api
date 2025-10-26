@@ -1,0 +1,46 @@
+<h2>{{t.title}}</h2>
+<p>{{t.greeting}}</p>
+<p>{{t.thankYou}}</p>
+
+<h3>{{t.items}}</h3>
+<table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+  <thead>
+    <tr style="background-color: #f5f5f5;">
+      <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">{{t.itemName}}</th>
+      <th style="padding: 10px; text-align: center; border: 1px solid #ddd;">{{t.quantity}}</th>
+      <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">{{t.price}}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each items}}
+    <tr>
+      <td style="padding: 10px; border: 1px solid #ddd;">{{this.name}}</td>
+      <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">{{this.quantity}}</td>
+      <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">${{this.price}}</td>
+    </tr>
+    {{/each}}
+  </tbody>
+  <tfoot>
+    <tr>
+      <td colspan="2" style="padding: 10px; text-align: right; border: 1px solid #ddd;"><strong>{{../t.subtotal}}:</strong></td>
+      <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">${{subtotal}}</td>
+    </tr>
+    <tr>
+      <td colspan="2" style="padding: 10px; text-align: right; border: 1px solid #ddd;"><strong>{{../t.tax}}:</strong></td>
+      <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">${{tax}}</td>
+    </tr>
+    <tr style="background-color: #f5f5f5;">
+      <td colspan="2" style="padding: 10px; text-align: right; border: 1px solid #ddd;"><strong>{{../t.total}}:</strong></td>
+      <td style="padding: 10px; text-align: right; border: 1px solid #ddd;"><strong>${{total}}</strong></td>
+    </tr>
+  </tfoot>
+</table>
+
+<p><strong>{{t.orderId}}:</strong> {{orderId}}</p>
+<p><strong>{{t.orderDate}}:</strong> {{orderDate}}</p>
+<p><strong>{{t.shippingAddress}}:</strong><br>{{shippingAddress}}</p>
+
+<p>{{t.tracking}}</p>
+<p>{{{t.signature}}}</p>
+<hr>
+<p style="font-size: 12px; color: #666;">{{{common.footer}}}</p>

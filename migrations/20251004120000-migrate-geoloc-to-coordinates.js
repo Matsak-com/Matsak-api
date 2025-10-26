@@ -7,17 +7,15 @@
  * Run this migration before deploying the coordinate field changes.
  */
 
-const { MongoClient } = require('mongodb');
+module.exports = {
+  /**
+   * @param db {import('mongodb').Db}
+   * @param client {import('mongodb').MongoClient}
+   * @returns {Promise<void>}
+   */
+  async up(db, client) {
+    console.log('Starting migration: rename geoLoc to coordinates');
 
-async function migrateGeoLocToCoordinates() {
-  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/matsak-db';
-  const client = new MongoClient(uri);
-
-  try {
-    await client.connect();
-    console.log('Connected to MongoDB');
-
-    const db = client.db();
     const teamsCollection = db.collection('teams');
 
     // Find all teams that have geoLoc field
@@ -72,27 +70,69 @@ async function migrateGeoLocToCoordinates() {
     } else {
       console.log('⚠️  Some teams still have geoLoc field. Review migration logs.');
     }
+  },
 
-  } catch (error) {
-    console.error('Migration failed:', error);
-    throw error;
-  } finally {
-    await client.close();
-    console.log('MongoDB connection closed');
-  }
-}
+  /**
+   * @param db {import('mongodb').Db}
+   * @param client {import('mongodb').MongoClient}
+   * @returns {Promise<void>}
+   */
+  async down(db, client) {
+    console.log('Starting rollback: rename coordinates back to geoLoc');
 
-// Script execution
-if (require.main === module) {
-  migrateGeoLocToCoordinates()
-    .then(() => {
-      console.log('Migration script completed');
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('Migration script failed:', error);
-      process.exit(1);
+    const teamsCollection = db.collection('teams');
+
+    // Find all teams that have coordinates field
+    const teamsWithCoordinates = await teamsCollection.find({ 
+      coordinates: { $exists: true, $ne: null } 
+    }).toArray();
+
+    console.log(`Found ${teamsWithCoordinates.length} teams with coordinates field`);
+
+    if (teamsWithCoordinates.length === 0) {
+      console.log('No teams to rollback. All done!');
+      return;
+    }
+
+    // Update each team: rename coordinates back to geoLoc
+    for (const team of teamsWithCoordinates) {
+      try {
+        const result = await teamsCollection.updateOne(
+          { _id: team._id },
+          {
+            $set: { geoLoc: team.coordinates },
+            $unset: { coordinates: 1 }
+          }
+        );
+
+        if (result.modifiedCount === 1) {
+          console.log(`✅ Rolled back team: ${team.name} (${team._id})`);
+        } else {
+          console.log(`⚠️  Failed to rollback team: ${team.name} (${team._id})`);
+        }
+      } catch (error) {
+        console.error(`❌ Error rolling back team ${team.name}:`, error.message);
+      }
+    }
+
+    // Verify rollback
+    const remainingCoordinates = await teamsCollection.countDocuments({ 
+      coordinates: { $exists: true } 
     });
-}
+    
+    const rolledBackGeoLoc = await teamsCollection.countDocuments({ 
+      geoLoc: { $exists: true, $ne: null } 
+    });
 
-module.exports = { migrateGeoLocToCoordinates };
+    console.log(`\n=== ROLLBACK SUMMARY ===`);
+    console.log(`Teams with new coordinates field: ${remainingCoordinates}`);
+    console.log(`Teams with old geoLoc field: ${rolledBackGeoLoc}`);
+    console.log(`Expected rolled back count: ${teamsWithCoordinates.length}`);
+
+    if (remainingCoordinates === 0) {
+      console.log('🎉 Rollback completed successfully!');
+    } else {
+      console.log('⚠️  Some teams still have coordinates field. Review rollback logs.');
+    }
+  }
+};

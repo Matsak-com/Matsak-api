@@ -26,6 +26,41 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## Matsak API Features
+
+### Notification Module
+The Matsak API includes a comprehensive notification system for managing email and SMS communications:
+
+- **Email Notifications** - Template-based emails with Handlebars support
+- **SMS Notifications** - Extensible SMS provider interface
+- **Scheduled Sending** - Queue notifications for future delivery
+- **MailHog Integration** - Email testing in development (http://localhost:8025)
+- **Job Queue** - Bull-based queue with Redis for reliable delivery
+
+📚 **Documentation:**
+- [Complete Documentation](./NOTIFICATION_MODULE.md)
+- [Quick Start Guide](./NOTIFICATION_QUICK_START.md)
+- [Usage Examples](./examples/notification-usage.ts)
+
+🚀 **Quick Example:**
+```typescript
+await notificationService.sendEmail({
+  to: 'user@example.com',
+  subject: 'Welcome to Matsak',
+  template: 'welcome',
+  context: { name: 'John Doe', loginUrl: 'https://matsak.com/login' }
+});
+```
+
+### Other Features
+- Product Management
+- Inventory Management  
+- User Authentication & Authorization
+- Team & Role Management
+- Order Processing
+
+For detailed information on specific features, see the documentation files in the repository root.
+
 ## Project setup
 
 ```bash
