@@ -9,6 +9,7 @@ import { NotificationController } from './notification.controller';
 import { NotificationProcessor } from './notification.processor';
 import { EmailProvider } from './providers/email.provider';
 import { SmsProvider } from './providers/sms.provider';
+import { I18nService } from './i18n.service';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { SmsProvider } from './providers/sms.provider';
     NotificationProcessor,
     EmailProvider,
     SmsProvider,
+    I18nService,
   ],
   exports: [NotificationService],
 })

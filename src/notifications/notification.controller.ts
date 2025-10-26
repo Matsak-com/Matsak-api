@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Get } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { SendEmailDto } from './dto/send-email.dto';
 import { SendSmsDto } from './dto/send-sms.dto';
@@ -6,6 +6,25 @@ import { SendSmsDto } from './dto/send-sms.dto';
 @Controller('notifications')
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
+
+  @Get('locales')
+  @HttpCode(HttpStatus.OK)
+  getSupportedLocales() {
+    return {
+      supportedLocales: [
+        { code: 'en', name: 'English', direction: 'ltr' },
+        { code: 'fr', name: 'Français', direction: 'ltr' },
+        { code: 'zh', name: '中文', direction: 'ltr' },
+        { code: 'ar', name: 'العربية', direction: 'rtl' },
+      ],
+      templates: [
+        'welcome',
+        'reset-password',
+        'order-confirmation',
+        'verify-email',
+      ],
+    };
+  }
 
   @Post('email')
   @HttpCode(HttpStatus.OK)
@@ -44,13 +63,20 @@ export class NotificationController {
   @HttpCode(HttpStatus.OK)
   async sendTemplateEmail(
     @Body()
-    body: { to: string; subject: string; template: string; context: any },
+    body: {
+      to: string;
+      subject: string;
+      template: string;
+      context: any;
+      locale?: 'en' | 'fr' | 'zh' | 'ar';
+    },
   ) {
     await this.notificationService.sendEmail({
       to: body.to,
       subject: body.subject,
       template: body.template,
       context: body.context,
+      locale: body.locale || 'en',
     });
     return { message: 'Template email sent successfully' };
   }

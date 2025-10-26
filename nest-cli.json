@@ -8,6 +8,10 @@
       {
         "include": "notifications/templates/**/*",
         "outDir": "dist"
+      },
+      {
+        "include": "notifications/locales/**/*",
+        "outDir": "dist"
       }
     ]
   }

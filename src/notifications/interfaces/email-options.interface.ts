@@ -5,6 +5,7 @@ export interface EmailOptions {
   context?: Record<string, any>;
   html?: string;
   text?: string;
+  locale?: 'en' | 'fr' | 'zh' | 'ar'; // Supported locales
   attachments?: Array<{
     filename: string;
     path?: string;

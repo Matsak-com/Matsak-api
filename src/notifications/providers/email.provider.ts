@@ -4,6 +4,7 @@ import { EmailOptions } from '../interfaces/email-options.interface';
 import { IEmailProvider } from '../interfaces/notification-provider.interface';
 import * as nodemailer from 'nodemailer';
 import { ConfigService } from '@nestjs/config';
+import { I18nService, SupportedLocale } from '../i18n.service';
 
 @Injectable()
 export class EmailProvider implements IEmailProvider {
@@ -13,6 +14,7 @@ export class EmailProvider implements IEmailProvider {
   constructor(
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
+    private readonly i18nService: I18nService,
   ) {
     // Create a separate transporter for non-template emails
     this.plainTransporter = nodemailer.createTransport({
@@ -25,12 +27,25 @@ export class EmailProvider implements IEmailProvider {
 
   async sendEmail(options: EmailOptions): Promise<void> {
     try {
-      const { to, subject, template, context, html, text, attachments } =
-        options;
+      const {
+        to,
+        subject,
+        template,
+        context,
+        html,
+        text,
+        attachments,
+        locale = 'en',
+      } = options;
 
       this.logger.debug(
-        `Email options: template=${template}, hasContext=${!!context}, hasHtml=${!!html}, hasText=${!!text}`,
+        `Email options: template=${template}, hasContext=${!!context}, hasHtml=${!!html}, hasText=${!!text}, locale=${locale}`,
       );
+
+      // Validate and normalize locale
+      const emailLocale = this.i18nService.isSupportedLocale(locale)
+        ? locale
+        : 'en';
 
       const mailOptions: any = {
         to: Array.isArray(to) ? to.join(', ') : to,
@@ -44,10 +59,19 @@ export class EmailProvider implements IEmailProvider {
 
       // Use template if provided, otherwise use plain transport
       if (template && context) {
+        // Enrich context with translations
+        const enrichedContext = this.enrichContextWithTranslations(
+          template,
+          context,
+          emailLocale,
+        );
+
         // Use Handlebars template via mailerService
-        this.logger.debug('Sending email with template');
+        this.logger.debug(
+          `Sending email with template: ${template}, locale: ${emailLocale}`,
+        );
         mailOptions.template = template;
-        mailOptions.context = context;
+        mailOptions.context = enrichedContext;
         await this.mailerService.sendMail(mailOptions);
       } else {
         // For plain text or HTML emails, use plain nodemailer transport
@@ -69,5 +93,38 @@ export class EmailProvider implements IEmailProvider {
       this.logger.error(`Failed to send email: ${error.message}`, error.stack);
       throw error;
     }
+  }
+
+  /**
+   * Enrich template context with translations
+   */
+  private enrichContextWithTranslations(
+    template: string,
+    context: any,
+    locale: string,
+  ): any {
+    const namespace = `email.${template}`;
+
+    // Get all translations for this template
+    const translations = this.i18nService.getTranslations(
+      namespace,
+      locale as any,
+      context,
+    );
+
+    // Add common translations
+    const commonTranslations = this.i18nService.getTranslations(
+      'email.common',
+      locale as any,
+      { year: new Date().getFullYear() },
+    );
+
+    // Merge context with translations
+    return {
+      ...context,
+      t: translations,
+      common: commonTranslations,
+      locale,
+    };
   }
 }
