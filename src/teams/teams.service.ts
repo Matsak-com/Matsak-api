@@ -105,7 +105,6 @@ export class TeamsService {
   }
 
   async findByUser(userId: string): Promise<Team[] | null> {
-    // Use aggregation to find teams where user is a member
     const aggregationPipeline = [
       {
         $lookup: {
@@ -129,16 +128,16 @@ export class TeamsService {
       },
       {
         $match: {
-          'members.0': { $exists: true }, // Only teams where user is a member
+          'members.0': { $exists: true },
         },
       },
       {
         $project: {
-          members: 0, // Remove the members array from final result
+          members: 0,
         },
       },
       {
-        $sort: { name: 1 }, // Sort by name like findAll
+        $sort: { name: 1 },
       },
     ];
 

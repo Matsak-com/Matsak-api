@@ -117,8 +117,6 @@ export const DetailProductSchema = SchemaFactory.createForClass(DetailProduct);
 
 DetailProductSchema.index({ category: 1, subcategory: 1 });
 
-DetailProductSchema.index({ sku: 1 });
-DetailProductSchema.index({ barcode: 1 });
 DetailProductSchema.index({ sku: 1, barcode: 1 });
 
 DetailProductSchema.pre('save', async function () {
