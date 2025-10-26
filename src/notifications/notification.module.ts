@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { BullModule } from '@nestjs/bull';
+import { ConfigModule } from '@nestjs/config';
 import { join } from 'path';
 import { NotificationService } from './notification.service';
 import { NotificationController } from './notification.controller';
@@ -11,6 +12,7 @@ import { SmsProvider } from './providers/sms.provider';
 
 @Module({
   imports: [
+    ConfigModule,
     MailerModule.forRoot({
       transport: {
         host: process.env.MAIL_HOST || 'localhost',
@@ -33,7 +35,7 @@ import { SmsProvider } from './providers/sms.provider';
           year: () => new Date().getFullYear(),
         }),
         options: {
-          strict: true,
+          strict: false,
         },
       },
     }),
