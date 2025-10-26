@@ -1,0 +1,57 @@
+{
+  "email": {
+    "welcome": {
+      "subject": "欢迎来到 Matsak！",
+      "greeting": "您好 {{name}}",
+      "title": "欢迎来到 Matsak！",
+      "thankYou": "感谢您加入 Matsak。我们很高兴您的加入！",
+      "accountCreated": "您的账户已成功创建，现在可以开始探索我们的平台。",
+      "getStarted": "开始使用",
+      "support": "如果您有任何问题或需要帮助，请随时联系我们的支持团队。",
+      "signature": "此致敬礼，<br>Matsak 团队"
+    },
+    "resetPassword": {
+      "subject": "重置您的密码",
+      "greeting": "您好 {{name}}",
+      "title": "密码重置请求",
+      "instruction": "我们收到了重置您密码的请求。点击下面的按钮创建新密码：",
+      "resetButton": "重置密码",
+      "validFor": "此链接有效期为 {{hours}} 小时。",
+      "noRequest": "如果您没有请求重置密码，可以安全地忽略此邮件。",
+      "signature": "此致敬礼，<br>Matsak 团队"
+    },
+    "orderConfirmation": {
+      "subject": "订单确认 #{{orderId}}",
+      "greeting": "您好 {{customerName}}",
+      "title": "订单确认",
+      "thankYou": "感谢您的订单！我们正在处理中。",
+      "orderId": "订单号",
+      "orderDate": "订单日期",
+      "items": "订单商品",
+      "itemName": "商品",
+      "quantity": "数量",
+      "price": "价格",
+      "subtotal": "小计",
+      "tax": "税费",
+      "total": "总计",
+      "shippingAddress": "配送地址",
+      "tracking": "订单发货后，您将收到包含物流追踪信息的发货确认邮件。",
+      "signature": "此致敬礼，<br>Matsak 团队"
+    },
+    "verifyEmail": {
+      "subject": "验证您的邮箱地址",
+      "greeting": "您好 {{name}}",
+      "title": "验证您的邮箱",
+      "instruction": "请点击下面的按钮验证您的邮箱地址：",
+      "verifyButton": "验证邮箱",
+      "validFor": "此验证链接有效期为 {{hours}} 小时。",
+      "noAccount": "如果您没有创建账户，可以安全地忽略此邮件。",
+      "signature": "此致敬礼，<br>Matsak 团队"
+    },
+    "common": {
+      "footer": "© {{year}} Matsak. 保留所有权利。",
+      "contactUs": "联系我们",
+      "unsubscribe": "取消订阅"
+    }
+  }
+}

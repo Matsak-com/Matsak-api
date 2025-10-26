@@ -7,10 +7,11 @@ import { ERRORS } from '../common/errors';
 import { Product } from './product.schema';
 import { ProductRepository } from './product.repository';
 import { DetailProductRepository } from '../detail-product/detail-product.repository';
-import { Types } from 'mongoose';
+import { FilterQuery, Types } from 'mongoose';
 import { ImageProductService } from 'src/image-product/image-product.service';
 import { DetailProductService } from 'src/detail-product/detail-product.service';
 import { DetailProduct } from 'src/detail-product/detail-product.schema';
+import { UpdateProductDto } from './dto/update-product.dto';
 
 import { z } from 'zod';
 import { createProductSchema } from '../common/schemas/product.schemas';
@@ -32,7 +33,6 @@ export class ProductService {
     file?: Express.Multer.File,
   ): Promise<Product> {
     try {
-      // 1️⃣ Créer le detailProduct
       const detail = (await this.detailProductService.create(
         createDto.detailData,
       )) as DetailProduct & { _id: string };
@@ -41,7 +41,7 @@ export class ProductService {
         detail: detail._id,
         team: new Types.ObjectId(createDto.teamId),
         images: null,
-        basePrice: createDto.basePrice,
+        basePrice: createDto.basePrice ?? createDto.price ?? 0,
         currency: createDto.currency || 'MGA',
         discounts: createDto.discounts
           ? createDto.discounts.map((d) => ({
@@ -50,17 +50,17 @@ export class ProductService {
               endDate: d.endDate ? new Date(d.endDate) : undefined,
             }))
           : [],
+        isActive: createDto.isActive !== undefined ? createDto.isActive : true, // Default to active
       };
 
       const created = await this.productRepo.create({ doc: productDoc });
 
       // 3️⃣ Si fichier image fourni, créer et associer directement depuis buffer
       if (file && created) {
-        const uploadedImage = await this.imageservice.createFromBuffer({
+        const uploadedImage = await this.imageservice.upload({
           buffer: file.buffer,
           originalname: file.originalname,
           mimetype: file.mimetype,
-          altText: '',
         });
         await this.productRepo.update({
           id: (created as any)._id.toString(),
@@ -90,6 +90,19 @@ export class ProductService {
     });
   }
 
+  async findBy({
+    filter,
+  }: {
+    filter: FilterQuery<Product>;
+  }): Promise<Product[]> {
+    return this.productRepo.findAll({
+      filter,
+      options: {
+        populate: ['detail', 'images'],
+      },
+    });
+  }
+
   async findOne(id: string): Promise<Product> {
     const product = await this.productRepo.findById({
       id,
@@ -105,7 +118,7 @@ export class ProductService {
 
   async update(
     id: string,
-    updateProductDto,
+    updateProductDto: UpdateProductDto,
     file?: Express.Multer.File,
   ): Promise<Product> {
     // Vérifier que le produit existe
@@ -114,7 +127,6 @@ export class ProductService {
       throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
     }
 
-    // Mise à jour du detailProduct
     if (updateProductDto.detailData) {
       await this.detailProductService.update(
         existingProduct.detail.toString(),
@@ -129,11 +141,10 @@ export class ProductService {
         await this.imageservice.remove(existingProduct.images.toString());
       }
 
-      const uploadedImage = await this.imageservice.createFromBuffer({
+      const uploadedImage = await this.imageservice.upload({
         buffer: file.buffer,
         originalname: file.originalname,
         mimetype: file.mimetype,
-        altText: updateProductDto.imageData?.altText || '',
       });
 
       imageId = new Types.ObjectId(uploadedImage._id as string);
@@ -149,7 +160,7 @@ export class ProductService {
       // Convert base64 data to Buffer
       let buffer: Buffer;
       let mimeType = updateProductDto.imageData.mimeType || 'image/jpeg';
-      
+
       try {
         // Handle data URL format (data:image/jpeg;base64,...)
         if (updateProductDto.imageData.data.startsWith('data:')) {
@@ -168,17 +179,15 @@ export class ProductService {
         }
 
         // Créer la nouvelle image à partir des données base64
-        const uploadedImage = await this.imageservice.createFromBuffer({
+        const uploadedImage = await this.imageservice.upload({
           buffer,
           originalname: updateProductDto.imageData.name || 'uploaded-image.jpg',
           mimetype: mimeType,
-          altText: updateProductDto.imageData.altText || '',
         });
 
         imageId = new Types.ObjectId(uploadedImage._id as string);
         shouldUpdateImage = true;
-      } catch (error) {
-        console.warn('Failed to process base64 image data:', error.message);
+      } catch {
         // Continue without updating image
       }
     }
@@ -211,6 +220,11 @@ export class ProductService {
       updateData.basePrice = updateProductDto.basePrice;
     }
 
+    // Handle price field (alias for basePrice)
+    if (typeof updateProductDto.price !== 'undefined') {
+      updateData.basePrice = updateProductDto.price;
+    }
+
     if (updateProductDto.currency) {
       updateData.currency = updateProductDto.currency;
     }
@@ -224,7 +238,40 @@ export class ProductService {
       updateData.images = imageId; // Can be new ObjectId or null for removal
     }
 
-    if (updateProductDto.discounts) {
+    // Handle discount data - prioritize new fields over existing discounts array
+    if (updateProductDto.discountType !== undefined) {
+      if (updateProductDto.discountType === 'no-discount') {
+        // Clear discounts when explicitly set to no-discount
+        updateData.discounts = [];
+      } else {
+        const discountValue = updateProductDto.discountValue || 0;
+        if (discountValue > 0) {
+          // Map discount types to valid enum values
+          let mappedType = updateProductDto.discountType;
+          if (updateProductDto.discountType === 'percent') {
+            mappedType = 'percentage';
+          } else if (
+            !['percentage', 'fixed', 'bulk'].includes(
+              updateProductDto.discountType,
+            )
+          ) {
+            mappedType = 'fixed'; // Default fallback
+          }
+
+          updateData.discounts = [
+            {
+              type: mappedType,
+              value: discountValue,
+              isActive: true,
+            },
+          ];
+        } else {
+          // If discountValue is 0 or undefined, clear discounts
+          updateData.discounts = [];
+        }
+      }
+    } else if (updateProductDto.discounts) {
+      // Fall back to existing discounts array structure if new fields not provided
       updateData.discounts = updateProductDto.discounts.map((d: any) => ({
         ...d,
         startDate: d.startDate ? new Date(d.startDate) : undefined,

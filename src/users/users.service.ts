@@ -5,6 +5,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Types } from 'mongoose';
 import { ERRORS } from '../common/errors';
 import * as bcrypt from 'bcrypt';
 
@@ -40,40 +41,78 @@ export class UsersService {
     );
   }
 
-  async getUser({ userId }: { userId: string }): Promise<any> {
-    const user = await this.userRepository.findOne({
-      filter: { _id: userId },
-      options: {
-        projection: {
-          _id: 1,
-          name: 1,
-          firstname: 1,
-          email: 1,
-          password: 1,
-          firstName: 1,
-          avatarFileKey: 1,
+  async getUser(id: string) {
+    // Use aggregation pipeline for optimized memory usage and team projection
+    const aggregationPipeline = [
+      { $match: { _id: new Types.ObjectId(id) } },
+      {
+        $lookup: {
+          from: 'members',
+          let: { userId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$user', '$$userId'] },
+                status: { $ne: 'INACTIVE' },
+              },
+            },
+            {
+              $lookup: {
+                from: 'roles',
+                localField: 'role',
+                foreignField: '_id',
+                as: 'roleData',
+                pipeline: [
+                  {
+                    $project: {
+                      _id: 1,
+                      name: 1,
+                      level: 1,
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              $project: {
+                _id: 1,
+                status: 1,
+                joinedAt: '$createdAt',
+                team: '$team',
+                role: { $arrayElemAt: ['$roleData', 0] },
+              },
+            },
+          ],
+          as: 'memberships',
         },
       },
-    });
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          email: 1,
+          firstname: 1,
+          phone: 1,
+          avatarFileKey: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          memberAt: '$memberships',
+        },
+      },
+    ];
 
-    if (!user) {
-      throw new NotFoundException(ERRORS.USER_NOT_FOUND);
-    }
-
+    const result = await this.userRepository.aggregate(aggregationPipeline);
     let avatarUrl = '';
-    if (user.avatarFileKey) {
+    if (result[0]?.avatarFileKey) {
       try {
         avatarUrl = await this.awsS3Service.getFileUrl({
-          fileKey: user.avatarFileKey,
+          fileKey: result[0].avatarFileKey,
         });
       } catch (error) {
-        
+        console.error(`Error fetching avatar URL: ${error.message}`);
       }
     }
-
-    const userObj = user.toObject();
-    delete userObj.password;
-    return { ...userObj, avatarUrl };
+    return { ...result[0], avatarUrl };
   }
 
   async findOne(query: Record<string, any>): Promise<User | null> {
@@ -136,9 +175,13 @@ export class UsersService {
     // Mise à jour de l'avatar
     if (avatarFile) {
       try {
-  
         // Valider le fichier
-        const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        const allowedMimeTypes = [
+          'image/jpeg',
+          'image/png',
+          'image/gif',
+          'image/webp',
+        ];
         if (!allowedMimeTypes.includes(avatarFile.mimetype)) {
           throw new HttpException(
             'Type de fichier non autorisé. Formats acceptés: JPG, PNG, GIF, WEBP',
@@ -173,7 +216,7 @@ export class UsersService {
               fileKey: user.avatarFileKey 
             });
           } catch (error) {
-            
+            console.error(`Error deleting old avatar: ${error.message}`);
           }
         }
 
@@ -181,7 +224,7 @@ export class UsersService {
         user.avatarFileKey = uploadResult.fileKey || fileKey;
       } catch (error) {
         throw new HttpException(
-          error.message || 'Erreur lors de l\'upload de l\'avatar',
+          error.message || "Erreur lors de l'upload de l'avatar",
           error.status || HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
@@ -198,6 +241,7 @@ export class UsersService {
           fileKey: user.avatarFileKey,
         });
       } catch (error) {
+        console.error(`Error fetching avatar URL: ${error.message}`);
       }
     }
 
@@ -238,7 +282,9 @@ export class UsersService {
       try {
         await this.awsS3Service.deleteFile({ fileKey: user.avatarFileKey });
       } catch (error) {
-        
+        console.error(
+          `Error deleting avatar during user deletion: ${error.message}`,
+        );
       }
     }
 

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ERRORS } from '../common/errors';
 import { UpdateDetailProductDto } from './dto/update-detail-product.dto';
 import { DetailProductRepository } from './detail-product.repository';
@@ -55,7 +59,6 @@ export class DetailProductService {
   ): Promise<DetailProduct> {
     const updateData: any = { ...dto };
 
-    // Convert categoryId and subcategoryId to ObjectIds if provided
     if (dto.categoryId) {
       updateData.category = new Types.ObjectId(dto.categoryId);
       delete updateData.categoryId;
@@ -64,9 +67,12 @@ export class DetailProductService {
     if (dto.subcategoryId) {
       updateData.subcategory = new Types.ObjectId(dto.subcategoryId);
       delete updateData.subcategoryId;
-    } else if (dto.subcategoryId === null || dto.subcategoryId === '') {
-      // Allow clearing subcategory
-      updateData.subcategory = undefined;
+    } else if (
+      dto.subcategoryId === null ||
+      dto.subcategoryId === '' ||
+      !dto.subcategoryId
+    ) {
+      updateData.subcategory = null;
     }
 
     const updated = await this.detailProductRepository.update({

@@ -21,9 +21,9 @@ afterAll(async () => {
 
 describe('Products (e2e) - productImageFile upload', () => {
   it('creates product with new payload structure', async () => {
-    const detailData = { 
+    const detailData = {
       team: '68c5948004428e915dbbe7a2',
-      name: 'Paracetamol 500g', 
+      name: 'Paracetamol 500g',
       description: '<p></p>',
       composition: '',
       isRepackaged: false,
@@ -32,7 +32,7 @@ describe('Products (e2e) - productImageFile upload', () => {
       contraindications: '',
       precautions: '',
       sideEffects: '',
-      expirationDate: '2027-08-25'
+      expirationDate: '2027-08-25',
     };
 
     const res = await request(app.getHttpServer())

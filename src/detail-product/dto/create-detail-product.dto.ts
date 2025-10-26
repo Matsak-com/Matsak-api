@@ -1,11 +1,57 @@
-import { IsBoolean, IsDateString, IsOptional, IsString, IsMongoId } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsOptional,
+  IsString,
+  IsMongoId,
+  IsNumber,
+  ValidateNested,
+  Min,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class SEODto {
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  keywords?: string;
+}
+
+export class DimensionsDto {
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  length?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  width?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  height?: number;
+
+  @IsOptional()
+  @IsString()
+  unit?: string;
+}
 
 export class CreateDetailProductDto {
   @IsString()
   name: string;
 
+  @IsOptional()
   @IsString()
-  description: string;
+  description?: string;
 
   @IsOptional()
   @IsString()
@@ -49,4 +95,32 @@ export class CreateDetailProductDto {
   @IsOptional()
   @IsMongoId()
   subcategoryId?: string;
+
+  // New fields added
+  @IsOptional()
+  @IsString()
+  sku?: string;
+
+  @IsOptional()
+  @IsString()
+  barcode?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  weight?: number;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => DimensionsDto)
+  dimensions?: DimensionsDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SEODto)
+  seo?: SEODto;
+
+  @IsOptional()
+  @IsString()
+  additionalInfo?: string;
 }

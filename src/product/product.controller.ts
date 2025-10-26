@@ -20,12 +20,17 @@ import { ERRORS } from '../common/errors';
 import { ProductService } from './product.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
-import { productIdParamSchema } from '../common/schemas/product.schemas';
+import {
+  productIdParamSchema,
+  teamIdParamSchema,
+  userIdParamSchema,
+} from '../common/schemas/product.schemas';
 import {
   createProductMultipartSchema,
   simpleUpdateMultipartSchema,
 } from './dto/create-product.dto';
 import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 import {
   SetPriceDto,
   AddDiscountDto,
@@ -33,13 +38,15 @@ import {
   CalculatePriceDto,
 } from './dto/pricing.dto';
 import { ZodMultipart } from 'src/common/decorators/zod-multipart.decorator';
+import { Types } from 'mongoose';
+import { MembersService } from 'src/members/members.service';
 
 @Controller('products')
 export class ProductController {
-  constructor(private readonly productService: ProductService) {}
-
-  // Preprocess schemas moved into DTO: import createProductMultipartSchema and simpleUpdateMultipartSchema
-
+  constructor(
+    private readonly productService: ProductService,
+    private readonly membersService: MembersService,
+  ) {}
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ZodMultipart(createProductMultipartSchema, 'productImage')
@@ -57,7 +64,6 @@ export class ProductController {
     productImage?: Express.Multer.File,
   ) {
     try {
-      // Body has been validated and preprocessed by ZodMultipartInterceptor
       const validated = body;
       return await this.productService.createProduct(
         validated as any,
@@ -67,7 +73,9 @@ export class ProductController {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new BadRequestException('Failed to create product');
+      throw new BadRequestException(
+        `Failed to create product: ${error.message}`,
+      );
     }
   }
 
@@ -75,7 +83,7 @@ export class ProductController {
   @ZodMultipart(simpleUpdateMultipartSchema, 'productImage')
   async update(
     @Param('id') id: string,
-    @Body() body: CreateProductDto,
+    @Body() body: UpdateProductDto,
     @UploadedFile(
       new ParseFilePipe({
         validators: [
@@ -88,9 +96,7 @@ export class ProductController {
     productImage?: Express.Multer.File,
   ) {
     try {
-      // Body preprocessed and validated by ZodMultipartInterceptor
       const validatedData = body;
-
       return await this.productService.update(id, validatedData, productImage);
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -106,7 +112,28 @@ export class ProductController {
     return this.productService.findAll();
   }
 
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
+  @Get('team/:teamId')
+  @CompoundZodValidation({ params: teamIdParamSchema })
+  findByTeam(@Param() params: { teamId: string }) {
+    return this.productService.findBy({
+      filter: { team: new Types.ObjectId(params.teamId) },
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('user/:userId')
+  @CompoundZodValidation({ params: userIdParamSchema })
+  async findByUser(@Param() params: { userId: string }) {
+    const members = await this.membersService.getTeamMembersByUserId(
+      params.userId,
+    );
+    const results = await this.productService.findBy({
+      filter: { team: { $in: members.map((member) => member.team._id) } },
+    });
+    return results;
+  }
+
   @Get(':id')
   @CompoundZodValidation({ params: productIdParamSchema })
   findOne(@Param() params: { id: string }) {

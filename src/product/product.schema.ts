@@ -54,6 +54,16 @@ export class Product {
   @Prop({ required: false })
   deleted_at?: Date;
 
+  // Stock management fields
+  @Prop({ type: Number, default: 0, min: 0 })
+  stockQuantity: number;
+
+  @Prop({ type: Number, default: 0, min: 0 })
+  lowStockThreshold: number;
+
+  @Prop({ type: Boolean, default: true })
+  trackStock: boolean;
+
   // Reference to Team: each product belongs to one Team
   @Prop({ type: Types.ObjectId, ref: 'Team', required: true, index: true })
   team: Types.ObjectId;

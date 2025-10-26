@@ -35,7 +35,7 @@ export class UserController {
   @Get('/:userId')
   @CompoundZodValidation({ params: userIdParamSchema })
   getUser(@Param() params: { userId: string }) {
-    return this.usersService.getUser({ userId: params.userId });
+    return this.usersService.getUser(params.userId);
   }
 
   @UseGuards(JwtAuthGuard)
