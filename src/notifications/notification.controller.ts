@@ -1,7 +1,17 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Get } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  Get,
+} from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { SendEmailDto } from './dto/send-email.dto';
 import { SendSmsDto } from './dto/send-sms.dto';
+import { SendPlainTextEmailDto } from './dto/send-plain-text-email.dto';
+import { SendHtmlEmailDto } from './dto/send-html-email.dto';
+import { SendTemplateEmailDto } from './dto/send-template-email.dto';
 
 @Controller('notifications')
 export class NotificationController {
@@ -35,9 +45,7 @@ export class NotificationController {
 
   @Post('email/plain-text')
   @HttpCode(HttpStatus.OK)
-  async sendPlainTextEmail(
-    @Body() body: { to: string; subject: string; text: string },
-  ) {
+  async sendPlainTextEmail(@Body() body: SendPlainTextEmailDto) {
     await this.notificationService.sendEmail({
       to: body.to,
       subject: body.subject,
@@ -48,9 +56,7 @@ export class NotificationController {
 
   @Post('email/html')
   @HttpCode(HttpStatus.OK)
-  async sendHtmlEmail(
-    @Body() body: { to: string; subject: string; html: string },
-  ) {
+  async sendHtmlEmail(@Body() body: SendHtmlEmailDto) {
     await this.notificationService.sendEmail({
       to: body.to,
       subject: body.subject,
@@ -61,16 +67,7 @@ export class NotificationController {
 
   @Post('email/template')
   @HttpCode(HttpStatus.OK)
-  async sendTemplateEmail(
-    @Body()
-    body: {
-      to: string;
-      subject: string;
-      template: string;
-      context: any;
-      locale?: 'en' | 'fr' | 'zh' | 'ar';
-    },
-  ) {
+  async sendTemplateEmail(@Body() body: SendTemplateEmailDto) {
     await this.notificationService.sendEmail({
       to: body.to,
       subject: body.subject,

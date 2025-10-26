@@ -20,7 +20,11 @@ import { ERRORS } from '../common/errors';
 import { ProductService } from './product.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
-import { productIdParamSchema, teamIdParamSchema, userIdParamSchema } from '../common/schemas/product.schemas';
+import {
+  productIdParamSchema,
+  teamIdParamSchema,
+  userIdParamSchema,
+} from '../common/schemas/product.schemas';
 import {
   createProductMultipartSchema,
   simpleUpdateMultipartSchema,

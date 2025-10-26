@@ -1,14 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { join } from 'path';
 import * as fs from 'fs';
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const i18next = require('i18next');
+import * as i18next from 'i18next';
 
 export type SupportedLocale = 'en' | 'fr' | 'zh' | 'ar';
 
 @Injectable()
 export class I18nService {
+  private readonly logger = new Logger(I18nService.name);
   private i18n: any;
   private initialized = false;
 
@@ -32,7 +31,7 @@ export class I18nService {
           translation: JSON.parse(translationContent),
         };
       } catch (error) {
-        console.error(`Failed to load translations for ${locale}:`, error);
+        this.logger.error(`Failed to load translations for ${locale}:`, error);
       }
     }
 
@@ -41,7 +40,7 @@ export class I18nService {
       fallbackLng: 'en',
       resources,
       interpolation: {
-        escapeValue: false, // React/HTML already safe from XSS
+        escapeValue: true, // Escape values to prevent XSS in email context
       },
     });
 
