@@ -28,7 +28,7 @@ Analysis Result for 'javascript'. Found 0 alert(s):
 All notification module dependencies were checked against the GitHub Advisory Database:
 
 1. **@nestjs-modules/mailer** (v2.0.2) - ✅ No vulnerabilities
-2. **nodemailer** (v6.9.16) - ✅ No vulnerabilities
+2. **nodemailer** (v7.0.9) - ✅ No vulnerabilities
 3. **handlebars** (v4.7.8) - ✅ No vulnerabilities
 4. **bull** (v4.16.3) - ✅ No vulnerabilities
 5. **@nestjs/bull** - ✅ No vulnerabilities
