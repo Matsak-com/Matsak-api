@@ -160,7 +160,7 @@ export class ProductService {
       // Convert base64 data to Buffer
       let buffer: Buffer;
       let mimeType = updateProductDto.imageData.mimeType || 'image/jpeg';
-      
+
       try {
         // Handle data URL format (data:image/jpeg;base64,...)
         if (updateProductDto.imageData.data.startsWith('data:')) {
@@ -257,7 +257,7 @@ export class ProductService {
           ) {
             mappedType = 'fixed'; // Default fallback
           }
-          
+
           updateData.discounts = [
             {
               type: mappedType,

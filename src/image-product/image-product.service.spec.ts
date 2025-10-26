@@ -51,7 +51,7 @@ describe('ImageProductService', () => {
       const createImageDto: CreateImageProductDto = {
         filename: 'test-image.jpg',
       };
-      
+
       const result = await service.create(createImageDto);
       expect(result).toEqual(mockImageProduct);
       // model is a Mongoose Model, cast to any to access mocked save

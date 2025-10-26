@@ -60,7 +60,7 @@ export class CreateProductDto {
   @ValidateNested()
   @Type(() => CreateImageProductDto)
   imageData?: CreateImageProductDto;
-  
+
   @IsMongoId()
   teamId: string;
 
@@ -203,7 +203,7 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
       ];
     }
   }
-  
+
   // Clean up discount fields
   delete cloned.discountType;
   delete cloned.discountValue;
@@ -217,7 +217,7 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
         // leave as-is; validation will catch it
       }
     }
-    
+
     // Merge advanceData fields into detailData where they belong
     if (cloned.advanceData && typeof cloned.advanceData === 'object') {
       cloned.detailData = cloned.detailData || {};
@@ -316,7 +316,10 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
   }
 
   // Handle subcategory
-  if (cloned.detailData?.subcategory && cloned.detailData.subcategory !== null) {
+  if (
+    cloned.detailData?.subcategory &&
+    cloned.detailData.subcategory !== null
+  ) {
     cloned.detailData.subcategoryId = cloned.detailData.subcategory;
     cloned.subcategoryId = cloned.detailData.subcategory;
     delete cloned.detailData.subcategory;
@@ -412,11 +415,11 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
         // leave as-is; validation will catch it
       }
     }
-    
+
     // Merge advanceData fields into detailData where they belong
     if (cloned.advanceData && typeof cloned.advanceData === 'object') {
       cloned.detailData = cloned.detailData || {};
-      
+
       // Map advance data fields to detailData
       if (cloned.advanceData.sku !== undefined) {
         cloned.detailData.sku = cloned.advanceData.sku;
