@@ -1,4 +1,3 @@
-// detail-product.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { Category } from '../categories/category.schema';
@@ -39,9 +38,8 @@ export class DetailProduct {
   manufacturer: string;
 
   @Prop({ default: false })
-  isRepackaged: boolean; // true si déconditionné, false sinon
+  isRepackaged: boolean;
 
-  // Category reference (required)
   @Prop({ 
     type: Types.ObjectId, 
     ref: Category.name,
@@ -50,7 +48,6 @@ export class DetailProduct {
   })
   category: Types.ObjectId;
 
-  // SubCategory reference (optional - more specific categorization)
   @Prop({ 
     type: Types.ObjectId, 
     ref: SubCategory.name,
@@ -65,17 +62,4 @@ export class DetailProduct {
 
 export const DetailProductSchema = SchemaFactory.createForClass(DetailProduct);
 
-// Add compound index for efficient category/subcategory queries
 DetailProductSchema.index({ category: 1, subcategory: 1 });
-
-// Add validation to ensure subcategory belongs to the specified category
-DetailProductSchema.pre('save', async function() {
-  if (this.subcategory && this.category) {
-    const SubCategoryModel = this.db.model('SubCategory');
-    const subcategory = await SubCategoryModel.findById(this.subcategory);
-    
-    if (subcategory && !subcategory.categoryId.equals(this.category)) {
-      throw new Error('Subcategory must belong to the specified category');
-    }
-  }
-});

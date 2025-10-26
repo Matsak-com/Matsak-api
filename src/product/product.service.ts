@@ -2,6 +2,8 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Logger,
+  OnModuleInit,
 } from '@nestjs/common';
 import { ERRORS } from '../common/errors';
 import { Product } from './product.schema';
@@ -11,21 +13,32 @@ import { Types } from 'mongoose';
 import { ImageProductService } from 'src/image-product/image-product.service';
 import { DetailProductService } from 'src/detail-product/detail-product.service';
 import { DetailProduct } from 'src/detail-product/detail-product.schema';
-
+import { SearchService } from '../elasticsearch/elasticsearch.service';
 import { z } from 'zod';
 import { createProductSchema } from '../common/schemas/product.schemas';
 
-// Type validé par Zod
 type ValidatedCreateProductDto = z.infer<typeof createProductSchema>;
 
 @Injectable()
-export class ProductService {
+export class ProductService implements OnModuleInit {
+  private readonly logger = new Logger(ProductService.name);
+
   constructor(
     private readonly productRepo: ProductRepository,
     private readonly detailRepo: DetailProductRepository,
     private readonly imageservice: ImageProductService,
     private readonly detailProductService: DetailProductService,
+    private readonly searchService: SearchService,
   ) {}
+
+  async onModuleInit() {
+    try {
+      this.logger.log('Initializing search service...');
+      // Vous pouvez ajouter une initialisation si nécessaire
+    } catch (error) {
+      this.logger.error('Error initializing search service', error);
+    }
+  }
 
   async createProduct(
     createDto: ValidatedCreateProductDto,
@@ -72,20 +85,27 @@ export class ProductService {
         id: (created as any)._id.toString(),
         options: { populate: ['detail', 'images', 'team'] },
       });
+
+      // Indexer dans Elasticsearch
+      if (populated) {
+        await this.searchService.indexProduct(populated as any);
+      }
+
       return populated as Product;
     } catch (error) {
-      if (error.code === 11000) {
+      if ((error as any).code === 11000) {
         throw new BadRequestException(ERRORS.PRODUCT_ALREADY_EXISTS);
       }
+      this.logger.error('Error creating product', error);
       throw error;
     }
   }
 
   async findAll(): Promise<Product[]> {
     return this.productRepo.findAll({
-      filter: {},
+      filter: { deleted_at: { $exists: false } },
       options: {
-        populate: ['detail', 'images'],
+        populate: ['detail', 'images', 'team'],
       },
     });
   }
@@ -94,7 +114,7 @@ export class ProductService {
     const product = await this.productRepo.findById({
       id,
       options: {
-        populate: ['detail', 'images'],
+        populate: ['detail', 'images', 'team'],
       },
     });
     if (!product) {
@@ -103,9 +123,13 @@ export class ProductService {
     return product;
   }
 
+  async search(keyword: string) {
+    return this.searchService.searchProducts(keyword);
+  }
+
   async update(
     id: string,
-    updateProductDto,
+    updateProductDto: any,
     file?: Express.Multer.File,
   ): Promise<Product> {
     // Vérifier que le produit existe
@@ -124,6 +148,7 @@ export class ProductService {
 
     let imageId = existingProduct.images;
     let shouldUpdateImage = false;
+
     if (file && file instanceof Object && file.buffer) {
       if (existingProduct.images) {
         await this.imageservice.remove(existingProduct.images.toString());
@@ -138,9 +163,7 @@ export class ProductService {
 
       imageId = new Types.ObjectId(uploadedImage._id as string);
       shouldUpdateImage = true;
-    }
-    // Priority 2: Handle base64 image data from productImage payload
-    else if (updateProductDto.imageData?.data) {
+    } else if (updateProductDto.imageData?.data) {
       // Supprimer l'ancienne image si elle existe
       if (existingProduct.images) {
         await this.imageservice.remove(existingProduct.images.toString());
@@ -149,7 +172,7 @@ export class ProductService {
       // Convert base64 data to Buffer
       let buffer: Buffer;
       let mimeType = updateProductDto.imageData.mimeType || 'image/jpeg';
-      
+
       try {
         // Handle data URL format (data:image/jpeg;base64,...)
         if (updateProductDto.imageData.data.startsWith('data:')) {
@@ -178,12 +201,11 @@ export class ProductService {
         imageId = new Types.ObjectId(uploadedImage._id as string);
         shouldUpdateImage = true;
       } catch (error) {
-        console.warn('Failed to process base64 image data:', error.message);
-        // Continue without updating image
+        this.logger.warn(
+          `Failed to process base64 image data: ${(error as any).message}`,
+        );
       }
-    }
-    // Priority 3: Handle explicit image removal (when productImage payload is null)
-    else if (
+    } else if (
       updateProductDto.imageData === null ||
       (updateProductDto.imageData && updateProductDto.imageData.data === null)
     ) {
@@ -194,15 +216,12 @@ export class ProductService {
       imageId = null;
       shouldUpdateImage = true;
     }
-    // Priority 4: No change to image (when productImage is not provided or not a File)
-    // In this case, keep the existing image and don't update
 
     // Construire les données de mise à jour du produit
     const updateData: any = {
       updatedAt: new Date(),
     };
 
-    // Handle product-level fields
     if (typeof updateProductDto.isActive !== 'undefined') {
       updateData.isActive = updateProductDto.isActive;
     }
@@ -219,9 +238,8 @@ export class ProductService {
       updateData.team = new Types.ObjectId(updateProductDto.teamId);
     }
 
-    // Only update image if we explicitly changed it (file upload, base64 data, or removal)
     if (shouldUpdateImage) {
-      updateData.images = imageId; // Can be new ObjectId or null for removal
+      updateData.images = imageId;
     }
 
     if (updateProductDto.discounts) {
@@ -239,15 +257,28 @@ export class ProductService {
     });
 
     // Populate et retourner
-    await updatedProduct.populate(['detail', 'images']);
+    await updatedProduct.populate(['detail', 'images', 'team']);
+
+    // Réindexer dans Elasticsearch
+    await this.searchService.indexProduct(updatedProduct as any);
+
     return updatedProduct;
   }
 
   async remove(id: string): Promise<void> {
-    const result = await this.productRepo.delete({ id });
-    if (!result) {
+    const product = await this.productRepo.findById({ id });
+    if (!product) {
       throw new NotFoundException(`Product with id ${id} not found`);
     }
+
+    // Soft delete: marquer comme supprimé
+    await this.productRepo.update({
+      id,
+      update: { deleted_at: new Date() },
+    });
+
+    // Supprimer de l'index Elasticsearch
+    await this.searchService.removeProduct(id);
   }
 
   // Pricing methods
@@ -266,10 +297,15 @@ export class ProductService {
       update: {
         basePrice,
         currency,
+        updatedAt: new Date(),
       },
     });
 
-    await updatedProduct.populate(['detail', 'images']);
+    await updatedProduct.populate(['detail', 'images', 'team']);
+
+    // Réindexer après changement de prix
+    await this.searchService.indexProduct(updatedProduct as any);
+
     return updatedProduct;
   }
 
@@ -301,6 +337,10 @@ export class ProductService {
 
     const discount = {
       ...discountData,
+      startDate: discountData.startDate
+        ? new Date(discountData.startDate)
+        : undefined,
+      endDate: discountData.endDate ? new Date(discountData.endDate) : undefined,
       isActive: discountData.isActive ?? true,
     };
 
@@ -308,10 +348,15 @@ export class ProductService {
       id,
       update: {
         $push: { discounts: discount },
+        updatedAt: new Date(),
       },
     });
 
-    await updatedProduct.populate(['detail', 'images']);
+    await updatedProduct.populate(['detail', 'images', 'team']);
+
+    // Réindexer après ajout de discount
+    await this.searchService.indexProduct(updatedProduct as any);
+
     return updatedProduct;
   }
 
@@ -329,17 +374,23 @@ export class ProductService {
       throw new BadRequestException(ERRORS.INVALID_DISCOUNT_INDEX);
     }
 
-    // Remove null elements from array
-    await this.productRepo.update({
+    // Supprimer l'élément à l'index spécifié
+    product.discounts.splice(discountIndex, 1);
+
+    const updatedProduct = await this.productRepo.update({
       id,
       update: {
-        $pull: { discounts: null },
+        discounts: product.discounts,
+        updatedAt: new Date(),
       },
     });
 
-    const finalProduct = await this.productRepo.findById({ id });
-    await finalProduct.populate(['detail', 'images']);
-    return finalProduct;
+    await updatedProduct.populate(['detail', 'images', 'team']);
+
+    // Réindexer après suppression de discount
+    await this.searchService.indexProduct(updatedProduct as any);
+
+    return updatedProduct;
   }
 
   async updateDiscount(
@@ -378,9 +429,16 @@ export class ProductService {
     }
 
     // Prepare update object
-    const updateFields = {};
+    const updateFields: any = { updatedAt: new Date() };
     Object.keys(updateData).forEach((key) => {
-      updateFields[`discounts.${discountIndex}.${key}`] = updateData[key];
+      const value = updateData[key];
+      if (key === 'startDate' || key === 'endDate') {
+        updateFields[`discounts.${discountIndex}.${key}`] = value
+          ? new Date(value)
+          : undefined;
+      } else {
+        updateFields[`discounts.${discountIndex}.${key}`] = value;
+      }
     });
 
     const updatedProduct = await this.productRepo.update({
@@ -388,7 +446,11 @@ export class ProductService {
       update: { $set: updateFields },
     });
 
-    await updatedProduct.populate(['detail', 'images']);
+    await updatedProduct.populate(['detail', 'images', 'team']);
+
+    // Réindexer après mise à jour de discount
+    await this.searchService.indexProduct(updatedProduct as any);
+
     return updatedProduct;
   }
 
@@ -439,12 +501,10 @@ export class ProductService {
           discountAmount = discount.value;
           break;
         case 'bulk':
-          if (quantity >= discount.minQuantity) {
+          if (quantity >= (discount.minQuantity || 0)) {
             if (discount.value <= 1) {
-              // Treat as percentage if value is <= 1
               discountAmount = (finalPrice * discount.value * 100) / 100;
             } else {
-              // Treat as fixed amount
               discountAmount = discount.value;
             }
           }

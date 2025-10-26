@@ -38,8 +38,6 @@ import { ZodMultipart } from 'src/common/decorators/zod-multipart.decorator';
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
-  // Preprocess schemas moved into DTO: import createProductMultipartSchema and simpleUpdateMultipartSchema
-
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ZodMultipart(createProductMultipartSchema, 'productImage')
@@ -57,7 +55,6 @@ export class ProductController {
     productImage?: Express.Multer.File,
   ) {
     try {
-      // Body has been validated and preprocessed by ZodMultipartInterceptor
       const validated = body;
       return await this.productService.createProduct(
         validated as any,
@@ -88,9 +85,7 @@ export class ProductController {
     productImage?: Express.Multer.File,
   ) {
     try {
-      // Body preprocessed and validated by ZodMultipartInterceptor
       const validatedData = body;
-
       return await this.productService.update(id, validatedData, productImage);
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -100,13 +95,19 @@ export class ProductController {
     }
   }
 
-  // @UseGuards(JwtAuthGuard)
   @Get()
   findAll() {
     return this.productService.findAll();
   }
 
-  // @UseGuards(JwtAuthGuard)
+  @Get('search')
+  async search(@Query('q') keyword: string) {
+    if (!keyword || keyword.trim().length === 0) {
+      throw new BadRequestException('Search keyword is required');
+    }
+    return this.productService.search(keyword.trim());
+  }
+
   @Get(':id')
   @CompoundZodValidation({ params: productIdParamSchema })
   findOne(@Param() params: { id: string }) {
@@ -120,9 +121,6 @@ export class ProductController {
     return this.productService.remove(params.id);
   }
 
-  // subcategory endpoint removed: update subcategory via DetailProduct endpoints
-
-  // Pricing endpoints
   @UseGuards(JwtAuthGuard)
   @Post(':id/price')
   @CompoundZodValidation({ params: productIdParamSchema })
