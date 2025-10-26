@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { NotificationService } from '../notifications/notification.service';
+import { NotificationService } from '../src/notifications/notification.service';
 
 /**
  * Example service demonstrating how to use the Notification Module
