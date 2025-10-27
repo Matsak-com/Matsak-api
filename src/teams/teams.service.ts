@@ -111,7 +111,7 @@ export class TeamsService {
         return team;
       }),
     );
-    return results.length > 0 ? results : null;
+    return results;
   }
 
   async findByUser(userId: string): Promise<Team[] | null> {
