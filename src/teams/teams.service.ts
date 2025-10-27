@@ -101,7 +101,17 @@ export class TeamsService {
         sort: { name: 1 },
       },
     });
-    return teams;
+    const results = await Promise.all(
+      teams.map(async (team) => {
+        if (team.picture) {
+          team.picture = await this.awsS3Service.getFileUrl({
+            fileKey: team.picture,
+          });
+        }
+        return team;
+      }),
+    );
+    return results.length > 0 ? results : null;
   }
 
   async findByUser(userId: string): Promise<Team[] | null> {
