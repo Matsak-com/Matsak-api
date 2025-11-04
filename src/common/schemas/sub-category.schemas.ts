@@ -1,18 +1,37 @@
 import { z } from 'zod';
 import { objectIdSchema } from './common.schemas';
 
+// Translation schema
+const translationSchema = z.object({
+  en: z.string().optional(),
+  fr: z.string().optional(),
+  ar: z.string().optional(),
+  zh: z.string().optional(),
+});
+
+const translationsSchema = z.object({
+  name: translationSchema.optional(),
+  description: translationSchema.optional(),
+});
+
 // Sub-category validation schemas
 export const createSubCategorySchema = z.object({
   name: z.string().min(1, 'Sub-category name is required'),
   categoryId: objectIdSchema,
+  parentId: objectIdSchema.optional(),
   description: z.string().optional(),
+  translations: translationsSchema.optional(),
+  imageUrl: z.string().url('Invalid image URL').optional(),
   status: z.boolean().optional(),
 });
 
 export const updateSubCategorySchema = z.object({
   name: z.string().min(1, 'Sub-category name is required').optional(),
   categoryId: objectIdSchema.optional(),
+  parentId: objectIdSchema.optional(),
   description: z.string().optional(),
+  translations: translationsSchema.optional(),
+  imageUrl: z.string().url('Invalid image URL').optional(),
   status: z.boolean().optional(),
 });
 

@@ -3,6 +3,14 @@ import { Document } from 'mongoose';
 
 export type CategoryDocument = Category & Document;
 
+// Translation interface for category names and descriptions
+export interface CategoryTranslation {
+  en?: string;
+  fr?: string;
+  ar?: string;
+  zh?: string;
+}
+
 @Schema({ timestamps: true })
 export class Category {
   @Prop({ required: true })
@@ -10,6 +18,15 @@ export class Category {
 
   @Prop()
   description: string;
+
+  @Prop({ type: Object })
+  translations?: {
+    name?: CategoryTranslation;
+    description?: CategoryTranslation;
+  };
+
+  @Prop()
+  imageUrl: string;
 
   @Prop({ default: true })
   status: boolean;

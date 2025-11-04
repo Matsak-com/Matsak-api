@@ -6,6 +6,7 @@ import { SubCategoriesController } from './sub-categories.controller';
 import { SubCategory, SubCategorySchema } from './sub-category.schema';
 import { CategoriesModule } from '../categories/categories.module';
 import { SubCategoryRepository } from './sub-categories.repository';
+import { AwsS3Service } from '../aws/aws-s3.service';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { SubCategoryRepository } from './sub-categories.repository';
     CategoriesModule,
   ],
   controllers: [SubCategoriesController],
-  providers: [SubCategoriesService, SubCategoryRepository],
+  providers: [SubCategoriesService, SubCategoryRepository, AwsS3Service],
   exports: [SubCategoriesService, SubCategoryRepository],
 })
 export class SubCategoriesModule {}

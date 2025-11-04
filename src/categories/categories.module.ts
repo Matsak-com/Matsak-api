@@ -9,6 +9,7 @@ import {
 } from '../sub-categories/sub-category.schema';
 import { CategoryRepository } from './categories.repository';
 import { SubCategoryRepository } from '../sub-categories/sub-categories.repository';
+import { AwsS3Service } from '../aws/aws-s3.service';
 
 @Module({
   imports: [
@@ -18,7 +19,12 @@ import { SubCategoryRepository } from '../sub-categories/sub-categories.reposito
     ]),
   ],
   controllers: [CategoriesController],
-  providers: [CategoriesService, CategoryRepository, SubCategoryRepository],
+  providers: [
+    CategoriesService,
+    CategoryRepository,
+    SubCategoryRepository,
+    AwsS3Service,
+  ],
   exports: [CategoriesService, MongooseModule, CategoryRepository],
 })
 export class CategoriesModule {}
