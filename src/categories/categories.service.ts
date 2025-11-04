@@ -125,7 +125,6 @@ export class CategoriesService {
   async getCategoriesTree(): Promise<any[]> {
     const categories = await this.categoryRepository.findAll();
     
-    // For each category, build its subcategory tree
     const categoriesWithTrees = await Promise.all(
       categories.map(async (category) => {
         const categoryObj = category.toObject();
@@ -171,12 +170,21 @@ export class CategoriesService {
     categoryId: string,
     parentId: string | null = null,
   ): Promise<any[]> {
+    // Convert string IDs to ObjectId for MongoDB query
+    const filter: any = {
+      categoryId: new Types.ObjectId(categoryId),
+    };
+    
+    // Handle parentId - if null, query for root subcategories (parentId: null)
+    if (parentId === null) {
+      filter.parentId = null;
+    } else {
+      filter.parentId = new Types.ObjectId(parentId);
+    }
+
     // Find all subcategories for this category and parent level
     const subCategories = await this.subCategoryRepository.findAll({
-      filter: {
-        categoryId: categoryId,
-        parentId: parentId || null,
-      },
+      filter,
     });
 
     // For each subcategory, recursively get its children
