@@ -37,10 +37,10 @@ export class SearchService {
 
       await this.elasticsearchService.index({
         index: this.index,
-        id: product._id.toString(),
+        id: product._id.toString(), // ✅ L'ID est passé ici comme paramètre
         document: {
+          // ❌ SUPPRIMÉ : _id: product._id.toString(),
           // Informations de base du produit
-          _id: product._id.toString(),
           basePrice: product.basePrice,
           currency: product.currency,
           discounts: product.discounts || [],
@@ -125,8 +125,9 @@ export class SearchService {
       
       // Retourne toutes les informations du produit
       return hits.map((hit: any) => ({
-        score: hit._score, // Score de pertinence
-        ...hit._source, // Toutes les données indexées
+        _id: hit._id, // ✅ Ajouter l'ID depuis les métadonnées Elasticsearch
+        score: hit._score,
+        ...hit._source,
       }));
     } catch (error) {
       this.logger.error('Erreur lors de la recherche Elasticsearch', error);
@@ -232,26 +233,45 @@ export class SearchService {
             properties: {
               basePrice: { type: 'float' },
               currency: { type: 'keyword' },
+              team: { type: 'keyword' }, // ✅ Ajouté : team comme string/keyword
               createdAt: { type: 'date' },
               updatedAt: { type: 'date' },
+              discounts: { type: 'object' }, // ✅ Ajouté : pour les discounts
               detail: {
                 properties: {
+                  _id: { type: 'keyword' },
                   name: { type: 'text' },
                   description: { type: 'text' },
                   composition: { type: 'text' },
                   form: { type: 'text' },
                   manufacturer: { type: 'text' },
                   indications: { type: 'text' },
+                  contraindications: { type: 'text' },
+                  sideEffects: { type: 'text' },
+                  precautions: { type: 'text' },
+                  expirationDate: { type: 'date' },
+                  isRepackaged: { type: 'boolean' },
                   category: {
                     properties: {
+                      _id: { type: 'keyword' },
                       name: { type: 'text' },
                     },
                   },
                   subcategory: {
                     properties: {
+                      _id: { type: 'keyword' },
                       name: { type: 'text' },
                     },
                   },
+                },
+              },
+              images: {
+                properties: {
+                  _id: { type: 'keyword' },
+                  name: { type: 'text' },
+                  mimeType: { type: 'keyword' },
+                  altText: { type: 'text' },
+                  data: { type: 'text', index: false }, // Base64, pas besoin d'indexer
                 },
               },
             },
