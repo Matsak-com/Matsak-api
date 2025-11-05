@@ -156,4 +156,13 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
     if (options.populate) query.populate(options.populate);
     if (options.lean) query.lean();
   }
+
+  /**
+   * Execute aggregation pipeline
+   * @param pipeline - Aggregation pipeline array
+   * @returns Promise with aggregation results
+   */
+  async aggregate(pipeline: any[]): Promise<any[]> {
+    return this.model.aggregate(pipeline).exec();
+  }
 }

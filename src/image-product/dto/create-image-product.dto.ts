@@ -1,10 +1,6 @@
-import { IsString, IsOptional } from 'class-validator';
+import { IsString } from 'class-validator';
 
 export class CreateImageProductDto {
   @IsString()
   filename: string;
-
-  @IsOptional()
-  @IsString()
-  altText?: string;
 }

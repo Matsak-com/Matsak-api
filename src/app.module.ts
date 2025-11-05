@@ -20,12 +20,21 @@ import { CartModule } from './cart-item/cart.module';
 import { SessionMiddleware } from './middleware/session.middleware';
 import { TeamParamModule } from './team-param/team-param.module';
 import { AddressModule } from './client/address.module';
+import { InventoryModule } from './inventory/inventory.module';
+import { NotificationModule } from './notifications/notification.module';
+import { BullModule } from '@nestjs/bull';
 
 @Module({
   imports: [
     MongooseModule.forRoot(
       process.env.MONGO_URI || 'mongodb://localhost:27017/matsak',
     ),
+    BullModule.forRoot({
+      redis: {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379', 10),
+      },
+    }),
     UsersModule,
     AuthModule,
     ConfigModule.forRoot(),
@@ -42,6 +51,8 @@ import { AddressModule } from './client/address.module';
     CartModule,
     TeamParamModule,
     AddressModule,
+    InventoryModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [

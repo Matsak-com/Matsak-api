@@ -43,6 +43,9 @@ export const ERRORS = {
   PASSWORD_UPDATE_FAILED: 'PASSWORD_UPDATE_FAILED',
   LOCALE_INVALID: 'LOCALE_INVALID',
   ONLY_IMAGE_FILES_ARE_ALLOWED: 'ONLY_IMAGE_FILES_ARE_ALLOWED',
+  INSUFFICIENT_STOCK: 'INSUFFICIENT_STOCK',
+  STOCK_NOT_TRACKED: 'STOCK_NOT_TRACKED',
+  INVENTORY_TRANSACTION_FAILED: 'INVENTORY_TRANSACTION_FAILED',
 };
 
 export const TOKEN_MAP: Record<string, { status: number; message: string }> = {
@@ -177,5 +180,17 @@ export const TOKEN_MAP: Record<string, { status: number; message: string }> = {
   [ERRORS.LOCALE_INVALID]: {
     status: HttpStatus.BAD_REQUEST,
     message: 'Locale should be a string',
+  },
+  [ERRORS.INSUFFICIENT_STOCK]: {
+    status: HttpStatus.BAD_REQUEST,
+    message: 'Insufficient stock available',
+  },
+  [ERRORS.STOCK_NOT_TRACKED]: {
+    status: HttpStatus.BAD_REQUEST,
+    message: 'Stock tracking is not enabled for this product',
+  },
+  [ERRORS.INVENTORY_TRANSACTION_FAILED]: {
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    message: 'Inventory transaction failed',
   },
 };

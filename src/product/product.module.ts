@@ -8,6 +8,7 @@ import { ProductRepository } from './product.repository';
 import { DetailProductModule } from '../detail-product/detail-product.module';
 import { ImageProductModule } from '../image-product/image-product.module';
 import { SearchService } from 'src/elasticsearch/elasticsearch.service';
+import { MembersModule } from '../members/members.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { SearchService } from 'src/elasticsearch/elasticsearch.service';
     }),
     DetailProductModule,
     ImageProductModule,
+    MembersModule,
   ],
   controllers: [ProductController],
   providers: [ProductService, ProductRepository, SearchService],

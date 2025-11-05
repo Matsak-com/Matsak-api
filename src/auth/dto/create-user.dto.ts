@@ -4,6 +4,7 @@ import {
   IsNotEmpty,
   MinLength,
   IsEnum,
+  IsOptional,
 } from 'class-validator';
 import { UserRole } from 'src/users/user.schema';
 
@@ -30,6 +31,10 @@ export class CreateUserDto {
     message: 'Your password must be more than 8 characters long.',
   })
   password: string;
+
+  @IsString()
+  @IsOptional()
+  phone?: string;
 
   @IsEnum(UserRole, { message: 'Role must be either "user" or "admin".' })
   role: UserRole;
