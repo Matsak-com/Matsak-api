@@ -6,35 +6,54 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CategoryRepository } from './categories.repository';
 import { SubCategoryRepository } from '../sub-categories/sub-categories.repository';
-import { AwsS3Service } from '../aws/aws-s3.service';
+import {
+  saveFileAsBase64,
+  deleteLocalFile,
+} from '../helpers/file-storage.helper';
 
 @Injectable()
 export class CategoriesService {
   constructor(
     private readonly categoryRepository: CategoryRepository,
     private readonly subCategoryRepository: SubCategoryRepository,
-    private readonly awsS3Service: AwsS3Service,
   ) {}
 
   async create(createCategoryDto: CreateCategoryDto): Promise<Category> {
     const { imageUrl, ...categoryData } = createCategoryDto;
+    
+    // If name is not provided, use the first available translation
+    if (!categoryData.name && categoryData.translations?.name) {
+      const translations = categoryData.translations.name;
+      categoryData.name =
+        translations.en ||
+        translations.fr ||
+        translations.ar ||
+        translations.zh ||
+        'Unnamed Category';
+    }
+    
+    // Validate that we have at least a name
+    if (!categoryData.name) {
+      throw new Error('Category must have a name or translations');
+    }
     
     const category = await this.categoryRepository.create({
       doc: categoryData,
       options: { save: false },
     });
 
-    let uploadedImageUrl = null;
+    let imageBase64 = null;
     if (imageUrl) {
-      uploadedImageUrl = (
-        await this.awsS3Service.uploadFile({
-          file: imageUrl,
-          fileKey: `categories/${category._id}/image`,
-        })
-      ).fileKey;
+      // Save file locally and convert to base64
+      const imageResult = await saveFileAsBase64(
+        imageUrl,
+        'uploads/categories',
+        `category-${category._id}`,
+      );
+      imageBase64 = imageResult.base64; // Store base64 data URI
     }
 
-    category.imageUrl = uploadedImageUrl;
+    category.imageUrl = imageBase64;
     await category.save();
 
     return category;
@@ -62,20 +81,30 @@ export class CategoriesService {
   ): Promise<Category> {
     const { imageUrl, ...categoryData } = updateCategoryDto;
 
-    let uploadedImageUrl = undefined;
+    let imageBase64 = undefined;
     if (imageUrl) {
-      // Upload new image file
-      uploadedImageUrl = (
-        await this.awsS3Service.uploadFile({
-          file: imageUrl,
-          fileKey: `categories/${id}/image`,
-        })
-      ).fileKey;
+      // Get existing category to potentially delete old image
+      const existingCategory = await this.categoryRepository.findById({ id });
+      if (
+        existingCategory?.imageUrl &&
+        existingCategory.imageUrl.startsWith('uploads/')
+      ) {
+        // Delete old local file if it exists
+        deleteLocalFile(existingCategory.imageUrl);
+      }
+
+      // Save new file locally and convert to base64
+      const imageResult = await saveFileAsBase64(
+        imageUrl,
+        'uploads/categories',
+        `category-${id}`,
+      );
+      imageBase64 = imageResult.base64;
     }
 
     const updateData = {
       ...categoryData,
-      ...(uploadedImageUrl !== undefined && { imageUrl: uploadedImageUrl }),
+      ...(imageBase64 !== undefined && { imageUrl: imageBase64 }),
     };
 
     const updatedCategory = await this.categoryRepository.update({

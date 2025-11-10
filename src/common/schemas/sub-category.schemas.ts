@@ -16,12 +16,12 @@ const translationsSchema = z.object({
 
 // Sub-category validation schemas
 export const createSubCategorySchema = z.object({
-  name: z.string().min(1, 'Sub-category name is required'),
+  name: z.string().min(1, 'Sub-category name is required').optional(),
   categoryId: objectIdSchema,
   parentId: objectIdSchema.optional(),
   description: z.string().optional(),
   translations: translationsSchema.optional(),
-  imageUrl: z.string().url('Invalid image URL').optional(),
+  // imageUrl is handled as file upload via multipart, not validated in Zod
   status: z.boolean().optional(),
 });
 
@@ -31,7 +31,7 @@ export const updateSubCategorySchema = z.object({
   parentId: objectIdSchema.optional(),
   description: z.string().optional(),
   translations: translationsSchema.optional(),
-  imageUrl: z.string().url('Invalid image URL').optional(),
+  // imageUrl is handled as file upload via multipart, not validated in Zod
   status: z.boolean().optional(),
 });
 

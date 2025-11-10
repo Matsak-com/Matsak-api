@@ -1,6 +1,5 @@
 import {
   IsMongoId,
-  IsNotEmpty,
   IsString,
   IsOptional,
   IsBoolean,
@@ -41,11 +40,10 @@ export class SubCategoryTranslationsDto {
 
 export class CreateSubCategoryDto {
   @IsString()
-  @IsNotEmpty()
-  name: string;
+  @IsOptional()
+  name?: string;
 
   @IsMongoId()
-  @IsNotEmpty()
   categoryId: Types.ObjectId;
 
   @IsMongoId()

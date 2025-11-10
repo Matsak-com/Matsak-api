@@ -10,20 +10,40 @@ import { CreateSubCategoryDto } from './dto/create-sub-category.dto';
 import { UpdateSubCategoryDto } from './dto/update-sub-category.dto';
 import { SubCategoryRepository } from './sub-categories.repository';
 import { Types } from 'mongoose';
-import { AwsS3Service } from '../aws/aws-s3.service';
+import {
+  saveFileAsBase64,
+  deleteLocalFile,
+} from '../helpers/file-storage.helper';
 
 @Injectable()
 export class SubCategoriesService {
   constructor(
     private readonly subCategoryRepo: SubCategoryRepository,
     private readonly categoryRepo: CategoryRepository,
-    private readonly awsS3Service: AwsS3Service,
   ) {}
 
   async create(
     createSubCategoryDto: CreateSubCategoryDto,
   ): Promise<SubCategory> {
     const { imageUrl, ...subCategoryData } = createSubCategoryDto;
+
+    // If name is not provided, use the first available translation
+    if (!subCategoryData.name && subCategoryData.translations?.name) {
+      const translations = subCategoryData.translations.name;
+      subCategoryData.name =
+        translations.en ||
+        translations.fr ||
+        translations.ar ||
+        translations.zh ||
+        'Unnamed Subcategory';
+    }
+
+    // Validate that we have at least a name
+    if (!subCategoryData.name) {
+      throw new BadRequestException(
+        'Subcategory must have a name or translations',
+      );
+    }
 
     // Vérifie que la catégorie existe
     const category = await this.categoryRepo.findById({
@@ -69,18 +89,18 @@ export class SubCategoriesService {
       options: { save: false },
     });
 
-    // Handle image upload
-    let uploadedImageUrl = null;
+    // Handle image upload - save locally and convert to base64
+    let imageBase64 = null;
     if (imageUrl) {
-      uploadedImageUrl = (
-        await this.awsS3Service.uploadFile({
-          file: imageUrl,
-          fileKey: `subcategories/${created._id}/image`,
-        })
-      ).fileKey;
+      const imageResult = await saveFileAsBase64(
+        imageUrl,
+        'uploads/subcategories',
+        `subcategory-${created._id}`,
+      );
+      imageBase64 = imageResult.base64;
     }
 
-    created.imageUrl = uploadedImageUrl;
+    created.imageUrl = imageBase64;
     await created.save();
 
     // Update parent's children array if parentId exists
@@ -132,20 +152,30 @@ export class SubCategoriesService {
   ): Promise<SubCategory> {
     const { imageUrl, ...subCategoryData } = updateDto;
 
-    let uploadedImageUrl = undefined;
+    let imageBase64 = undefined;
     if (imageUrl) {
-      // Upload new image file
-      uploadedImageUrl = (
-        await this.awsS3Service.uploadFile({
-          file: imageUrl,
-          fileKey: `subcategories/${id}/image`,
-        })
-      ).fileKey;
+      // Get existing subcategory to potentially delete old image
+      const existingSubCategory = await this.subCategoryRepo.findById({ id });
+      if (
+        existingSubCategory?.imageUrl &&
+        existingSubCategory.imageUrl.startsWith('uploads/')
+      ) {
+        // Delete old local file if it exists
+        deleteLocalFile(existingSubCategory.imageUrl);
+      }
+
+      // Save new file locally and convert to base64
+      const imageResult = await saveFileAsBase64(
+        imageUrl,
+        'uploads/subcategories',
+        `subcategory-${id}`,
+      );
+      imageBase64 = imageResult.base64;
     }
 
     const updateData = {
       ...subCategoryData,
-      ...(uploadedImageUrl !== undefined && { imageUrl: uploadedImageUrl }),
+      ...(imageBase64 !== undefined && { imageUrl: imageBase64 }),
     };
 
     const updated = await this.subCategoryRepo.update({

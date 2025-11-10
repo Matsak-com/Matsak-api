@@ -1,5 +1,4 @@
 import {
-  IsNotEmpty,
   IsString,
   IsOptional,
   IsBoolean,
@@ -39,8 +38,8 @@ export class CategoryTranslationsDto {
 
 export class CreateCategoryDto {
   @IsString()
-  @IsNotEmpty()
-  name: string;
+  @IsOptional()
+  name?: string;
 
   @IsString()
   @IsOptional()
