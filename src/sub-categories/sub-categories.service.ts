@@ -45,17 +45,12 @@ export class SubCategoriesService {
       );
     }
 
-    // Vérifie que la catégorie existe
-    const category = await this.categoryRepo.findById({
-      id: subCategoryData.categoryId.toString(),
-    });
-    if (!category) {
-      throw new NotFoundException(ERRORS.CATEGORY_NOT_FOUND);
-    }
-
     // Handle parent-child relationship if parentId is provided
     let level = 0;
     let ancestors: Types.ObjectId[] = [];
+    let categoryId = subCategoryData.categoryId
+      ? new Types.ObjectId(subCategoryData.categoryId)
+      : null;
 
     if (subCategoryData.parentId) {
       const parent = await this.subCategoryRepo.findById({
@@ -66,22 +61,41 @@ export class SubCategoriesService {
         throw new NotFoundException('Parent subcategory not found');
       }
 
-      // Verify parent belongs to the same category
-      if (
-        parent.categoryId.toString() !== subCategoryData.categoryId.toString()
-      ) {
-        throw new BadRequestException(
-          'Parent subcategory must belong to the same category',
-        );
+      // If categoryId is not provided, infer it from the parent
+      if (!categoryId) {
+        categoryId = parent.categoryId;
+      } else {
+        // Verify parent belongs to the same category if categoryId is provided
+        if (parent.categoryId.toString() !== categoryId.toString()) {
+          throw new BadRequestException(
+            'Parent subcategory must belong to the same category',
+          );
+        }
       }
 
       level = parent.level + 1;
       ancestors = [...(parent.ancestors || []), (parent as any)._id];
     }
 
+    // Verify categoryId is set (either provided or inferred from parent)
+    if (!categoryId) {
+      throw new BadRequestException(
+        'categoryId must be provided when creating a root subcategory',
+      );
+    }
+
+    // Vérifie que la catégorie existe
+    const category = await this.categoryRepo.findById({
+      id: categoryId.toString(),
+    });
+    if (!category) {
+      throw new NotFoundException(ERRORS.CATEGORY_NOT_FOUND);
+    }
+
     const created = await this.subCategoryRepo.create({
       doc: {
         ...subCategoryData,
+        categoryId,
         level,
         ancestors,
         children: [],
@@ -178,11 +192,20 @@ export class SubCategoriesService {
       ...subCategoryData,
       ...(imageBase64 !== undefined && { imageUrl: imageBase64 }),
     };
-    
-    if (updateData.parentId) {
-      updateData.parentId = new Types.ObjectId(updateData.parentId);
+
+    // Handle parentId: convert to ObjectId if valid string, convert "null" string or null to null
+    if (updateData.parentId !== undefined) {
+      if (
+        updateData.parentId === null ||
+        updateData.parentId === 'null' ||
+        updateData.parentId === ''
+      ) {
+        updateData.parentId = null;
+      } else {
+        updateData.parentId = new Types.ObjectId(updateData.parentId);
+      }
     }
-    
+
     if (updateData.categoryId) {
       updateData.categoryId = new Types.ObjectId(updateData.categoryId);
     }
@@ -206,7 +229,7 @@ export class SubCategoriesService {
   ): Promise<{ deleted: boolean; childrenDeleted: number }> {
     const subCategory = await this.findOne(id);
 
-    // Cascade delete all descendants (children, grandchildren, etc.)
+    // Cascade delete all descendants in a single bulk operation using ancestors array
     const childrenDeleted = await this.cascadeDeleteDescendants(id);
 
     // Remove from parent's children array if it has a parent
@@ -232,32 +255,20 @@ export class SubCategoriesService {
   }
 
   /**
-   * Recursively cascade delete all descendants of a subcategory
+   * Cascade delete all descendants of a subcategory using bulk operation
    * @param parentId - ID of the parent subcategory
    * @returns Number of descendants deleted
    */
   private async cascadeDeleteDescendants(parentId: string): Promise<number> {
-    // Find all direct children
-    const children = await this.subCategoryRepo.findAll({
-      filter: { parentId: parentId },
+    const parentObjectId = new Types.ObjectId(parentId);
+    
+    // Delete all descendants in a single bulk operation using the ancestors array
+    // This is much more efficient than recursive N+1 queries
+    const result = await this.subCategoryRepo.deleteMany({
+      ancestors: parentObjectId,
     });
 
-    let totalDeleted = 0;
-
-    // Recursively delete each child and its descendants
-    for (const child of children) {
-      const childId = (child as any)._id.toString();
-
-      // Recursively delete grandchildren first
-      const grandchildrenDeleted = await this.cascadeDeleteDescendants(childId);
-      totalDeleted += grandchildrenDeleted;
-
-      // Delete the child
-      await this.subCategoryRepo.delete({ id: childId });
-      totalDeleted++;
-    }
-
-    return totalDeleted;
+    return result.deletedCount;
   }
 
   async findByCategory(categoryId: string): Promise<SubCategory[]> {
@@ -422,28 +433,58 @@ export class SubCategoriesService {
   }
 
   /**
-   * Update all descendants' hierarchy after moving a parent
+   * Update all descendants' hierarchy after moving a parent using bulk operations
+   * This is much more efficient than N+1 recursive queries
    */
   private async updateDescendantsHierarchy(
     subCategoryId: string,
   ): Promise<void> {
+    // Fetch the parent node
     const parent = await this.findOne(subCategoryId);
-    const children = await this.getChildren(subCategoryId);
 
-    for (const child of children) {
-      const newLevel = parent.level + 1;
-      const newAncestors = [...(parent.ancestors || []), (parent as any)._id];
+    // Fetch all descendants
+    const descendants = await this.getDescendants(subCategoryId);
+    if (!descendants || descendants.length === 0) {
+      return;
+    }
 
-      await this.subCategoryRepo.update({
-        id: (child as any)._id.toString(),
-        update: {
-          level: newLevel,
-          ancestors: newAncestors,
+    // Map of id to node for quick lookup
+    const idToNode = new Map<string, any>();
+    idToNode.set((parent as any)._id.toString(), parent);
+    for (const node of descendants) {
+      idToNode.set((node as any)._id.toString(), node);
+    }
+
+    // Prepare bulk operations
+    const bulkOps = [];
+    for (const descendant of descendants) {
+      // Recalculate ancestors and level
+      // Walk up the tree to build ancestors
+      const ancestors = [];
+      let current = descendant;
+      while (current.parentId) {
+        const parentNode = idToNode.get(current.parentId.toString());
+        if (!parentNode) break;
+        ancestors.unshift((parentNode as any)._id);
+        current = parentNode;
+      }
+      const level = ancestors.length;
+
+      bulkOps.push({
+        updateOne: {
+          filter: { _id: (descendant as any)._id },
+          update: {
+            $set: {
+              ancestors,
+              level,
+            },
+          },
         },
       });
+    }
 
-      // Recursively update grandchildren
-      await this.updateDescendantsHierarchy((child as any)._id.toString());
+    if (bulkOps.length > 0) {
+      await this.subCategoryRepo.bulkWrite(bulkOps);
     }
   }
 }

@@ -39,11 +39,11 @@ module.exports = {
         })
       },
       {
-        name: 'Soins du Corp',
+        name: 'Soins du Corps',
         translations: createTranslations({
           name: {
             en: 'Body Care',
-            fr: 'Soins du Corp',
+            fr: 'Soins du Corps',
             ar: 'العناية بالجسم',
             zh: '身体护理'
           }
@@ -395,9 +395,9 @@ module.exports = {
         })
       },
 
-      // Soins du Corp
+      // Soins du Corps
       {
-        categoryName: 'Soins du Corp',
+        categoryName: 'Soins du Corps',
         name: 'Soins de la peau',
         translations: createTranslations({
           name: {
@@ -429,7 +429,7 @@ module.exports = {
         ]
       },
       {
-        categoryName: 'Soins du Corp',
+        categoryName: 'Soins du Corps',
         name: 'Douleurs musculaires et articulaires',
         translations: createTranslations({
           name: {
@@ -467,7 +467,7 @@ module.exports = {
         ]
       },
       {
-        categoryName: 'Soins du Corp',
+        categoryName: 'Soins du Corps',
         name: 'Produits pour les pieds',
         translations: createTranslations({
           name: {
@@ -493,7 +493,7 @@ module.exports = {
         ]
       },
       {
-        categoryName: 'Soins du Corp',
+        categoryName: 'Soins du Corps',
         name: 'Soins des yeux et des lentilles',
         translations: createTranslations({
           name: {
@@ -525,7 +525,7 @@ module.exports = {
         ]
       },
       {
-        categoryName: 'Soins du Corp',
+        categoryName: 'Soins du Corps',
         name: 'Soins capillaires',
         translations: createTranslations({
           name: {
@@ -563,7 +563,7 @@ module.exports = {
         ]
       },
       {
-        categoryName: 'Soins du Corp',
+        categoryName: 'Soins du Corps',
         name: 'Colorations',
         translations: createTranslations({
           name: {
@@ -575,7 +575,7 @@ module.exports = {
         })
       },
       {
-        categoryName: 'Soins du Corp',
+        categoryName: 'Soins du Corps',
         name: 'Cosmétiques & maquillage',
         translations: createTranslations({
           name: {
@@ -587,7 +587,7 @@ module.exports = {
         })
       },
       {
-        categoryName: 'Soins du Corp',
+        categoryName: 'Soins du Corps',
         name: 'Accessoires de soins personnels',
         translations: createTranslations({
           name: {
@@ -997,9 +997,9 @@ module.exports = {
             })
           },
           {
-            name: 'Pilules contraceptive',
+            name: 'Pilules contraceptives',
             translations: createTranslations({
-              name: { en: 'Contraceptive Pills', fr: 'Pilules contraceptive', ar: 'حبوب منع الحمل', zh: '避孕药' }
+              name: { en: 'Contraceptive Pills', fr: 'Pilules contraceptives', ar: 'حبوب منع الحمل', zh: '避孕药' }
             })
           },
           {
@@ -1140,7 +1140,7 @@ module.exports = {
 
     // Helper function to insert subcategories recursively
     async function insertSubcategory(subcategoryData, categoryId, parentId = null, level = 0) {
-      const { name, translations, children, categoryName } = subcategoryData;
+      const { name, translations, children } = subcategoryData;
       
       const subcategoryDoc = {
         name,
@@ -1200,7 +1200,7 @@ module.exports = {
         $in: [
           'Santé au Quotidien',
           'Santé Chronique',
-          'Soins du Corp',
+          'Soins du Corps',
           'Santé Digestive',
           'Santé des Enfants',
           'Bien-être et Prévention',

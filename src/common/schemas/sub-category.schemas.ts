@@ -15,20 +15,36 @@ const translationsSchema = z.object({
 });
 
 // Sub-category validation schemas
-export const createSubCategorySchema = z.object({
-  name: z.string().min(1, 'Sub-category name is required').optional(),
-  categoryId: objectIdSchema,
-  parentId: objectIdSchema.optional(),
-  description: z.string().optional(),
-  translations: translationsSchema.optional(),
-  // imageUrl is handled as file upload via multipart, not validated in Zod
-  status: z.boolean().optional(),
-});
+export const createSubCategorySchema = z
+  .object({
+    name: z.string().min(1, 'Sub-category name is required').optional(),
+    categoryId: objectIdSchema.optional(),
+    parentId: z
+      .union([objectIdSchema, z.literal('null'), z.null()])
+      .transform((val) => (val === 'null' || val === '' ? null : val))
+      .optional(),
+    description: z.string().optional(),
+    translations: translationsSchema.optional(),
+    // imageUrl is handled as file upload via multipart, not validated in Zod
+    status: z.boolean().optional(),
+  })
+  .refine(
+    (data) => {
+      // Either categoryId or parentId must be provided
+      return data.categoryId || data.parentId;
+    },
+    {
+      message: 'Either categoryId or parentId must be provided',
+    },
+  );
 
 export const updateSubCategorySchema = z.object({
   name: z.string().min(1, 'Sub-category name is required').optional(),
   categoryId: objectIdSchema.optional(),
-  parentId: objectIdSchema.optional(),
+  parentId: z
+    .union([objectIdSchema, z.literal('null'), z.null()])
+    .transform((val) => (val === 'null' || val === '' ? null : val))
+    .optional(),
   description: z.string().optional(),
   translations: translationsSchema.optional(),
   // imageUrl is handled as file upload via multipart, not validated in Zod

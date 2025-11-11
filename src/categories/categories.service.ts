@@ -193,43 +193,48 @@ export class CategoriesService {
   }
 
   /**
-   * Recursively build the subcategory tree for a given category
+   * Build the subcategory tree for a given category efficiently
+   * Fetches all subcategories in one query and builds the tree in memory
    */
-  private async buildSubCategoryTree(
-    categoryId: string,
-    parentId: string | null = null,
-  ): Promise<any[]> {
-    const filter: any = {
-      categoryId: new Types.ObjectId(categoryId),
-    };
-    
-    // Handle parentId - if null, query for root subcategories (parentId: null)
-    if (parentId === null) {
-      filter.parentId = null;
-    } else {
-      filter.parentId = new Types.ObjectId(parentId);
-    }
-
-    // Find all subcategories for this category and parent level
-    const subCategories = await this.subCategoryRepository.findAll({
-      filter,
+  private async buildSubCategoryTree(categoryId: string): Promise<any[]> {
+    // Fetch all subcategories for this category in a single query
+    const allSubCategories = await this.subCategoryRepository.findAll({
+      filter: { categoryId: new Types.ObjectId(categoryId) },
     });
 
-    // For each subcategory, recursively get its children
-    const subCategoriesWithChildren = await Promise.all(
-      subCategories.map(async (subCategory) => {
-        const subCategoryObj = subCategory.toObject();
-        const children = await this.buildSubCategoryTree(
-          categoryId,
-          (subCategory as any)._id.toString(),
-        );
-        return {
-          ...subCategoryObj,
-          children,
-        };
-      }),
-    );
+    if (allSubCategories.length === 0) {
+      return [];
+    }
 
-    return subCategoriesWithChildren;
+    // Convert to plain objects and create a map for quick lookup
+    const subCategoryMap = new Map<string, any>();
+    const rootSubCategories: any[] = [];
+
+    // First pass: convert to objects and organize by ID
+    for (const subCategory of allSubCategories) {
+      const subCategoryObj = subCategory.toObject();
+      subCategoryObj.children = []; // Initialize children array
+      subCategoryMap.set((subCategory as any)._id.toString(), subCategoryObj);
+    }
+
+    // Second pass: build the tree structure
+    for (const subCategory of allSubCategories) {
+      const subCategoryId = (subCategory as any)._id.toString();
+      const subCategoryObj = subCategoryMap.get(subCategoryId);
+
+      if (!subCategory.parentId) {
+        // This is a root level subcategory
+        rootSubCategories.push(subCategoryObj);
+      } else {
+        // This is a child, add it to its parent's children array
+        const parentId = subCategory.parentId.toString();
+        const parent = subCategoryMap.get(parentId);
+        if (parent) {
+          parent.children.push(subCategoryObj);
+        }
+      }
+    }
+
+    return rootSubCategories;
   }
 }
