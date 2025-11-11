@@ -35,7 +35,7 @@ export class RolesController {
   @Get(':id')
   @CompoundZodValidation({ params: roleIdParamSchema })
   async findOne(@Param() params: { id: string }) {
-    return this.rolesService.findOne(params.id);
+    return this.rolesService.findById(params.id);
   }
 
   @Post()

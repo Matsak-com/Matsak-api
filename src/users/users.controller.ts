@@ -7,7 +7,10 @@ import {
   UseGuards,
   HttpException,
   HttpStatus,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UpdateUserDto } from 'src/auth/dto/update-user.dto';
 import { UpdatePasswordDto } from 'src/auth/dto/update-password.dto';
@@ -32,21 +35,27 @@ export class UserController {
   @Get('/:userId')
   @CompoundZodValidation({ params: userIdParamSchema })
   getUser(@Param() params: { userId: string }) {
-    return this.usersService.getUser({ userId: params.userId });
+    return this.usersService.getUser(params.userId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch('/:userId')
+  @UseInterceptors(FileInterceptor('avatar'))
   @CompoundZodValidation({
     params: userIdParamSchema,
     body: updateUserSchema.merge(updatePasswordSchema).partial(),
   })
-  updateUser(
+  async updateUser(
     @Param() params: { userId: string },
     @Body() updateUserDto: UpdateUserDto & UpdatePasswordDto,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
     try {
-      return this.usersService.updateUser(params.userId, updateUserDto);
+      return await this.usersService.updateUser(
+        params.userId,
+        updateUserDto,
+        file,
+      );
     } catch (error) {
       throw new HttpException(
         error.message || 'Error updating user',
@@ -55,19 +64,3 @@ export class UserController {
     }
   }
 }
-
-// MISE A JOUR AVATAR USER
-
-// @UseGuards(JwtAuthGuard)
-// @UseInterceptors(FileInterceptor('avatar'))
-// @Post()
-// async updateUser(
-//   @Req() requestWithUser: RequestWithUser,
-//   @UploadedFile() file: Express.Multer.File,
-// ) {
-//   const submittedFile = fileSchema.parse(file);
-//   return this.usersService.updateUser({
-//     userId: requestWithUser.user.userId,
-//     submittedFile,
-//   });
-// }

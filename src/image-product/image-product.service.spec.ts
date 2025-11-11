@@ -3,13 +3,13 @@ import { ImageProductService } from './image-product.service';
 import { getModelToken } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { ImageProduct } from './image-product.schema';
+import { CreateImageProductDto } from './dto/create-image-product.dto';
 
 // Mock des données et du modèle
 const mockImageProduct = {
   _id: '1',
   url: 'http://example.com/image.png',
   filename: 'image.png',
-  altText: 'Image for product',
   type: 'product',
 };
 
@@ -48,11 +48,8 @@ describe('ImageProductService', () => {
 
   describe('create', () => {
     it('should create an image product', async () => {
-      const createImageDto = {
-        url: 'http://example.com/image.png',
-        filename: 'image.png',
-        altText: 'Image for product',
-        type: 'product',
+      const createImageDto: CreateImageProductDto = {
+        filename: 'test-image.jpg',
       };
 
       const result = await service.create(createImageDto);

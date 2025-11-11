@@ -1,4 +1,4 @@
-import { CorsOptions } from 'cors';
+import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 
 // Allow common Vue.js development ports and production configurations
 const allowedOrigins = [

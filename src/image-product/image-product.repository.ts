@@ -9,7 +9,6 @@ export interface CreateImageParams {
   doc: {
     mimeType: string;
     data: string;
-    altText: string;
     name: string;
   };
   options?: QueryOptions;
@@ -58,7 +57,6 @@ export class ImageProductRepository extends BaseRepository<ImageProductDocument>
       const imageProduct = new this.model({
         mimeType: doc.mimeType,
         data: doc.data,
-        altText: doc.altText,
         name: doc.name,
       });
 
