@@ -33,15 +33,6 @@ export class ProductService implements OnModuleInit {
     private readonly searchService: SearchService,
   ) {}
 
-  async onModuleInit() {
-    try {
-      this.logger.log('Initializing search service...');
-      // Vous pouvez ajouter une initialisation si nécessaire
-    } catch (error) {
-      this.logger.error('Error initializing search service', error);
-    }
-  }
-
   async createProduct(
     createDto: ValidatedCreateProductDto,
     file?: Express.Multer.File,
@@ -89,7 +80,11 @@ export class ProductService implements OnModuleInit {
 
       // Indexer dans Elasticsearch
       if (populated) {
-        await this.searchService.indexProduct(populated as any);
+        try {
+          await this.searchService.indexProduct(populated as any);
+        } catch (indexError) {
+          this.logger.error('Failed to index product in Elasticsearch', indexError);
+        }
       }
 
       return populated as Product;
@@ -143,7 +138,7 @@ export class ProductService implements OnModuleInit {
 
   async update(
     id: string,
-    updateProductDto: any,
+    updateProductDto: UpdateProductDto,
     file?: Express.Multer.File,
   ): Promise<Product> {
     // Vérifier que le produit existe
@@ -325,7 +320,11 @@ export class ProductService implements OnModuleInit {
     });
 
     // Supprimer de l'index Elasticsearch
-    await this.searchService.removeProduct(id);
+    try {
+      await this.searchService.removeProduct(id);
+    } catch (error) {
+      Logger.error(`Failed to remove product ${id} from Elasticsearch: ${error?.message || error}`);
+    }
   }
 
   // Pricing methods

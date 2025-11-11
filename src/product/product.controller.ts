@@ -117,6 +117,8 @@ export class ProductController {
       throw new BadRequestException('Search keyword is required');
     }
     return this.productService.search(keyword.trim());
+  }
+  
   @UseGuards(JwtAuthGuard)
   @Get('team/:teamId')
   @CompoundZodValidation({ params: teamIdParamSchema })

@@ -69,8 +69,6 @@ export class DetailProduct {
   @Prop({ default: false })
   isRepackaged: boolean;
 
-  @Prop({ 
-    type: Types.ObjectId, 
   // New properties added from the request
   @Prop({ required: false, unique: true, sparse: true })
   sku?: string;
@@ -100,7 +98,8 @@ export class DetailProduct {
   category: Types.ObjectId;
 
   @Prop({ 
-    type: Types.ObjectId, 
+    type: Types.ObjectId,
+  }) 
   // SubCategory reference (optional - more specific categorization)
   @Prop({
     type: Types.ObjectId,

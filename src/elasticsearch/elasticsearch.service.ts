@@ -37,10 +37,8 @@ export class SearchService {
 
       await this.elasticsearchService.index({
         index: this.index,
-        id: product._id.toString(), // ✅ L'ID est passé ici comme paramètre
+        id: product._id.toString(), 
         document: {
-          // ❌ SUPPRIMÉ : _id: product._id.toString(),
-          // Informations de base du produit
           basePrice: product.basePrice,
           currency: product.currency,
           discounts: product.discounts || [],
@@ -124,7 +122,7 @@ export class SearchService {
       
       // Retourne toutes les informations du produit
       return hits.map((hit: any) => ({
-        _id: hit._id, // ✅ Ajouter l'ID depuis les métadonnées Elasticsearch
+        _id: hit._id, 
         score: hit._score,
         ...hit._source,
       }));
@@ -172,22 +170,29 @@ export class SearchService {
         return;
       }
 
-      this.logger.log('Debut de la reindexation complete des produits...');
+      this.logger.log('Starting complete reindexing of products...');
       
       let successCount = 0;
       let errorCount = 0;
 
-      for (const product of products) {
-        try {
-          await this.indexProduct(product);
-          successCount++;
-        } catch (error) {
-          errorCount++;
-          this.logger.error(
-            `Échec de l'indexation du produit ${product._id}`,
-            error
-          );
-        }
+      const BATCH_SIZE = 20;
+      for (let i = 0; i < products.length; i += BATCH_SIZE) {
+        const batch = products.slice(i, i + BATCH_SIZE);
+        const results = await Promise.allSettled(
+          batch.map(product => this.indexProduct(product))
+        );
+        results.forEach((result, idx) => {
+          if (result.status === 'fulfilled') {
+            successCount++;
+          } else {
+            errorCount++;
+            const product = batch[idx];
+            this.logger.error(
+              `Échec de l'indexation du produit ${product._id}`,
+              result.reason
+            );
+          }
+        });
       }
 
       this.logger.log(
@@ -232,10 +237,10 @@ export class SearchService {
             properties: {
               basePrice: { type: 'float' },
               currency: { type: 'keyword' },
-              team: { type: 'keyword' }, // ✅ Ajouté : team comme string/keyword
+              team: { type: 'keyword' },  
               createdAt: { type: 'date' },
               updatedAt: { type: 'date' },
-              discounts: { type: 'object' }, // ✅ Ajouté : pour les discounts
+              discounts: { type: 'object' }, 
               detail: {
                 properties: {
                   _id: { type: 'keyword' },
@@ -270,7 +275,7 @@ export class SearchService {
                   name: { type: 'text' },
                   mimeType: { type: 'keyword' },
                   altText: { type: 'text' },
-                  data: { type: 'text', index: false }, // Base64, pas besoin d'indexer
+                  data: { type: 'text', index: false }, 
                 },
               },
             },
@@ -286,5 +291,3 @@ export class SearchService {
     }
   }
 }
-
-export { ElasticsearchService };
