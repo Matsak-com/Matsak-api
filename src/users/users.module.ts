@@ -7,10 +7,15 @@ import { AwsS3Service } from 'src/aws/aws-s3.service';
 import { UserRepository } from './users.repository';
 import { MulterModule } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import { Member, MemberSchema } from '../members/member.schema';
+import { MemberRepository } from '../members/member.repository';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      { name: Member.name, schema: MemberSchema },
+    ]),
     MulterModule.register({
       storage: memoryStorage(), // Stocker en mémoire pour upload vers S3
       limits: {
@@ -24,7 +29,7 @@ import { memoryStorage } from 'multer';
           'image/gif',
           'image/webp',
         ];
-        
+
         if (allowedMimeTypes.includes(file.mimetype)) {
           callback(null, true);
         } else {
@@ -36,9 +41,9 @@ import { memoryStorage } from 'multer';
           );
         }
       },
-    })
+    }),
   ],
-  providers: [UsersService, AwsS3Service, UserRepository],
+  providers: [UsersService, AwsS3Service, UserRepository, MemberRepository],
   controllers: [UserController],
   exports: [UsersService, UserRepository],
 })

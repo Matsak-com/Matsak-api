@@ -4,6 +4,7 @@ import {
   HttpStatus,
   NotFoundException,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { ERRORS } from '../common/errors';
@@ -15,12 +16,15 @@ import { UpdatePasswordDto } from '../auth/dto/update-password.dto';
 import { AwsS3Service } from '../aws/aws-s3.service';
 import { User } from './user.schema';
 import { UserRepository } from './users.repository';
+import { MemberRepository } from '../members/member.repository';
+import { MemberStatus } from '../members/member.schema';
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly awsS3Service: AwsS3Service,
+    private readonly memberRepository: MemberRepository,
   ) {}
 
   async getUsers(): Promise<any[]> {
@@ -204,16 +208,16 @@ export class UsersService {
         const fileKey = `avatars/${userId}-${timestamp}-${randomString}.${extension}`;
 
         // Upload vers S3
-        const uploadResult = await this.awsS3Service.uploadFile({ 
+        const uploadResult = await this.awsS3Service.uploadFile({
           file: avatarFile,
-          fileKey: fileKey
+          fileKey: fileKey,
         });
 
         // Supprimer l'ancien avatar s'il existe
         if (user.avatarFileKey) {
           try {
-            await this.awsS3Service.deleteFile({ 
-              fileKey: user.avatarFileKey 
+            await this.awsS3Service.deleteFile({
+              fileKey: user.avatarFileKey,
             });
           } catch (error) {
             console.error(`Error deleting old avatar: ${error.message}`);
@@ -301,5 +305,90 @@ export class UsersService {
     const userObj: any = user.toObject();
     delete userObj.password;
     return userObj;
+  }
+
+  /**
+   * Switch user's current team
+   * Validates that the user is a member of the team before switching
+   */
+  async switchCurrentTeam(
+    userId: string,
+    teamId: string,
+  ): Promise<{ message: string; current_team: string }> {
+    const user = await this.userRepository.findById({ id: userId });
+    if (!user) {
+      throw new NotFoundException(ERRORS.USER_NOT_FOUND);
+    }
+
+    // Validate that the user is an active member of the team
+    const membership = await this.memberRepository.findOne({
+      filter: {
+        user: new Types.ObjectId(userId),
+        team: new Types.ObjectId(teamId),
+        status: MemberStatus.ACTIVE,
+      },
+    });
+
+    if (!membership) {
+      throw new BadRequestException(
+        'You are not an active member of this team',
+      );
+    }
+
+    // Update current_team
+    user.current_team = new Types.ObjectId(teamId);
+    await user.save();
+
+    return {
+      message: 'Current team switched successfully',
+      current_team: teamId,
+    };
+  }
+
+  /**
+   * Get user's current team information
+   */
+  async getCurrentTeam(userId: string): Promise<any> {
+    const user = await this.userRepository.findById({
+      id: userId,
+      options: {
+        populate: [{ path: 'current_team' }],
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException(ERRORS.USER_NOT_FOUND);
+    }
+
+    if (user.current_team && (user.current_team as any).picture) {
+      (user.current_team as any).picture = await this.awsS3Service.getFileUrl({
+        fileKey: (user.current_team as any).picture,
+      });
+    }
+    return {
+      current_team: user.current_team || null,
+    };
+  }
+
+  /**
+   * Get all teams that a user is a member of
+   */
+  async getUserTeams(userId: string): Promise<any[]> {
+    const memberships = await this.memberRepository.findAll({
+      filter: {
+        user: new Types.ObjectId(userId),
+        status: MemberStatus.ACTIVE,
+      },
+      options: {
+        populate: [{ path: 'team' }, { path: 'role', select: 'name level' }],
+      },
+    });
+
+    return memberships.map((membership: any) => ({
+      team: membership.team,
+      role: membership.role,
+      status: membership.status,
+      joinedAt: membership.joinedAt || membership.createdAt,
+    }));
   }
 }
