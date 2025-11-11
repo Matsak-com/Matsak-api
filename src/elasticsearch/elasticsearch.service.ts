@@ -78,7 +78,6 @@ export class SearchService {
             name: images.name || '',
             mimeType: images.mimeType || '',
             altText: images.altText || '',
-            data: images.data || '', // Base64 string
           } : null,
         },
       });
