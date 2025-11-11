@@ -173,10 +173,19 @@ export class SubCategoriesService {
       imageBase64 = imageResult.base64;
     }
 
-    const updateData = {
+    // Convert parentId and categoryId to ObjectId if provided
+    const updateData: any = {
       ...subCategoryData,
       ...(imageBase64 !== undefined && { imageUrl: imageBase64 }),
     };
+    
+    if (updateData.parentId) {
+      updateData.parentId = new Types.ObjectId(updateData.parentId);
+    }
+    
+    if (updateData.categoryId) {
+      updateData.categoryId = new Types.ObjectId(updateData.categoryId);
+    }
 
     const updated = await this.subCategoryRepo.update({
       id,

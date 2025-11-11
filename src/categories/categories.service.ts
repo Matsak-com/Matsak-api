@@ -199,7 +199,6 @@ export class CategoriesService {
     categoryId: string,
     parentId: string | null = null,
   ): Promise<any[]> {
-    // Convert string IDs to ObjectId for MongoDB query
     const filter: any = {
       categoryId: new Types.ObjectId(categoryId),
     };
