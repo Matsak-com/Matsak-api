@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { objectIdSchema } from './common.schemas';
 
 // User Role enum
 export const UserRoleEnum = z.enum(['user', 'admin']);
@@ -69,6 +70,11 @@ export const tokenQuerySchema = z.object({
   token: z.string().min(1, 'Token is required'),
 });
 
+// Switch team validation schema
+export const switchTeamSchema = z.object({
+  teamId: objectIdSchema,
+});
+
 // Type exports for TypeScript
 export type CreateUserDto = z.infer<typeof createUserSchema>;
 export type LoginUserDto = z.infer<typeof loginUserSchema>;
@@ -82,3 +88,4 @@ export type GoogleCallbackDto = z.infer<typeof googleCallbackSchema>;
 export type VerifyResetTokenDto = z.infer<typeof verifyResetTokenSchema>;
 export type UserIdParam = z.infer<typeof userIdParamSchema>;
 export type TokenQuery = z.infer<typeof tokenQuerySchema>;
+export type SwitchTeamDto = z.infer<typeof switchTeamSchema>;
