@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
-import { Types } from 'mongoose';
+import { Types, Document } from 'mongoose';
 import { ERRORS } from '../common/errors';
 import * as bcrypt from 'bcrypt';
 
@@ -17,7 +17,47 @@ import { AwsS3Service } from '../aws/aws-s3.service';
 import { User } from './user.schema';
 import { UserRepository } from './users.repository';
 import { MemberRepository } from '../members/member.repository';
-import { MemberStatus } from '../members/member.schema';
+import { Member, MemberStatus } from '../members/member.schema';
+import { Team } from '../teams/team.schema';
+
+// Type for User with populated current_team
+interface UserWithPopulatedTeam extends Omit<User, 'current_team'> {
+  current_team: (Team & Document) | null;
+}
+
+// Type for Member with populated team and role
+interface PopulatedMember extends Omit<Member, 'team' | 'role'> {
+  team: Team & Document;
+  role: { _id: Types.ObjectId; name: string; level: number } & Document;
+  createdAt?: Date;
+}
+
+// Return types for team-related methods
+export interface CurrentTeamResponse {
+  current_team: (Partial<Team> & { picture?: string }) | null;
+}
+
+export interface SwitchTeamResponse {
+  message: string;
+  current_team: string;
+}
+
+export interface UserTeamInfo {
+  team: Team & Document;
+  role: { _id: Types.ObjectId; name: string; level: number } & Document;
+  status: MemberStatus;
+  joinedAt?: Date;
+}
+
+// Type guard to check if current_team is populated (has properties beyond ObjectId)
+function isTeamPopulated(currentTeam: unknown): currentTeam is Team & Document {
+  return (
+    currentTeam !== null &&
+    currentTeam !== undefined &&
+    typeof currentTeam === 'object' &&
+    'email' in currentTeam
+  );
+}
 
 @Injectable()
 export class UsersService {
@@ -314,7 +354,7 @@ export class UsersService {
   async switchCurrentTeam(
     userId: string,
     teamId: string,
-  ): Promise<{ message: string; current_team: string }> {
+  ): Promise<SwitchTeamResponse> {
     const user = await this.userRepository.findById({ id: userId });
     if (!user) {
       throw new NotFoundException(ERRORS.USER_NOT_FOUND);
@@ -348,33 +388,63 @@ export class UsersService {
   /**
    * Get user's current team information
    */
-  async getCurrentTeam(userId: string): Promise<any> {
+  async getCurrentTeam(userId: string): Promise<CurrentTeamResponse> {
     const user = await this.userRepository.findById({
       id: userId,
-      options: {
-        populate: [{ path: 'current_team' }],
-      },
     });
 
     if (!user) {
       throw new NotFoundException(ERRORS.USER_NOT_FOUND);
     }
 
-    if (user.current_team && (user.current_team as any).picture) {
-      (user.current_team as any).picture = await this.awsS3Service.getFileUrl({
-        fileKey: (user.current_team as any).picture,
-      });
+    // If no current_team is set, return null
+    if (!user.current_team) {
+      return {
+        current_team: null,
+      };
     }
+
+    // Fetch the populated user with current_team
+    const populatedUser = (await this.userRepository.findById({
+      id: userId,
+      options: {
+        populate: [{ path: 'current_team' }],
+      },
+    })) as unknown as UserWithPopulatedTeam | null;
+
+    if (!populatedUser) {
+      throw new NotFoundException(ERRORS.USER_NOT_FOUND);
+    }
+
+    // Handle populated team with type safety
+    let teamWithUrl: (Partial<Team> & { picture?: string }) | null =
+      populatedUser.current_team;
+
+    if (
+      isTeamPopulated(populatedUser.current_team) &&
+      populatedUser.current_team.picture
+    ) {
+      const pictureUrl = await this.awsS3Service.getFileUrl({
+        fileKey: populatedUser.current_team.picture,
+      });
+
+      // Create a new object with the picture URL instead of mutating
+      teamWithUrl = {
+        ...populatedUser.current_team.toObject(),
+        picture: pictureUrl,
+      };
+    }
+
     return {
-      current_team: user.current_team || null,
+      current_team: teamWithUrl || null,
     };
   }
 
   /**
    * Get all teams that a user is a member of
    */
-  async getUserTeams(userId: string): Promise<any[]> {
-    const memberships = await this.memberRepository.findAll({
+  async getUserTeams(userId: string): Promise<UserTeamInfo[]> {
+    const memberships = (await this.memberRepository.findAll({
       filter: {
         user: new Types.ObjectId(userId),
         status: MemberStatus.ACTIVE,
@@ -382,13 +452,23 @@ export class UsersService {
       options: {
         populate: [{ path: 'team' }, { path: 'role', select: 'name level' }],
       },
-    });
+    })) as unknown as PopulatedMember[];
 
-    return memberships.map((membership: any) => ({
-      team: membership.team,
-      role: membership.role,
-      status: membership.status,
-      joinedAt: membership.joinedAt || membership.createdAt,
-    }));
+    return await Promise.all(
+      memberships.map(async (membership): Promise<UserTeamInfo> => {
+        if (membership.team && membership.team.picture) {
+          membership.team.picture = await this.awsS3Service.getFileUrl({
+            fileKey: membership.team.picture,
+          });
+        }
+
+        return {
+          team: membership.team,
+          role: membership.role,
+          status: membership.status,
+          joinedAt: membership.joinedAt || membership.createdAt,
+        };
+      }),
+    );
   }
 }
