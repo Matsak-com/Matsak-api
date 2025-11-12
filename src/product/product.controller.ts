@@ -106,17 +106,17 @@ export class ProductController {
     }
   }
 
-  @Get()
-  findAll() {
-    return this.productService.findAll();
-  }
-
   @Get('search')
   async search(@Query('q') keyword: string) {
     if (!keyword || keyword.trim().length === 0) {
       throw new BadRequestException('Search keyword is required');
     }
     return this.productService.search(keyword.trim());
+  }
+
+  @Get()
+  findAll() {
+    return this.productService.findAll();
   }
   
   @UseGuards(JwtAuthGuard)

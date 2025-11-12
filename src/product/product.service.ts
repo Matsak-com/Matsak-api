@@ -306,7 +306,13 @@ export class ProductService implements OnModuleInit {
     await updatedProduct.populate(['detail', 'images', 'team']);
 
     // Réindexer dans Elasticsearch
-    await this.searchService.indexProduct(updatedProduct as any);
+    try {
+      await this.searchService.indexProduct(updatedProduct as any);
+    } catch (indexError) {
+      this.logger.error(
+        `Failed to index product ${updatedProduct._id} in Elasticsearch: ${indexError?.message || indexError}`,
+      );
+    }
 
     return updatedProduct;
   }
@@ -353,8 +359,11 @@ export class ProductService implements OnModuleInit {
 
     await updatedProduct.populate(['detail', 'images', 'team']);
 
-    // Réindexer après changement de prix
-    await this.searchService.indexProduct(updatedProduct as any);
+    try {
+      await this.searchService.indexProduct(updatedProduct as any);
+    } catch (error) {
+      Logger.error(`Failed to index product ${id} after price update: ${error?.message || error}`);
+    }
 
     return updatedProduct;
   }
@@ -405,7 +414,11 @@ export class ProductService implements OnModuleInit {
     await updatedProduct.populate(['detail', 'images', 'team']);
 
     // Réindexer après ajout de discount
-    await this.searchService.indexProduct(updatedProduct as any);
+    try {
+      await this.searchService.indexProduct(updatedProduct as any);
+    } catch (error) {
+      Logger.error(`Failed to index product ${id} after price update: ${error?.message || error}`);
+    }
 
     return updatedProduct;
   }
@@ -438,7 +451,15 @@ export class ProductService implements OnModuleInit {
     await updatedProduct.populate(['detail', 'images', 'team']);
 
     // Réindexer après suppression de discount
-    await this.searchService.indexProduct(updatedProduct as any);
+    try {
+      await this.searchService.indexProduct(updatedProduct as any);
+    } catch (error) {
+      Logger.error(
+        `Failed to reindex product ${id} after discount removal: ${error?.message || error}`,
+        error?.stack,
+        'ProductService',
+      );
+    }
 
     return updatedProduct;
   }
@@ -499,7 +520,11 @@ export class ProductService implements OnModuleInit {
     await updatedProduct.populate(['detail', 'images', 'team']);
 
     // Réindexer après mise à jour de discount
-    await this.searchService.indexProduct(updatedProduct as any);
+    try {
+      await this.searchService.indexProduct(updatedProduct as any);
+    } catch (err) {
+      this.logger.error('Failed to index product in Elasticsearch after discount update', err);
+    }
 
     return updatedProduct;
   }
