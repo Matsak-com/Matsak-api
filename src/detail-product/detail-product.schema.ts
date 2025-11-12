@@ -1,4 +1,3 @@
-// detail-product.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { Category } from '../categories/category.schema';
@@ -68,7 +67,7 @@ export class DetailProduct {
   manufacturer: string;
 
   @Prop({ default: false })
-  isRepackaged: boolean; // true si déconditionné, false sinon
+  isRepackaged: boolean;
 
   // New properties added from the request
   @Prop({ required: false, unique: true, sparse: true })
@@ -98,6 +97,9 @@ export class DetailProduct {
   })
   category: Types.ObjectId;
 
+  @Prop({ 
+    type: Types.ObjectId,
+  }) 
   // SubCategory reference (optional - more specific categorization)
   @Prop({
     type: Types.ObjectId,

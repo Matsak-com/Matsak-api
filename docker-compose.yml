@@ -22,6 +22,28 @@ services:
       retries: 5
       start_period: 40s
 
+  # Elasticsearch service (NEW)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.0
+    container_name: matsak-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - matsak-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
   # API service (includes migration execution on startup)
   api:
     build:
@@ -38,8 +60,14 @@ services:
       - DB_URI=mongodb://${MONGO_APP_USERNAME:-matsak_user}:${MONGO_APP_PASSWORD}@mongodb:27017/matsak?authSource=matsak
       - JWT_SECRET=${JWT_SECRET}
       - CORS_ORIGIN=["http://localhost:3000", "http://localhost:8080"]
+      # Elasticsearch (NEW)
+      - ELASTICSEARCH_NODE=http://elasticsearch:9200
+      - ELASTICSEARCH_USER=elastic
+      - ELASTICSEARCH_PASSWORD=changeme
     depends_on:
       mongodb:
+        condition: service_healthy
+      elasticsearch:
         condition: service_healthy
     volumes:
       - ./uploads:/app/uploads
@@ -48,6 +76,8 @@ services:
 
 volumes:
   mongodb_data:
+    driver: local
+  elasticsearch_data:
     driver: local
 
 networks:

@@ -106,12 +106,19 @@ export class ProductController {
     }
   }
 
-  // @UseGuards(JwtAuthGuard)
+  @Get('search')
+  async search(@Query('q') keyword: string) {
+    if (!keyword || keyword.trim().length === 0) {
+      throw new BadRequestException('Search keyword is required');
+    }
+    return this.productService.search(keyword.trim());
+  }
+
   @Get()
   findAll() {
     return this.productService.findAll();
   }
-
+  
   @UseGuards(JwtAuthGuard)
   @Get('team/:teamId')
   @CompoundZodValidation({ params: teamIdParamSchema })
@@ -147,9 +154,6 @@ export class ProductController {
     return this.productService.remove(params.id);
   }
 
-  // subcategory endpoint removed: update subcategory via DetailProduct endpoints
-
-  // Pricing endpoints
   @UseGuards(JwtAuthGuard)
   @Post(':id/price')
   @CompoundZodValidation({ params: productIdParamSchema })
@@ -254,4 +258,5 @@ export class ProductController {
         : null,
     };
   }
+
 }
