@@ -33,6 +33,10 @@ export class ProductService implements OnModuleInit {
     private readonly searchService: SearchService,
   ) {}
 
+  async onModuleInit() {
+    this.logger.log('ProductService initialized');
+  }
+
   async createProduct(
     createDto: ValidatedCreateProductDto,
     file?: Express.Multer.File,
@@ -572,6 +576,23 @@ export class ProductService implements OnModuleInit {
       totalPrice: finalPrice * quantity,
       discountsApplied,
       currency: product.currency || 'MGA',
+    };
+  }
+
+  async reindexAll() {
+    this.logger.log('Starting reindex of all products...');
+    // Use findBy with explicit filter instead of findAll for CLI context
+    const products = await this.productRepo.findAll({
+      filter: { deleted_at: { $exists: false } },
+      options: {
+        populate: ['detail', 'images', 'team'],
+      },
+    });
+    this.logger.log(`Found ${products.length} products to reindex`);
+    await this.searchService.reindexAll(products as any);
+    return {
+      message: 'Reindexing completed',
+      totalProducts: products.length,
     };
   }
 }
