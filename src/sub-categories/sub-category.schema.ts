@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, Schema as MongooseSchema } from 'mongoose';
 
 export type SubCategoryDocument = SubCategory & Document;
 
@@ -27,7 +27,7 @@ export class SubCategory {
   })
   parentId: Types.ObjectId | null;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'SubCategory' }], default: [] })
+  @Prop([{ type: MongooseSchema.Types.ObjectId, ref: 'SubCategory' }])
   children: Types.ObjectId[];
 
   @Prop({ default: 0 })

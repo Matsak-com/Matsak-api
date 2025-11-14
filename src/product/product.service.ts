@@ -85,7 +85,13 @@ export class ProductService implements OnModuleInit {
 
       const populated = await this.productRepo.findById({
         id: (created as any)._id.toString(),
-        options: { populate: ['detail', 'images', 'team'] },
+        options: {
+          populate: [
+            { path: 'detail' },
+            { path: 'images' },
+            { path: 'team' },
+          ],
+        },
       });
 
       // Indexer dans Elasticsearch
@@ -111,7 +117,11 @@ export class ProductService implements OnModuleInit {
     return this.productRepo.findAll({
       filter: { deleted_at: { $exists: false } },
       options: {
-        populate: ['detail', 'images', 'team'],
+        populate: [
+          { path: 'detail' },
+          { path: 'images' },
+          { path: 'team' },
+        ],
       },
     });
   }
@@ -124,7 +134,10 @@ export class ProductService implements OnModuleInit {
     return this.productRepo.findAll({
       filter,
       options: {
-        populate: ['detail', 'images'],
+        populate: [
+          { path: 'detail' },
+          { path: 'images' },
+        ],
       },
     });
   }
@@ -133,7 +146,11 @@ export class ProductService implements OnModuleInit {
     const product = await this.productRepo.findById({
       id,
       options: {
-        populate: ['detail', 'images', 'team'],
+        populate: [
+          { path: 'detail' },
+          { path: 'images' },
+          { path: 'team' },
+        ],
       },
     });
     if (!product) {
@@ -628,7 +645,11 @@ export class ProductService implements OnModuleInit {
     const products = await this.productRepo.findAll({
       filter: { deleted_at: { $exists: false } },
       options: {
-        populate: ['detail', 'images', 'team'],
+        populate: [
+          { path: 'detail' },
+          { path: 'images' },
+          { path: 'team' },
+        ],
       },
     });
     this.logger.log(`Found ${products.length} products to reindex`);
