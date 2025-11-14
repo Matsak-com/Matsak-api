@@ -8,7 +8,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
-  UploadedFile,
+  UploadedFiles,
   BadRequestException,
   Put,
   Query,
@@ -37,7 +37,7 @@ import {
   UpdateDiscountDto,
   CalculatePriceDto,
 } from './dto/pricing.dto';
-import { ZodMultipart } from 'src/common/decorators/zod-multipart.decorator';
+import { ZodMultipartFiles } from 'src/common/decorators/zod-multipart-files.decorator';
 import { Types } from 'mongoose';
 import { MembersService } from 'src/members/members.service';
 
@@ -47,12 +47,35 @@ export class ProductController {
     private readonly productService: ProductService,
     private readonly membersService: MembersService,
   ) {}
+
+  /**
+   * Create a new product with multiple images
+   * 
+   * @param body Product data (form fields)
+   * @param productImages Array of image files (max 10, 3MB each)
+   * @returns Created product with populated images
+   * 
+   * @remarks
+   * **BREAKING CHANGE (v2.0):** Field name changed from `productImage` (singular) 
+   * to `productImages` (plural). Accepts multiple files as an array.
+   * 
+   * @example
+   * ```
+   * POST /products
+   * Content-Type: multipart/form-data
+   * 
+   * productImages: <file1>
+   * productImages: <file2>
+   * name: "Product Name"
+   * price: 100
+   * ```
+   */
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @ZodMultipart(createProductMultipartSchema, 'productImage')
+  @ZodMultipartFiles(createProductMultipartSchema, 'productImages', 10)
   async create(
     @Body() body: CreateProductDto,
-    @UploadedFile(
+    @UploadedFiles(
       new ParseFilePipe({
         validators: [
           new FileTypeValidator({ fileType: 'image/*' }),
@@ -61,13 +84,19 @@ export class ProductController {
         fileIsRequired: false,
       }),
     )
-    productImage?: Express.Multer.File,
+    productImages?: Express.Multer.File[],
   ) {
     try {
       const validated = body;
+      
+      // Backward compatibility: Support both 'productImages' (new) and 'productImage' (old)
+      // Note: FilesInterceptor only captures one field name at a time
+      // For true backward compatibility, clients should migrate to 'productImages'
+      const files = productImages;
+      
       return await this.productService.createProduct(
         validated as any,
-        productImage,
+        files,
       );
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -79,12 +108,34 @@ export class ProductController {
     }
   }
 
+  /**
+   * Update an existing product with new images
+   *
+   * @param id Product ID
+   * @param body Updated product data
+   * @param productImages Array of new image files (replaces existing images)
+   * @returns Updated product with populated images
+   *
+   * @remarks
+   * **BREAKING CHANGE (v2.0):** Field name changed from `productImage` to `productImages`.
+   * When uploading new images, all existing images are replaced.
+   *
+   * @example
+   * ```
+   * PUT /products/:id
+   * Content-Type: multipart/form-data
+   *
+   * productImages: <file1>
+   * productImages: <file2>
+   * name: "Updated Name"
+   * ```
+   */
   @Put(':id')
-  @ZodMultipart(simpleUpdateMultipartSchema, 'productImage')
+  @ZodMultipartFiles(simpleUpdateMultipartSchema, 'productImages', 10)
   async update(
     @Param('id') id: string,
     @Body() body: UpdateProductDto,
-    @UploadedFile(
+    @UploadedFiles(
       new ParseFilePipe({
         validators: [
           new FileTypeValidator({ fileType: 'image/*' }),
@@ -93,11 +144,11 @@ export class ProductController {
         fileIsRequired: false,
       }),
     )
-    productImage?: Express.Multer.File,
+    productImages?: Express.Multer.File[],
   ) {
     try {
       const validatedData = body;
-      return await this.productService.update(id, validatedData, productImage);
+      return await this.productService.update(id, validatedData, productImages);
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;

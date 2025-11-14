@@ -15,6 +15,9 @@ export class ImageProduct {
   mimeType: string; // ex: image/png, image/jpeg
 
   @Prop({ required: false })
+  altText?: string; // alternative text for accessibility
+
+  @Prop({ required: false })
   deleted_at?: Date;
 }
 
