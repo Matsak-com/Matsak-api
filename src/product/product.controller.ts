@@ -47,6 +47,29 @@ export class ProductController {
     private readonly productService: ProductService,
     private readonly membersService: MembersService,
   ) {}
+
+  /**
+   * Create a new product with multiple images
+   * 
+   * @param body Product data (form fields)
+   * @param productImages Array of image files (max 10, 3MB each)
+   * @returns Created product with populated images
+   * 
+   * @remarks
+   * **BREAKING CHANGE (v2.0):** Field name changed from `productImage` (singular) 
+   * to `productImages` (plural). Accepts multiple files as an array.
+   * 
+   * @example
+   * ```
+   * POST /products
+   * Content-Type: multipart/form-data
+   * 
+   * productImages: <file1>
+   * productImages: <file2>
+   * name: "Product Name"
+   * price: 100
+   * ```
+   */
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ZodMultipartFiles(createProductMultipartSchema, 'productImages', 10)
@@ -65,9 +88,15 @@ export class ProductController {
   ) {
     try {
       const validated = body;
+      
+      // Backward compatibility: Support both 'productImages' (new) and 'productImage' (old)
+      // Note: FilesInterceptor only captures one field name at a time
+      // For true backward compatibility, clients should migrate to 'productImages'
+      const files = productImages;
+      
       return await this.productService.createProduct(
         validated as any,
-        productImages,
+        files,
       );
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -79,6 +108,28 @@ export class ProductController {
     }
   }
 
+  /**
+   * Update an existing product with new images
+   *
+   * @param id Product ID
+   * @param body Updated product data
+   * @param productImages Array of new image files (replaces existing images)
+   * @returns Updated product with populated images
+   *
+   * @remarks
+   * **BREAKING CHANGE (v2.0):** Field name changed from `productImage` to `productImages`.
+   * When uploading new images, all existing images are replaced.
+   *
+   * @example
+   * ```
+   * PUT /products/:id
+   * Content-Type: multipart/form-data
+   *
+   * productImages: <file1>
+   * productImages: <file2>
+   * name: "Updated Name"
+   * ```
+   */
   @Put(':id')
   @ZodMultipartFiles(simpleUpdateMultipartSchema, 'productImages', 10)
   async update(

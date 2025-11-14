@@ -109,7 +109,8 @@ export class SearchService implements OnModuleInit {
                   name: { type: 'text' },
                   mimeType: { type: 'keyword' },
                   altText: { type: 'text' },
-                  data: { type: 'text', index: false },
+                  // Note: 'data' field (base64) is intentionally excluded to reduce index size
+                  // Image data can be retrieved from MongoDB using the _id reference
                 },
               },
             },
@@ -127,6 +128,25 @@ export class SearchService implements OnModuleInit {
     }
   }
 
+  /**
+   * Index a product in Elasticsearch for search
+   * 
+   * @param product Product document to index
+   * 
+   * @remarks
+   * **Performance Optimization:** Only image metadata is indexed (not base64 data).
+   * This keeps the index lightweight and search results fast.
+   * 
+   * Indexed image fields:
+   * - `_id` - Reference to fetch full data from MongoDB
+   * - `name` - Filename
+   * - `mimeType` - MIME type (e.g., 'image/jpeg')
+   * - `altText` - Accessibility text
+   * 
+   * Excluded fields:
+   * - `data` - Base64 encoded image (retrieved from MongoDB when needed)
+   * - `createdAt`, `updatedAt` - Timestamps (not needed for search)
+   */
   async indexProduct(product: ProductDocument) {
     try {
       if (!product) {
@@ -187,13 +207,14 @@ export class SearchService implements OnModuleInit {
             } : null,
           } : null,
           
-          // Images du produit (array)
+          // Images du produit (array) - Only metadata, not base64 data
+          // Base64 data excluded to reduce index size and improve performance
           images: images && Array.isArray(images) ? images.map(img => ({
             _id: img._id?.toString(),
             name: img.name || '',
             mimeType: img.mimeType || '',
             altText: img.altText || '',
-            data: img.data || '', // Include base64 data for search results
+            // data field intentionally omitted - retrieve from MongoDB when needed
           })) : [],
         },
       });
@@ -210,6 +231,30 @@ export class SearchService implements OnModuleInit {
     }
   }
 
+  /**
+   * Search for products using Elasticsearch
+   * 
+   * @param keyword Search term
+   * @returns Array of product search results with lightweight image metadata only
+   * 
+   * @remarks
+   * **Performance Optimization:** Search results include image metadata only (_id, name, mimeType, altText).
+   * The base64 'data' field is excluded to keep responses fast and lightweight.
+   * 
+   * To get full product details with image data, use the product detail endpoint:
+   * - `ProductService.findOne(id)` - Returns complete product from MongoDB with populated images
+   * 
+   * @example
+   * ```typescript
+   * // Search returns lightweight results
+   * const results = await searchService.searchProducts('aspirin');
+   * // results[0].images = [{ _id: '...', name: 'image.jpg', mimeType: 'image/jpeg' }]
+   * 
+   * // Fetch full details including base64 image data
+   * const fullProduct = await productService.findOne(results[0]._id);
+   * // fullProduct.images = [{ _id: '...', data: 'base64...', name: 'image.jpg', ... }]
+   * ```
+   */
   async searchProducts(keyword: string) {
     try {
       if (!keyword || keyword.trim() === '') {
@@ -270,7 +315,9 @@ export class SearchService implements OnModuleInit {
 
       const hits = (result as any).hits?.hits || [];
 
-      // Retourne toutes les informations du produit
+      // Return product information with image metadata only
+      // Note: Image 'data' (base64) is not stored in Elasticsearch for performance
+      // Clients should fetch full image data from MongoDB using the image _id if needed
       return hits.map((hit: any) => ({
         _id: hit._id,
         score: hit._score,
