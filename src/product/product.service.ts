@@ -39,7 +39,7 @@ export class ProductService implements OnModuleInit {
 
   async createProduct(
     createDto: ValidatedCreateProductDto,
-    file?: Express.Multer.File,
+    files?: Express.Multer.File[],
   ): Promise<Product> {
     try {
       const detail = (await this.detailProductService.create(
@@ -49,7 +49,7 @@ export class ProductService implements OnModuleInit {
       const productDoc: any = {
         detail: detail._id,
         team: new Types.ObjectId(createDto.teamId),
-        images: null,
+        images: [],
         basePrice: createDto.basePrice ?? createDto.price ?? 0,
         currency: createDto.currency || 'MGA',
         discounts: createDto.discounts
@@ -64,16 +64,22 @@ export class ProductService implements OnModuleInit {
 
       const created = await this.productRepo.create({ doc: productDoc });
 
-      // 3️⃣ Si fichier image fourni, créer et associer directement depuis buffer
-      if (file && created) {
-        const uploadedImage = await this.imageservice.upload({
-          buffer: file.buffer,
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-        });
+      // Handle multiple image files
+      if (files && files.length > 0 && created) {
+        const imageIds: Types.ObjectId[] = [];
+        
+        for (const file of files) {
+          const uploadedImage = await this.imageservice.upload({
+            buffer: file.buffer,
+            originalname: file.originalname,
+            mimetype: file.mimetype,
+          });
+          imageIds.push(new Types.ObjectId(uploadedImage._id as string));
+        }
+        
         await this.productRepo.update({
           id: (created as any)._id.toString(),
-          update: { images: new Types.ObjectId(uploadedImage._id as string) },
+          update: { images: imageIds },
         });
       }
 
@@ -143,7 +149,7 @@ export class ProductService implements OnModuleInit {
   async update(
     id: string,
     updateProductDto: UpdateProductDto,
-    file?: Express.Multer.File,
+    files?: Express.Multer.File[],
   ): Promise<Product> {
     // Vérifier que le produit existe
     const existingProduct = await this.productRepo.findById({ id });
@@ -158,26 +164,36 @@ export class ProductService implements OnModuleInit {
       );
     }
 
-    let imageId = existingProduct.images;
-    let shouldUpdateImage = false;
+    let imageIds = existingProduct.images || [];
+    let shouldUpdateImages = false;
 
-    if (file && file instanceof Object && file.buffer) {
-      if (existingProduct.images) {
-        await this.imageservice.remove(existingProduct.images.toString());
+    if (files && files.length > 0) {
+      // Remove existing images
+      if (existingProduct.images && existingProduct.images.length > 0) {
+        for (const imgId of existingProduct.images) {
+          await this.imageservice.remove(imgId.toString());
+        }
       }
 
-      const uploadedImage = await this.imageservice.upload({
-        buffer: file.buffer,
-        originalname: file.originalname,
-        mimetype: file.mimetype,
-      });
+      // Upload new images
+      const newImageIds: Types.ObjectId[] = [];
+      for (const file of files) {
+        const uploadedImage = await this.imageservice.upload({
+          buffer: file.buffer,
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+        });
+        newImageIds.push(new Types.ObjectId(uploadedImage._id as string));
+      }
 
-      imageId = new Types.ObjectId(uploadedImage._id as string);
-      shouldUpdateImage = true;
+      imageIds = newImageIds;
+      shouldUpdateImages = true;
     } else if (updateProductDto.imageData?.data) {
       // Supprimer l'ancienne image si elle existe
-      if (existingProduct.images) {
-        await this.imageservice.remove(existingProduct.images.toString());
+      if (existingProduct.images && existingProduct.images.length > 0) {
+        for (const imgId of existingProduct.images) {
+          await this.imageservice.remove(imgId.toString());
+        }
       }
 
       // Convert base64 data to Buffer
@@ -208,8 +224,8 @@ export class ProductService implements OnModuleInit {
           mimetype: mimeType,
         });
 
-        imageId = new Types.ObjectId(uploadedImage._id as string);
-        shouldUpdateImage = true;
+        imageIds = [new Types.ObjectId(uploadedImage._id as string)];
+        shouldUpdateImages = true;
       } catch {
         // Continue without updating image
       }
@@ -217,12 +233,14 @@ export class ProductService implements OnModuleInit {
       updateProductDto.imageData === null ||
       (updateProductDto.imageData && updateProductDto.imageData.data === null)
     ) {
-      // Remove existing image if any
-      if (existingProduct.images) {
-        await this.imageservice.remove(existingProduct.images.toString());
+      // Remove existing images if any
+      if (existingProduct.images && existingProduct.images.length > 0) {
+        for (const imgId of existingProduct.images) {
+          await this.imageservice.remove(imgId.toString());
+        }
       }
-      imageId = null;
-      shouldUpdateImage = true;
+      imageIds = [];
+      shouldUpdateImages = true;
     }
 
     // Construire les données de mise à jour du produit
@@ -251,8 +269,8 @@ export class ProductService implements OnModuleInit {
       updateData.team = new Types.ObjectId(updateProductDto.teamId);
     }
 
-    if (shouldUpdateImage) {
-      updateData.images = imageId;
+    if (shouldUpdateImages) {
+      updateData.images = imageIds;
     }
 
     // Handle discount data - prioritize new fields over existing discounts array

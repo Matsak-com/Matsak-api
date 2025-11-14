@@ -103,9 +103,13 @@ export class SearchService implements OnModuleInit {
                 },
               },
               images: {
+                type: 'nested',
                 properties: {
-                  url: { type: 'keyword' },
-                  alt: { type: 'text' },
+                  _id: { type: 'keyword' },
+                  name: { type: 'text' },
+                  mimeType: { type: 'keyword' },
+                  altText: { type: 'text' },
+                  data: { type: 'text', index: false },
                 },
               },
             },
@@ -140,7 +144,7 @@ export class SearchService implements OnModuleInit {
       await product.populate('images');
       
       const detail = product.detail as any;
-      const images = product.images as any;
+      const images = product.images as any[];
 
       // Populate les références dans detail (category et subcategory)
       if (detail) {
@@ -183,13 +187,14 @@ export class SearchService implements OnModuleInit {
             } : null,
           } : null,
           
-          // Images du produit
-          images: images ? {
-            _id: images._id?.toString(),
-            name: images.name || '',
-            mimeType: images.mimeType || '',
-            altText: images.altText || '',
-          } : null,
+          // Images du produit (array)
+          images: images && Array.isArray(images) ? images.map(img => ({
+            _id: img._id?.toString(),
+            name: img.name || '',
+            mimeType: img.mimeType || '',
+            altText: img.altText || '',
+            data: img.data || '', // Include base64 data for search results
+          })) : [],
         },
       });
 

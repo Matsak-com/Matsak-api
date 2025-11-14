@@ -37,9 +37,9 @@ export class Product {
   @Prop({ type: Types.ObjectId, ref: DetailProduct.name })
   detail: Types.ObjectId;
 
-  // references to ImageProduct
-  @Prop({ type: Types.ObjectId, ref: ImageProduct.name })
-  images: Types.ObjectId;
+  // references to ImageProduct (array for multiple images)
+  @Prop({ type: [{ type: Types.ObjectId, ref: ImageProduct.name }], default: [] })
+  images: Types.ObjectId[];
 
   // Pricing information
   @Prop({ required: false, min: 0 })

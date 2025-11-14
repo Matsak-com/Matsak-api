@@ -8,7 +8,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
-  UploadedFile,
+  UploadedFiles,
   BadRequestException,
   Put,
   Query,
@@ -37,7 +37,7 @@ import {
   UpdateDiscountDto,
   CalculatePriceDto,
 } from './dto/pricing.dto';
-import { ZodMultipart } from 'src/common/decorators/zod-multipart.decorator';
+import { ZodMultipartFiles } from 'src/common/decorators/zod-multipart-files.decorator';
 import { Types } from 'mongoose';
 import { MembersService } from 'src/members/members.service';
 
@@ -49,10 +49,10 @@ export class ProductController {
   ) {}
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @ZodMultipart(createProductMultipartSchema, 'productImage')
+  @ZodMultipartFiles(createProductMultipartSchema, 'productImages', 10)
   async create(
     @Body() body: CreateProductDto,
-    @UploadedFile(
+    @UploadedFiles(
       new ParseFilePipe({
         validators: [
           new FileTypeValidator({ fileType: 'image/*' }),
@@ -61,13 +61,13 @@ export class ProductController {
         fileIsRequired: false,
       }),
     )
-    productImage?: Express.Multer.File,
+    productImages?: Express.Multer.File[],
   ) {
     try {
       const validated = body;
       return await this.productService.createProduct(
         validated as any,
-        productImage,
+        productImages,
       );
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -80,11 +80,11 @@ export class ProductController {
   }
 
   @Put(':id')
-  @ZodMultipart(simpleUpdateMultipartSchema, 'productImage')
+  @ZodMultipartFiles(simpleUpdateMultipartSchema, 'productImages', 10)
   async update(
     @Param('id') id: string,
     @Body() body: UpdateProductDto,
-    @UploadedFile(
+    @UploadedFiles(
       new ParseFilePipe({
         validators: [
           new FileTypeValidator({ fileType: 'image/*' }),
@@ -93,11 +93,11 @@ export class ProductController {
         fileIsRequired: false,
       }),
     )
-    productImage?: Express.Multer.File,
+    productImages?: Express.Multer.File[],
   ) {
     try {
       const validatedData = body;
-      return await this.productService.update(id, validatedData, productImage);
+      return await this.productService.update(id, validatedData, productImages);
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;
