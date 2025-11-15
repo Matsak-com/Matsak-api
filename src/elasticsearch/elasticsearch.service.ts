@@ -1,14 +1,127 @@
-import { Injectable, Logger, NotFoundException, InternalServerErrorException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  InternalServerErrorException,
+  BadRequestException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { ProductDocument } from '../product/product.schema';
 import { ERRORS } from '../common/errors';
 
 @Injectable()
-export class SearchService {
+export class SearchService implements OnModuleInit {
   private readonly index = 'products';
   private readonly logger = new Logger(SearchService.name);
 
   constructor(private readonly elasticsearchService: ElasticsearchService) {}
+
+  async onModuleInit() {
+    await this.createIndexIfNotExists();
+  }
+
+  async createIndexIfNotExists() {
+    try {
+      const indexExists = await this.elasticsearchService.indices.exists({
+        index: this.index,
+      });
+
+      if (!indexExists) {
+        await this.elasticsearchService.indices.create({
+          index: this.index,
+          settings: {
+            number_of_shards: 1,
+            number_of_replicas: 1,
+            analysis: {
+              analyzer: {
+                custom_analyzer: {
+                  type: 'custom',
+                  tokenizer: 'standard',
+                  filter: ['lowercase', 'asciifolding'],
+                },
+              },
+            },
+          },
+          mappings: {
+            properties: {
+              basePrice: { type: 'float' },
+              currency: { type: 'keyword' },
+              discounts: { type: 'object' },
+              team: { type: 'keyword' },
+              createdAt: { type: 'date' },
+              updatedAt: { type: 'date' },
+              detail: {
+                properties: {
+                  _id: { type: 'keyword' },
+                  name: {
+                    type: 'text',
+                    analyzer: 'custom_analyzer',
+                    fields: {
+                      keyword: { type: 'keyword' },
+                    },
+                  },
+                  description: {
+                    type: 'text',
+                    analyzer: 'custom_analyzer',
+                  },
+                  composition: {
+                    type: 'text',
+                    analyzer: 'custom_analyzer',
+                  },
+                  form: { type: 'text' },
+                  indications: {
+                    type: 'text',
+                    analyzer: 'custom_analyzer',
+                  },
+                  contraindications: { type: 'text' },
+                  sideEffects: { type: 'text' },
+                  precautions: { type: 'text' },
+                  expirationDate: { type: 'date' },
+                  manufacturer: {
+                    type: 'text',
+                    analyzer: 'custom_analyzer',
+                    fields: {
+                      keyword: { type: 'keyword' },
+                    },
+                  },
+                  isRepackaged: { type: 'boolean' },
+                  sku: { type: 'keyword' },
+                  barcode: { type: 'keyword' },
+                  category: {
+                    properties: {
+                      _id: { type: 'keyword' },
+                      name: { type: 'text', analyzer: 'custom_analyzer' },
+                    },
+                  },
+                  subcategory: {
+                    properties: {
+                      _id: { type: 'keyword' },
+                      name: { type: 'text', analyzer: 'custom_analyzer' },
+                    },
+                  },
+                },
+              },
+              images: {
+                properties: {
+                  url: { type: 'keyword' },
+                  alt: { type: 'text' },
+                },
+              },
+            },
+          },
+        });
+        this.logger.log(`Index "${this.index}" created successfully`);
+      } else {
+        this.logger.log(`Index "${this.index}" already exists`);
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to create index: ${error.message}`,
+        error.stack,
+      );
+    }
+  }
 
   async indexProduct(product: ProductDocument) {
     try {
@@ -102,34 +215,66 @@ export class SearchService {
       const result = await this.elasticsearchService.search({
         index: this.index,
         query: {
-          multi_match: {
-            query: keyword,
-            fields: [
-              'detail.name^3', // Boost le nom (priorité haute)
-              'detail.description^2', // Boost la description
-              'detail.composition',
-              'detail.form',
-              'detail.manufacturer',
-              'detail.indications',
-              'detail.category.name',
-              'detail.subcategory.name',
+          bool: {
+            should: [
+              {
+                multi_match: {
+                  query: keyword,
+                  fields: [
+                    'detail.name^3',
+                    'detail.description^2',
+                    'detail.composition',
+                    'detail.manufacturer',
+                    'detail.indications',
+                  ],
+                  type: 'best_fields',
+                  fuzziness: 'AUTO',
+                },
+              },
+              {
+                multi_match: {
+                  query: keyword,
+                  fields: [
+                    'detail.name^2',
+                    'detail.description',
+                  ],
+                  type: 'phrase_prefix',
+                },
+              },
+              {
+                match: {
+                  'detail.category.name': {
+                    query: keyword,
+                    boost: 1.5,
+                  },
+                },
+              },
+              {
+                match: {
+                  'detail.subcategory.name': {
+                    query: keyword,
+                    boost: 1.2,
+                  },
+                },
+              },
             ],
+            minimum_should_match: 1,
           },
         },
       });
 
       const hits = (result as any).hits?.hits || [];
-      
+
       // Retourne toutes les informations du produit
       return hits.map((hit: any) => ({
-        _id: hit._id, 
+        _id: hit._id,
         score: hit._score,
         ...hit._source,
       }));
     } catch (error) {
       this.logger.error('Erreur lors de la recherche Elasticsearch', error);
       throw new InternalServerErrorException(
-        `Search failed: ${(error as any).message}`
+        `Search failed: ${(error as any).message}`,
       );
     }
   }

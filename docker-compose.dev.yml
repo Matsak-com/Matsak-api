@@ -38,6 +38,21 @@ services:
     networks:
       - matsak-dev-network
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: matsak-elasticsearch-dev
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_dev_data:/usr/share/elasticsearch/data
+    networks:
+      - matsak-dev-network
   api:
     build:
       context: .
@@ -59,10 +74,14 @@ services:
       MAIL_FROM: "Matsak <noreply@matsak.com>"
       REDIS_HOST: redis
       REDIS_PORT: "6379"
+      ELASTICSEARCH_NODE: "http://elasticsearch:9200"
+      ELASTICSEARCH_USER: matsak_dev
+      ELASTICSEARCH_PASSWORD: Matsak@2025_Dev
     depends_on:
       - mongodb
       - mailhog
       - redis
+      - elasticsearch
     volumes:
       - .:/app
       - matsak_node_modules:/app/node_modules
@@ -72,6 +91,8 @@ services:
 
 volumes:
   mongodb_dev_data:
+    driver: local
+  elasticsearch_dev_data:
     driver: local
   matsak_node_modules:
     driver: local

@@ -152,7 +152,17 @@ export class TeamsService {
     ];
 
     const teams = await this.teamsRepository.aggregate(aggregationPipeline);
-    return teams.length > 0 ? teams : null;
+    const results = await Promise.all(
+      teams.map(async (team) => {
+        if (team.picture) {
+          team.picture = await this.awsS3Service.getFileUrl({
+            fileKey: team.picture,
+          });
+        }
+        return team;
+      }),
+    );
+    return results.length > 0 ? results : null;
   }
 
   /**

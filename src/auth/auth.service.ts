@@ -22,11 +22,12 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async login({
-    loginDto,
-  }: {
-    loginDto: LogUserDto;
-  }): Promise<{ accessToken: string; user: any; role: UserRole }> {
+  async login({ loginDto }: { loginDto: LogUserDto }): Promise<{
+    accessToken: string;
+    user: any;
+    role: UserRole;
+    current_team?: string | null;
+  }> {
     try {
       let user = null;
       if (loginDto.provider) {
@@ -41,15 +42,20 @@ export class AuthService {
         throw new UnauthorizedException(ERRORS.INVALID_CREDENTIALS);
       }
 
+      // Get user with current_team populated
+      const fullUser = await this.usersService.findOne({ _id: user._id });
+
       const authResponse = await this.authenticateUser({
         userId: user._id,
         role: user.role,
+        current_team: fullUser?.current_team?.toString() || null,
       });
 
       return {
         ...authResponse,
         user: user._id,
-        role: user.role, // Ajoute le rôle de l'utilisateur
+        role: user.role,
+        current_team: fullUser?.current_team?.toString() || null,
       };
     } catch (error) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
@@ -94,8 +100,8 @@ export class AuthService {
     return hashedPassword;
   }
 
-  private async authenticateUser({ userId, role }: UserPayload) {
-    const payload = { userId, role };
+  private async authenticateUser({ userId, role, current_team }: UserPayload) {
+    const payload = { userId, role, current_team };
     return { accessToken: await this.jwtService.signAsync(payload) };
   }
 

@@ -19,4 +19,26 @@ export class SubCategoryRepository extends BaseRepository<SubCategoryDocument> {
       { $set: { deleted_at: new Date() } },
     );
   }
+
+  /**
+   * Soft delete multiple subcategories by filter
+   * @param filter - Query filter to match documents
+   * @returns Update result with count of modified documents
+   */
+  async deleteMany(filter: any): Promise<{ deletedCount: number }> {
+    const result = await this.model.updateMany(
+      { ...filter, deleted_at: { $exists: false } },
+      { $set: { deleted_at: new Date() } },
+    );
+    return { deletedCount: result.modifiedCount };
+  }
+
+  /**
+   * Execute bulk write operations
+   * @param operations - Array of bulk operations
+   * @returns Bulk write result
+   */
+  async bulkWrite(operations: any[]): Promise<any> {
+    return this.model.bulkWrite(operations);
+  }
 }

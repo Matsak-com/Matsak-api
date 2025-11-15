@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 import {
   IsEmail,
   IsNotEmpty,
@@ -59,6 +59,10 @@ export class User extends Document {
   @Prop({ required: false, default: null })
   @IsString()
   provider?: string | null;
+
+  // Current active team for the user (users can be members of multiple teams)
+  @Prop({ type: Types.ObjectId, ref: 'Team', required: false, default: null })
+  current_team?: Types.ObjectId | null;
 
   @Prop({ required: false })
   deleted_at?: Date;
