@@ -3,7 +3,6 @@ import {
   Injectable,
   NotFoundException,
   Logger,
-  OnModuleInit,
 } from '@nestjs/common';
 import { ERRORS } from '../common/errors';
 import { Product } from './product.schema';
@@ -22,7 +21,7 @@ import { createProductSchema } from '../common/schemas/product.schemas';
 type ValidatedCreateProductDto = z.infer<typeof createProductSchema>;
 
 @Injectable()
-export class ProductService implements OnModuleInit {
+export class ProductService {
   private readonly logger = new Logger(ProductService.name);
 
   constructor(

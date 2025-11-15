@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ElasticsearchModule } from '@nestjs/elasticsearch';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { ElasticsearchService } from './elasticsearch.service';
 
 @Module({
   imports: [
@@ -15,7 +14,7 @@ import { ElasticsearchService } from './elasticsearch.service';
           password: (() => {
             const pwd = configService.get('ELASTICSEARCH_PASSWORD');
             if (!pwd) {
-              throw new Error('ELASTICSEARCH_PASSWORD environment variable must be set and must not use the default "changeme" in production.');
+              throw new Error('ELASTICSEARCH_PASSWORD must be set');
             }
             return pwd;
           })(),
@@ -23,7 +22,6 @@ import { ElasticsearchService } from './elasticsearch.service';
       }),
     }),
   ],
-  providers: [ElasticsearchService],
-  exports: [ElasticsearchService],
+  exports: [ElasticsearchModule],
 })
 export class SearchModule {}
