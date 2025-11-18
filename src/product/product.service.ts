@@ -234,14 +234,14 @@ export class ProductService implements OnModuleInit {
     const newlyUploadedImageIds: Types.ObjectId[] = [];
     const imagesToKeep: Types.ObjectId[] = [];
 
-    await existingProduct.populate('images');
-    const populatedImages = existingProduct.images as any[];
-
     // Handle existingImages - determine which images to keep
     if (
       updateProductDto.existingImages &&
       Array.isArray(updateProductDto.existingImages)
     ) {
+      await existingProduct.populate('images');
+      const populatedImages = existingProduct.images as any[];
+
       for (const existingImageName of updateProductDto.existingImages) {
         const matchingImage = populatedImages.find(
           (img) => img && img.name === existingImageName,

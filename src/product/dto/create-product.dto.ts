@@ -359,11 +359,6 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
     cloned.detailData = cloned.detailData || {};
     cloned.detailData.categoryId = cloned.categoryId;
   }
-  // Also check if categoryId doesn't exist yet but detailData might need it from top level
-  if (!cloned.detailData?.categoryId && cloned.categoryId) {
-    cloned.detailData = cloned.detailData || {};
-    cloned.detailData.categoryId = cloned.categoryId;
-  }
 
   // Handle subcategory
   if (
@@ -385,11 +380,6 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
     }
     delete cloned.detailData.subcategory;
   } else if (cloned.subcategoryId) {
-    cloned.detailData = cloned.detailData || {};
-    cloned.detailData.subcategoryId = cloned.subcategoryId;
-  }
-  // Also check if subcategoryId doesn't exist yet but detailData might need it from top level
-  if (!cloned.detailData?.subcategoryId && cloned.subcategoryId) {
     cloned.detailData = cloned.detailData || {};
     cloned.detailData.subcategoryId = cloned.subcategoryId;
   }
