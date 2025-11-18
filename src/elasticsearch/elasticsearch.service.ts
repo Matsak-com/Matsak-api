@@ -10,6 +10,7 @@ import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { ProductDocument } from '../product/product.schema';
 import { ERRORS } from '../common/errors';
 import { ImageProductService } from '../image-product/image-product.service';
+import { TeamsService } from '../teams/teams.service';
 
 @Injectable()
 export class SearchService implements OnModuleInit {
@@ -19,6 +20,7 @@ export class SearchService implements OnModuleInit {
   constructor(
     private readonly elasticsearchService: ElasticsearchService,
     private readonly imageProductService: ImageProductService,
+    private readonly teamsService: TeamsService,
   ) {}
 
   async onModuleInit() {
@@ -186,7 +188,10 @@ export class SearchService implements OnModuleInit {
           basePrice: product.basePrice,
           currency: product.currency,
           discounts: product.discounts || [],
-          team: product.team?.toString(),
+          team:
+            typeof product.team === 'object' && product.team?._id
+              ? product.team._id.toString()
+              : product.team?.toString(),
           createdAt: (product as any).createdAt,
           updatedAt: (product as any).updatedAt,
           stockQuantity: product.stockQuantity || 0,
@@ -359,6 +364,30 @@ export class SearchService implements OnModuleInit {
             }),
           );
           product.images = populatedImages;
+        }
+
+        // Populate team data from MongoDB
+        if (product.team) {
+          // If team is already an object, keep it
+          if (typeof product.team === 'object') {
+            // Already populated, do nothing
+          } else if (typeof product.team === 'string') {
+            // Validate that team is a valid ObjectId (24 character hex string)
+            if (/^[0-9a-fA-F]{24}$/.test(product.team)) {
+              try {
+                const fullTeam = await this.teamsService.findOne(product.team);
+                product.team = fullTeam;
+              } catch (error) {
+                this.logger.warn(
+                  `Failed to fetch team ${product.team}:`,
+                  error,
+                );
+                // Keep team as ID if fetch fails
+              }
+            } else {
+              this.logger.warn(`Invalid team ID format: ${product.team}`);
+            }
+          }
         }
       }
 

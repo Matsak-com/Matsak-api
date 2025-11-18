@@ -3,10 +3,12 @@ import { ElasticsearchModule } from '@nestjs/elasticsearch';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SearchService } from './elasticsearch.service';
 import { ImageProductModule } from '../image-product/image-product.module';
+import { TeamsModule } from '../teams/teams.module';
 
 @Module({
   imports: [
     ImageProductModule,
+    TeamsModule,
     ElasticsearchModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
