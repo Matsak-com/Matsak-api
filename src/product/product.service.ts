@@ -81,7 +81,9 @@ export class ProductService implements OnModuleInit {
               originalname: file.originalname,
               mimetype: file.mimetype,
             });
-            uploadedImageIds.push(new Types.ObjectId(uploadedImage._id as string));
+            uploadedImageIds.push(
+              new Types.ObjectId(uploadedImage._id as string),
+            );
           }
 
           // Update product with all image IDs
@@ -90,36 +92,50 @@ export class ProductService implements OnModuleInit {
             update: { images: uploadedImageIds },
           });
         } catch (imageError) {
-          this.logger.error('Image upload failed, rolling back product and detail', imageError);
-          
+          this.logger.error(
+            'Image upload failed, rolling back product and detail',
+            imageError,
+          );
+
           // Rollback: Delete uploaded images
           for (const imageId of uploadedImageIds) {
             try {
               await this.imageservice.remove(imageId.toString());
             } catch (cleanupError) {
-              this.logger.error(`Failed to cleanup image ${imageId}`, cleanupError);
+              this.logger.error(
+                `Failed to cleanup image ${imageId}`,
+                cleanupError,
+              );
             }
           }
-          
+
           // Rollback: Delete product
           if (productId) {
             try {
               await this.productRepo.delete({ id: productId });
             } catch (cleanupError) {
-              this.logger.error(`Failed to cleanup product ${productId}`, cleanupError);
+              this.logger.error(
+                `Failed to cleanup product ${productId}`,
+                cleanupError,
+              );
             }
           }
-          
+
           // Rollback: Delete detail
           if (detailId) {
             try {
               await this.detailProductService.remove(detailId);
             } catch (cleanupError) {
-              this.logger.error(`Failed to cleanup detail ${detailId}`, cleanupError);
+              this.logger.error(
+                `Failed to cleanup detail ${detailId}`,
+                cleanupError,
+              );
             }
           }
-          
-          throw new BadRequestException('Failed to upload images. Product creation rolled back.');
+
+          throw new BadRequestException(
+            'Failed to upload images. Product creation rolled back.',
+          );
         }
       }
 
@@ -127,11 +143,7 @@ export class ProductService implements OnModuleInit {
       const populated = await this.productRepo.findById({
         id: productId,
         options: {
-          populate: [
-            { path: 'detail' },
-            { path: 'images' },
-            { path: 'team' },
-          ],
+          populate: [{ path: 'detail' }, { path: 'images' }, { path: 'team' }],
         },
       });
 
@@ -140,7 +152,10 @@ export class ProductService implements OnModuleInit {
         try {
           await this.searchService.indexProduct(populated as any);
         } catch (indexError) {
-          this.logger.error('Failed to index product in Elasticsearch', indexError);
+          this.logger.error(
+            'Failed to index product in Elasticsearch',
+            indexError,
+          );
         }
       }
 
@@ -159,11 +174,7 @@ export class ProductService implements OnModuleInit {
     return this.productRepo.findAll({
       filter: { deleted_at: { $exists: false } },
       options: {
-        populate: [
-          { path: 'detail' },
-          { path: 'images' },
-          { path: 'team' },
-        ],
+        populate: [{ path: 'detail' }, { path: 'images' }, { path: 'team' }],
       },
     });
   }
@@ -176,10 +187,7 @@ export class ProductService implements OnModuleInit {
     return this.productRepo.findAll({
       filter,
       options: {
-        populate: [
-          { path: 'detail' },
-          { path: 'images' },
-        ],
+        populate: [{ path: 'detail' }, { path: 'images' }],
       },
     });
   }
@@ -188,11 +196,7 @@ export class ProductService implements OnModuleInit {
     const product = await this.productRepo.findById({
       id,
       options: {
-        populate: [
-          { path: 'detail' },
-          { path: 'images' },
-          { path: 'team' },
-        ],
+        populate: [{ path: 'detail' }, { path: 'images' }, { path: 'team' }],
       },
     });
     if (!product) {
@@ -210,7 +214,6 @@ export class ProductService implements OnModuleInit {
     updateProductDto: UpdateProductDto,
     files?: Express.Multer.File[],
   ): Promise<Product> {
-    // Vérifier que le produit existe
     const existingProduct = await this.productRepo.findById({ id });
     if (!existingProduct) {
       throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
@@ -225,48 +228,116 @@ export class ProductService implements OnModuleInit {
 
     let imageIds = existingProduct.images || [];
     let shouldUpdateImages = false;
-    const oldImageIds = existingProduct.images ? [...existingProduct.images] : [];
+    const oldImageIds = existingProduct.images
+      ? [...existingProduct.images]
+      : [];
     const newlyUploadedImageIds: Types.ObjectId[] = [];
+    const imagesToKeep: Types.ObjectId[] = [];
+
+    await existingProduct.populate('images');
+    const populatedImages = existingProduct.images as any[];
+
+    // Handle existingImages - determine which images to keep
+    if (
+      updateProductDto.existingImages &&
+      Array.isArray(updateProductDto.existingImages)
+    ) {
+      for (const existingImageName of updateProductDto.existingImages) {
+        const matchingImage = populatedImages.find(
+          (img) => img && img.name === existingImageName,
+        );
+        if (matchingImage && matchingImage._id) {
+          imagesToKeep.push(new Types.ObjectId(matchingImage._id.toString()));
+        }
+      }
+      this.logger.log(`Keeping ${imagesToKeep.length} existing images`);
+    }
 
     if (files && files.length > 0) {
       try {
-        // Upload new images first (before deleting old ones)
         for (const file of files) {
           const uploadedImage = await this.imageservice.upload({
             buffer: file.buffer,
             originalname: file.originalname,
             mimetype: file.mimetype,
           });
-          newlyUploadedImageIds.push(new Types.ObjectId(uploadedImage._id as string));
+          newlyUploadedImageIds.push(
+            new Types.ObjectId(uploadedImage._id as string),
+          );
         }
 
-        // Only remove existing images after successful upload of all new images
-        if (oldImageIds.length > 0) {
-          for (const imgId of oldImageIds) {
+        const imagesToRemove = oldImageIds.filter(
+          (imgId) =>
+            !imagesToKeep.some(
+              (keepId) => keepId.toString() === imgId.toString(),
+            ),
+        );
+
+        if (imagesToRemove.length > 0) {
+          this.logger.log(`Removing ${imagesToRemove.length} old images`);
+          for (const imgId of imagesToRemove) {
             try {
               await this.imageservice.remove(imgId.toString());
             } catch (removeError) {
-              this.logger.warn(`Failed to remove old image ${imgId}`, removeError);
+              this.logger.warn(
+                `Failed to remove old image ${imgId}`,
+                removeError,
+              );
             }
           }
         }
 
-        imageIds = newlyUploadedImageIds;
+        imageIds = [...imagesToKeep, ...newlyUploadedImageIds];
         shouldUpdateImages = true;
+        this.logger.log(
+          `Final image count: ${imageIds.length} (${imagesToKeep.length} kept + ${newlyUploadedImageIds.length} new)`,
+        );
       } catch (uploadError) {
         this.logger.error('Image upload failed during update', uploadError);
-        
-        // Rollback: Remove newly uploaded images
+
         for (const imgId of newlyUploadedImageIds) {
           try {
             await this.imageservice.remove(imgId.toString());
           } catch (cleanupError) {
-            this.logger.error(`Failed to cleanup uploaded image ${imgId}`, cleanupError);
+            this.logger.error(
+              `Failed to cleanup uploaded image ${imgId}`,
+              cleanupError,
+            );
           }
         }
-        
+
         throw new BadRequestException('Failed to upload images during update.');
       }
+    } else if (
+      updateProductDto.existingImages &&
+      Array.isArray(updateProductDto.existingImages)
+    ) {
+      // Only existingImages provided (no new files) - keep only specified images
+      const imagesToRemove = oldImageIds.filter(
+        (imgId) =>
+          !imagesToKeep.some(
+            (keepId) => keepId.toString() === imgId.toString(),
+          ),
+      );
+
+      if (imagesToRemove.length > 0) {
+        this.logger.log(
+          `Removing ${imagesToRemove.length} images not in existingImages list`,
+        );
+        for (const imgId of imagesToRemove) {
+          try {
+            await this.imageservice.remove(imgId.toString());
+          } catch (removeError) {
+            this.logger.warn(
+              `Failed to remove old image ${imgId}`,
+              removeError,
+            );
+          }
+        }
+      }
+
+      imageIds = imagesToKeep;
+      shouldUpdateImages = true;
     } else if (updateProductDto.imageData?.data) {
       // Convert base64 data to Buffer
       let buffer: Buffer;
@@ -304,7 +375,10 @@ export class ProductService implements OnModuleInit {
             try {
               await this.imageservice.remove(imgId.toString());
             } catch (removeError) {
-              this.logger.warn(`Failed to remove old image ${imgId}`, removeError);
+              this.logger.warn(
+                `Failed to remove old image ${imgId}`,
+                removeError,
+              );
             }
           }
         }
@@ -313,7 +387,9 @@ export class ProductService implements OnModuleInit {
         shouldUpdateImages = true;
       } catch (base64Error) {
         this.logger.error('Failed to upload base64 image', base64Error);
-        throw new BadRequestException('Failed to upload base64 image during update.');
+        throw new BadRequestException(
+          'Failed to upload base64 image during update.',
+        );
       }
     } else if (
       updateProductDto.imageData === null ||
@@ -329,7 +405,6 @@ export class ProductService implements OnModuleInit {
       shouldUpdateImages = true;
     }
 
-    // Construire les données de mise à jour du produit
     const updateData: any = {
       updatedAt: new Date(),
     };
@@ -437,7 +512,9 @@ export class ProductService implements OnModuleInit {
     try {
       await this.searchService.removeProduct(id);
     } catch (error) {
-      Logger.error(`Failed to remove product ${id} from Elasticsearch: ${error?.message || error}`);
+      Logger.error(
+        `Failed to remove product ${id} from Elasticsearch: ${error?.message || error}`,
+      );
     }
   }
 
@@ -466,7 +543,9 @@ export class ProductService implements OnModuleInit {
     try {
       await this.searchService.indexProduct(updatedProduct as any);
     } catch (error) {
-      Logger.error(`Failed to index product ${id} after price update: ${error?.message || error}`);
+      Logger.error(
+        `Failed to index product ${id} after price update: ${error?.message || error}`,
+      );
     }
 
     return updatedProduct;
@@ -503,7 +582,9 @@ export class ProductService implements OnModuleInit {
       startDate: discountData.startDate
         ? new Date(discountData.startDate)
         : undefined,
-      endDate: discountData.endDate ? new Date(discountData.endDate) : undefined,
+      endDate: discountData.endDate
+        ? new Date(discountData.endDate)
+        : undefined,
       isActive: discountData.isActive ?? true,
     };
 
@@ -521,7 +602,9 @@ export class ProductService implements OnModuleInit {
     try {
       await this.searchService.indexProduct(updatedProduct as any);
     } catch (error) {
-      Logger.error(`Failed to index product ${id} after price update: ${error?.message || error}`);
+      Logger.error(
+        `Failed to index product ${id} after price update: ${error?.message || error}`,
+      );
     }
 
     return updatedProduct;
@@ -627,7 +710,10 @@ export class ProductService implements OnModuleInit {
     try {
       await this.searchService.indexProduct(updatedProduct as any);
     } catch (err) {
-      this.logger.error('Failed to index product in Elasticsearch after discount update', err);
+      this.logger.error(
+        'Failed to index product in Elasticsearch after discount update',
+        err,
+      );
     }
 
     return updatedProduct;
@@ -714,11 +800,7 @@ export class ProductService implements OnModuleInit {
     const products = await this.productRepo.findAll({
       filter: { deleted_at: { $exists: false } },
       options: {
-        populate: [
-          { path: 'detail' },
-          { path: 'images' },
-          { path: 'team' },
-        ],
+        populate: [{ path: 'detail' }, { path: 'images' }, { path: 'team' }],
       },
     });
     this.logger.log(`Found ${products.length} products to reindex`);

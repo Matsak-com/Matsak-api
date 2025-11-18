@@ -34,6 +34,7 @@ export class UpdateProductDto {
   subcategoryId?: string;
   advanceData?: AdvanceDataUpdateDto;
   discounts?: DiscountDto[];
+  existingImages?: string[]; // Array of image filenames or IDs to keep
   imageData?: {
     buffer?: Buffer;
     originalname?: string;
