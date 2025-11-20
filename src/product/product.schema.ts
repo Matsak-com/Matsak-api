@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, Schema as MongooseSchema } from 'mongoose';
 import { DetailProduct } from '../detail-product/detail-product.schema';
 import { ImageProduct } from '../image-product/image-product.schema';
 
@@ -37,9 +37,9 @@ export class Product {
   @Prop({ type: Types.ObjectId, ref: DetailProduct.name })
   detail: Types.ObjectId;
 
-  // references to ImageProduct
-  @Prop({ type: Types.ObjectId, ref: ImageProduct.name })
-  images: Types.ObjectId;
+  // references to ImageProduct (array for multiple images)
+  @Prop([{ type: MongooseSchema.Types.ObjectId, ref: ImageProduct.name }])
+  images: Types.ObjectId[];
 
   // Pricing information
   @Prop({ required: false, min: 0 })

@@ -38,17 +38,23 @@ export class ProductService {
 
   async createProduct(
     createDto: ValidatedCreateProductDto,
-    file?: Express.Multer.File,
+    files?: Express.Multer.File[],
   ): Promise<Product> {
+    let detailId: string | null = null;
+    let productId: string | null = null;
+    const uploadedImageIds: Types.ObjectId[] = [];
+
     try {
+      // Step 1: Create detail
       const detail = (await this.detailProductService.create(
         createDto.detailData,
       )) as DetailProduct & { _id: string };
+      detailId = detail._id;
 
       const productDoc: any = {
         detail: detail._id,
         team: new Types.ObjectId(createDto.teamId),
-        images: null,
+        images: [],
         basePrice: createDto.basePrice ?? createDto.price ?? 0,
         currency: createDto.currency || 'MGA',
         discounts: createDto.discounts
@@ -61,37 +67,100 @@ export class ProductService {
         isActive: createDto.isActive !== undefined ? createDto.isActive : true, // Default to active
       };
 
+      // Step 2: Create product
       const created = await this.productRepo.create({ doc: productDoc });
+      productId = (created as any)._id.toString();
 
-      // 3️⃣ Si fichier image fourni, créer et associer directement depuis buffer
-      if (file && created) {
-        const uploadedImage = await this.imageservice.upload({
-          buffer: file.buffer,
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-        });
-        await this.productRepo.update({
-          id: (created as any)._id.toString(),
-          update: { images: new Types.ObjectId(uploadedImage._id as string) },
-        });
+      // Step 3: Handle multiple image files with rollback on failure
+      if (files && files.length > 0 && created) {
+        try {
+          for (const file of files) {
+            const uploadedImage = await this.imageservice.upload({
+              buffer: file.buffer,
+              originalname: file.originalname,
+              mimetype: file.mimetype,
+            });
+            uploadedImageIds.push(
+              new Types.ObjectId(uploadedImage._id as string),
+            );
+          }
+
+          // Update product with all image IDs
+          await this.productRepo.update({
+            id: productId,
+            update: { images: uploadedImageIds },
+          });
+        } catch (imageError) {
+          this.logger.error(
+            'Image upload failed, rolling back product and detail',
+            imageError,
+          );
+
+          // Rollback: Delete uploaded images
+          for (const imageId of uploadedImageIds) {
+            try {
+              await this.imageservice.remove(imageId.toString());
+            } catch (cleanupError) {
+              this.logger.error(
+                `Failed to cleanup image ${imageId}`,
+                cleanupError,
+              );
+            }
+          }
+
+          // Rollback: Delete product
+          if (productId) {
+            try {
+              await this.productRepo.delete({ id: productId });
+            } catch (cleanupError) {
+              this.logger.error(
+                `Failed to cleanup product ${productId}`,
+                cleanupError,
+              );
+            }
+          }
+
+          // Rollback: Delete detail
+          if (detailId) {
+            try {
+              await this.detailProductService.remove(detailId);
+            } catch (cleanupError) {
+              this.logger.error(
+                `Failed to cleanup detail ${detailId}`,
+                cleanupError,
+              );
+            }
+          }
+
+          throw new BadRequestException(
+            'Failed to upload images. Product creation rolled back.',
+          );
+        }
       }
 
+      // Step 4: Fetch populated product
       const populated = await this.productRepo.findById({
-        id: (created as any)._id.toString(),
-        options: { populate: ['detail', 'images', 'team'] },
+        id: productId,
+        options: {
+          populate: [{ path: 'detail' }, { path: 'images' }, { path: 'team' }],
+        },
       });
 
-      // Indexer dans Elasticsearch
+      // Step 5: Index in Elasticsearch (non-critical, just log error)
       if (populated) {
         try {
           await this.searchService.indexProduct(populated as any);
         } catch (indexError) {
-          this.logger.error('Failed to index product in Elasticsearch', indexError);
+          this.logger.error(
+            'Failed to index product in Elasticsearch',
+            indexError,
+          );
         }
       }
 
       return populated as Product;
     } catch (error) {
+      // Handle duplicate key errors
       if ((error as any).code === 11000) {
         throw new BadRequestException(ERRORS.PRODUCT_ALREADY_EXISTS);
       }
@@ -104,7 +173,7 @@ export class ProductService {
     return this.productRepo.findAll({
       filter: { deleted_at: { $exists: false } },
       options: {
-        populate: ['detail', 'images', 'team'],
+        populate: [{ path: 'detail' }, { path: 'images' }, { path: 'team' }],
       },
     });
   }
@@ -117,7 +186,7 @@ export class ProductService {
     return this.productRepo.findAll({
       filter,
       options: {
-        populate: ['detail', 'images'],
+        populate: [{ path: 'detail' }, { path: 'images' }],
       },
     });
   }
@@ -126,7 +195,7 @@ export class ProductService {
     const product = await this.productRepo.findById({
       id,
       options: {
-        populate: ['detail', 'images', 'team'],
+        populate: [{ path: 'detail' }, { path: 'images' }, { path: 'team' }],
       },
     });
     if (!product) {
@@ -142,9 +211,8 @@ export class ProductService {
   async update(
     id: string,
     updateProductDto: UpdateProductDto,
-    file?: Express.Multer.File,
+    files?: Express.Multer.File[],
   ): Promise<Product> {
-    // Vérifier que le produit existe
     const existingProduct = await this.productRepo.findById({ id });
     if (!existingProduct) {
       throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
@@ -157,28 +225,119 @@ export class ProductService {
       );
     }
 
-    let imageId = existingProduct.images;
-    let shouldUpdateImage = false;
+    let imageIds = existingProduct.images || [];
+    let shouldUpdateImages = false;
+    const oldImageIds = existingProduct.images
+      ? [...existingProduct.images]
+      : [];
+    const newlyUploadedImageIds: Types.ObjectId[] = [];
+    const imagesToKeep: Types.ObjectId[] = [];
 
-    if (file && file instanceof Object && file.buffer) {
-      if (existingProduct.images) {
-        await this.imageservice.remove(existingProduct.images.toString());
+    // Handle existingImages - determine which images to keep
+    if (
+      updateProductDto.existingImages &&
+      Array.isArray(updateProductDto.existingImages)
+    ) {
+      await existingProduct.populate('images');
+      const populatedImages = existingProduct.images as any[];
+
+      for (const existingImageName of updateProductDto.existingImages) {
+        const matchingImage = populatedImages.find(
+          (img) => img && img.name === existingImageName,
+        );
+        if (matchingImage && matchingImage._id) {
+          imagesToKeep.push(new Types.ObjectId(matchingImage._id.toString()));
+        }
+      }
+      this.logger.log(`Keeping ${imagesToKeep.length} existing images`);
+    }
+
+    if (files && files.length > 0) {
+      try {
+        for (const file of files) {
+          const uploadedImage = await this.imageservice.upload({
+            buffer: file.buffer,
+            originalname: file.originalname,
+            mimetype: file.mimetype,
+          });
+          newlyUploadedImageIds.push(
+            new Types.ObjectId(uploadedImage._id as string),
+          );
+        }
+
+        const imagesToRemove = oldImageIds.filter(
+          (imgId) =>
+            !imagesToKeep.some(
+              (keepId) => keepId.toString() === imgId.toString(),
+            ),
+        );
+
+        if (imagesToRemove.length > 0) {
+          this.logger.log(`Removing ${imagesToRemove.length} old images`);
+          for (const imgId of imagesToRemove) {
+            try {
+              await this.imageservice.remove(imgId.toString());
+            } catch (removeError) {
+              this.logger.warn(
+                `Failed to remove old image ${imgId}`,
+                removeError,
+              );
+            }
+          }
+        }
+
+        imageIds = [...imagesToKeep, ...newlyUploadedImageIds];
+        shouldUpdateImages = true;
+        this.logger.log(
+          `Final image count: ${imageIds.length} (${imagesToKeep.length} kept + ${newlyUploadedImageIds.length} new)`,
+        );
+      } catch (uploadError) {
+        this.logger.error('Image upload failed during update', uploadError);
+
+        for (const imgId of newlyUploadedImageIds) {
+          try {
+            await this.imageservice.remove(imgId.toString());
+          } catch (cleanupError) {
+            this.logger.error(
+              `Failed to cleanup uploaded image ${imgId}`,
+              cleanupError,
+            );
+          }
+        }
+
+        throw new BadRequestException('Failed to upload images during update.');
+      }
+    } else if (
+      updateProductDto.existingImages &&
+      Array.isArray(updateProductDto.existingImages)
+    ) {
+      // Only existingImages provided (no new files) - keep only specified images
+      const imagesToRemove = oldImageIds.filter(
+        (imgId) =>
+          !imagesToKeep.some(
+            (keepId) => keepId.toString() === imgId.toString(),
+          ),
+      );
+
+      if (imagesToRemove.length > 0) {
+        this.logger.log(
+          `Removing ${imagesToRemove.length} images not in existingImages list`,
+        );
+        for (const imgId of imagesToRemove) {
+          try {
+            await this.imageservice.remove(imgId.toString());
+          } catch (removeError) {
+            this.logger.warn(
+              `Failed to remove old image ${imgId}`,
+              removeError,
+            );
+          }
+        }
       }
 
-      const uploadedImage = await this.imageservice.upload({
-        buffer: file.buffer,
-        originalname: file.originalname,
-        mimetype: file.mimetype,
-      });
-
-      imageId = new Types.ObjectId(uploadedImage._id as string);
-      shouldUpdateImage = true;
+      imageIds = imagesToKeep;
+      shouldUpdateImages = true;
     } else if (updateProductDto.imageData?.data) {
-      // Supprimer l'ancienne image si elle existe
-      if (existingProduct.images) {
-        await this.imageservice.remove(existingProduct.images.toString());
-      }
-
       // Convert base64 data to Buffer
       let buffer: Buffer;
       let mimeType = updateProductDto.imageData.mimeType || 'image/jpeg';
@@ -200,31 +359,51 @@ export class ProductService {
           buffer = Buffer.from(updateProductDto.imageData.data, 'base64');
         }
 
-        // Créer la nouvelle image à partir des données base64
+        // Upload new image first
         const uploadedImage = await this.imageservice.upload({
           buffer,
           originalname: updateProductDto.imageData.name || 'uploaded-image.jpg',
           mimetype: mimeType,
         });
 
-        imageId = new Types.ObjectId(uploadedImage._id as string);
-        shouldUpdateImage = true;
-      } catch {
-        // Continue without updating image
+        const newImageId = new Types.ObjectId(uploadedImage._id as string);
+
+        // Only remove old images after successful upload
+        if (oldImageIds.length > 0) {
+          for (const imgId of oldImageIds) {
+            try {
+              await this.imageservice.remove(imgId.toString());
+            } catch (removeError) {
+              this.logger.warn(
+                `Failed to remove old image ${imgId}`,
+                removeError,
+              );
+            }
+          }
+        }
+
+        imageIds = [newImageId];
+        shouldUpdateImages = true;
+      } catch (base64Error) {
+        this.logger.error('Failed to upload base64 image', base64Error);
+        throw new BadRequestException(
+          'Failed to upload base64 image during update.',
+        );
       }
     } else if (
       updateProductDto.imageData === null ||
       (updateProductDto.imageData && updateProductDto.imageData.data === null)
     ) {
-      // Remove existing image if any
-      if (existingProduct.images) {
-        await this.imageservice.remove(existingProduct.images.toString());
+      // Remove existing images if any
+      if (existingProduct.images && existingProduct.images.length > 0) {
+        for (const imgId of existingProduct.images) {
+          await this.imageservice.remove(imgId.toString());
+        }
       }
-      imageId = null;
-      shouldUpdateImage = true;
+      imageIds = [];
+      shouldUpdateImages = true;
     }
 
-    // Construire les données de mise à jour du produit
     const updateData: any = {
       updatedAt: new Date(),
     };
@@ -250,8 +429,8 @@ export class ProductService {
       updateData.team = new Types.ObjectId(updateProductDto.teamId);
     }
 
-    if (shouldUpdateImage) {
-      updateData.images = imageId;
+    if (shouldUpdateImages) {
+      updateData.images = imageIds;
     }
 
     // Handle discount data - prioritize new fields over existing discounts array
@@ -332,7 +511,9 @@ export class ProductService {
     try {
       await this.searchService.removeProduct(id);
     } catch (error) {
-      Logger.error(`Failed to remove product ${id} from Elasticsearch: ${error?.message || error}`);
+      Logger.error(
+        `Failed to remove product ${id} from Elasticsearch: ${error?.message || error}`,
+      );
     }
   }
 
@@ -361,7 +542,9 @@ export class ProductService {
     try {
       await this.searchService.indexProduct(updatedProduct as any);
     } catch (error) {
-      Logger.error(`Failed to index product ${id} after price update: ${error?.message || error}`);
+      Logger.error(
+        `Failed to index product ${id} after price update: ${error?.message || error}`,
+      );
     }
 
     return updatedProduct;
@@ -398,7 +581,9 @@ export class ProductService {
       startDate: discountData.startDate
         ? new Date(discountData.startDate)
         : undefined,
-      endDate: discountData.endDate ? new Date(discountData.endDate) : undefined,
+      endDate: discountData.endDate
+        ? new Date(discountData.endDate)
+        : undefined,
       isActive: discountData.isActive ?? true,
     };
 
@@ -416,7 +601,9 @@ export class ProductService {
     try {
       await this.searchService.indexProduct(updatedProduct as any);
     } catch (error) {
-      Logger.error(`Failed to index product ${id} after price update: ${error?.message || error}`);
+      Logger.error(
+        `Failed to index product ${id} after price update: ${error?.message || error}`,
+      );
     }
 
     return updatedProduct;
@@ -522,7 +709,10 @@ export class ProductService {
     try {
       await this.searchService.indexProduct(updatedProduct as any);
     } catch (err) {
-      this.logger.error('Failed to index product in Elasticsearch after discount update', err);
+      this.logger.error(
+        'Failed to index product in Elasticsearch after discount update',
+        err,
+      );
     }
 
     return updatedProduct;
@@ -609,7 +799,7 @@ export class ProductService {
     const products = await this.productRepo.findAll({
       filter: { deleted_at: { $exists: false } },
       options: {
-        populate: ['detail', 'images', 'team'],
+        populate: [{ path: 'detail' }, { path: 'images' }, { path: 'team' }],
       },
     });
     this.logger.log(`Found ${products.length} products to reindex`);

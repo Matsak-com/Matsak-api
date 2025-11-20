@@ -28,6 +28,30 @@
 
 ## Matsak API Features
 
+### ⚠️ Breaking Changes - v2.0
+
+**Multiple Images Support** - The product API now supports multiple images per product.
+
+**What Changed:**
+- Field name: `productImage` (singular) → `productImages` (plural)
+- Type: Single file → Array of files (max 10)
+- Endpoints affected: `POST /products`, `PUT /products/:id`
+
+**Migration Required:**
+```javascript
+// ❌ OLD (v1.x)
+formData.append('productImage', file);
+
+// ✅ NEW (v2.0)
+files.forEach(file => {
+  formData.append('productImages', file);
+});
+```
+
+📚 **Full Migration Guide:** [API_MIGRATION_MULTIPLE_IMAGES.md](./API_MIGRATION_MULTIPLE_IMAGES.md)
+
+---
+
 ### Notification Module
 The Matsak API includes a comprehensive notification system for managing email and SMS communications:
 
