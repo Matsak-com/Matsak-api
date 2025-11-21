@@ -313,28 +313,29 @@ export class SearchService implements OnModuleInit {
                   type: 'phrase_prefix',
                 },
               },
-              {
-                match: {
-                  'detail.category.name': {
-                    query: keyword,
-                    boost: 1.5,
-                  },
-                },
-              },
-              {
-                match: {
-                  'detail.subcategory.name': {
-                    query: keyword,
-                    boost: 1.2,
-                  },
-                },
-              },
+              // {
+              //   match: {
+              //     'detail.category.name': {
+              //       query: keyword,
+              //       boost: 1.5,
+              //     },
+              //   },
+              // },
+              // {
+              //   match: {
+              //     'detail.subcategory.name': {
+              //       query: keyword,
+              //       boost: 1.2,
+              //     },
+              //   },
+              // },
             ],
             minimum_should_match: 1,
           },
         },
       });
 
+      
       const hits = (result as any).hits?.hits || [];
 
       // Map search results
