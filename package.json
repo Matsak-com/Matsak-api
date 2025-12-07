@@ -132,13 +132,8 @@
     }
   },
   "pnpm": {
-    "ignoredBuiltDependencies": [
-      "@nestjs/core",
-      "@nestjs/core",
-      "bcrypt"
-    ],
-    "onlyBuiltDependencies": [
-      "bcrypt"
-    ]
+    "overrides": {
+      "bcrypt": "^5.1.1"
+    }
   }
 }
