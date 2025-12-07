@@ -28,23 +28,18 @@ runs:
     - name: Install Scaleway CLI
       shell: bash
       run: |
-        curl -o /usr/local/bin/scw -L "https://github.com/scaleway/scaleway-cli/releases/latest/download/scaleway-cli_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/')"
+        curl -fsSL -o /usr/local/bin/scw "https://github.com/scaleway/scaleway-cli/releases/latest/download/scaleway-cli_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/')"
         chmod +x /usr/local/bin/scw
         scw version
 
     - name: Configure Scaleway CLI
       shell: bash
-      env:
-        SCW_ACCESS_KEY: ${{ inputs.access-key }}
-        SCW_SECRET_KEY: ${{ inputs.secret-key }}
-        SCW_DEFAULT_ORGANIZATION_ID: ${{ inputs.organization-id }}
-        SCW_DEFAULT_PROJECT_ID: ${{ inputs.project-id }}
-        SCW_DEFAULT_REGION: ${{ inputs.default-region }}
-        SCW_DEFAULT_ZONE: ${{ inputs.default-zone }}
       run: |
-        scw config set access-key="$SCW_ACCESS_KEY"
-        scw config set secret-key="$SCW_SECRET_KEY"
-        scw config set default-organization-id="$SCW_DEFAULT_ORGANIZATION_ID"
-        scw config set default-project-id="$SCW_DEFAULT_PROJECT_ID"
-        scw config set default-region="$SCW_DEFAULT_REGION"
-        scw config set default-zone="$SCW_DEFAULT_ZONE"
+        # Export environment variables for subsequent steps in the workflow
+        echo "SCW_ACCESS_KEY=${{ inputs.access-key }}" >> $GITHUB_ENV
+        echo "SCW_SECRET_KEY=${{ inputs.secret-key }}" >> $GITHUB_ENV
+        echo "SCW_DEFAULT_ORGANIZATION_ID=${{ inputs.organization-id }}" >> $GITHUB_ENV
+        echo "SCW_DEFAULT_PROJECT_ID=${{ inputs.project-id }}" >> $GITHUB_ENV
+        echo "SCW_DEFAULT_REGION=${{ inputs.default-region }}" >> $GITHUB_ENV
+        echo "SCW_DEFAULT_ZONE=${{ inputs.default-zone }}" >> $GITHUB_ENV
+        echo "Scaleway CLI configured via environment variables"
