@@ -34,10 +34,17 @@ runs:
 
     - name: Configure Scaleway CLI
       shell: bash
+      env:
+        SCW_ACCESS_KEY: ${{ inputs.access-key }}
+        SCW_SECRET_KEY: ${{ inputs.secret-key }}
+        SCW_DEFAULT_ORGANIZATION_ID: ${{ inputs.organization-id }}
+        SCW_DEFAULT_PROJECT_ID: ${{ inputs.project-id }}
+        SCW_DEFAULT_REGION: ${{ inputs.default-region }}
+        SCW_DEFAULT_ZONE: ${{ inputs.default-zone }}
       run: |
-        scw config set access-key=${{ inputs.access-key }}
-        scw config set secret-key=${{ inputs.secret-key }}
-        scw config set default-organization-id=${{ inputs.organization-id }}
-        scw config set default-project-id=${{ inputs.project-id }}
-        scw config set default-region=${{ inputs.default-region }}
-        scw config set default-zone=${{ inputs.default-zone }}
+        scw config set access-key="$SCW_ACCESS_KEY"
+        scw config set secret-key="$SCW_SECRET_KEY"
+        scw config set default-organization-id="$SCW_DEFAULT_ORGANIZATION_ID"
+        scw config set default-project-id="$SCW_DEFAULT_PROJECT_ID"
+        scw config set default-region="$SCW_DEFAULT_REGION"
+        scw config set default-zone="$SCW_DEFAULT_ZONE"
