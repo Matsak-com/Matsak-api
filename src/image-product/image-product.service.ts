@@ -11,6 +11,7 @@ import { encodeImageToBase64 } from 'src/helpers/base64.helper';
 import * as path from 'path';
 import { UpdateImageProductDto } from './dto/update-image-product.dto';
 import * as fs from 'fs';
+import { Types } from 'mongoose';
 
 @Injectable()
 export class ImageProductService {
@@ -63,6 +64,18 @@ export class ImageProductService {
   async findOne(id: string): Promise<ImageProductDocument | null> {
     // ✅ Use standard BaseRepository findById method
     return this.imageProductRepo.findById({ id });
+  }
+
+  async findMany(ids: string[]): Promise<ImageProductDocument[]> {
+    const invalidIds = ids.filter((id) => !Types.ObjectId.isValid(id));
+    if (invalidIds.length > 0) {
+      throw new BadRequestException(
+        `Invalid ObjectId(s) provided: ${invalidIds.join(', ')}`
+      );
+    }
+    return this.imageProductRepo.findAll({
+      filter: { _id: { $in: ids.map((id) => new Types.ObjectId(id)) } },
+    });
   }
 
   async update(

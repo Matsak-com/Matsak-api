@@ -15,12 +15,14 @@ import {
   QueryInventoryDto,
   BulkUpdateDto,
 } from './dto/inventory.dto';
+import { SearchService } from 'src/elasticsearch/elasticsearch.service';
 
 @Injectable()
 export class InventoryService {
   constructor(
     private readonly inventoryRepo: InventoryRepository,
     private readonly productRepo: ProductRepository,
+    private readonly searchService: SearchService,
   ) {}
 
   async stockIn(
@@ -63,6 +65,8 @@ export class InventoryService {
       update: { stockQuantity: newStock },
     });
 
+    await product.populate('detail images team');
+    await this.searchService.indexProduct(product);
     return transaction;
   }
 
@@ -111,6 +115,8 @@ export class InventoryService {
       update: { stockQuantity: newStock },
     });
 
+    await product.populate('detail images team');
+    await this.searchService.indexProduct(product);
     return transaction;
   }
 
@@ -154,6 +160,9 @@ export class InventoryService {
       id: adjustmentDto.productId,
       update: { stockQuantity: newStock },
     });
+
+    await product.populate('detail images team');
+    await this.searchService.indexProduct(product);
 
     return transaction;
   }
@@ -309,6 +318,9 @@ export class InventoryService {
           difference,
           ...update,
         });
+        await product.populate('detail images team');
+        await this.searchService.indexProduct(product);
+
         results.summary.successful++;
       } catch (error) {
         results.failed.push({
