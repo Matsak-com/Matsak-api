@@ -19,14 +19,14 @@ COPY . .
 RUN rm -rf ./dist || true
 
 # Run build as a non-root user to avoid permission issues when files are created by root on host
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup || true
+RUN if ! addgroup -S appgroup 2>/dev/null; then true; fi && \
+    if ! adduser -S appuser -G appgroup 2>/dev/null; then true; fi
 RUN chown -R appuser:appgroup /app
 USER appuser
 
-# Run focused linter check for CI and fail build on lint errors
-RUN pnpm run lint:ci
-
-RUN pnpm run build
+# Run focused linter check for CI and fail build on lint errors, then build
+RUN pnpm run lint:ci && \
+    pnpm run build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
