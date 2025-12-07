@@ -8,6 +8,7 @@ import { InventoryService } from './inventory.service';
 import { InventoryController } from './inventory.controller';
 import { InventoryRepository } from './inventory.repository';
 import { ProductModule } from '../product/product.module';
+import { SearchModule } from 'src/elasticsearch/elasticsearch.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ProductModule } from '../product/product.module';
       { name: InventoryTransaction.name, schema: InventoryTransactionSchema },
     ]),
     ProductModule,
+    SearchModule,
   ],
   controllers: [InventoryController],
   providers: [InventoryService, InventoryRepository],

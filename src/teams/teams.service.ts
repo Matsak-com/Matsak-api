@@ -180,6 +180,24 @@ export class TeamsService {
     return team;
   }
 
+  async findMany(ids: string[]): Promise<Team[] | null> {
+    const teams = await this.teamsRepository.findAll({
+      filter: { _id: { $in: ids.map((id) => new Types.ObjectId(id)) } },
+    });
+    if (teams.length === 0) return null;
+    const results = await Promise.all(
+      teams.map(async (team) => {
+        if (team.picture) {
+          team.picture = await this.awsS3Service.getFileUrl({
+            fileKey: team.picture,
+          });
+        }
+        return team;
+      }),
+    );
+    return results;
+  }
+
   /**
    * Updates an existing team with the provided data and updates the team logo if provided.
    * Deletes the previous logo from S3 if a new one is uploaded.
