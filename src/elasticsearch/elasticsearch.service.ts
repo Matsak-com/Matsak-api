@@ -313,6 +313,7 @@ export class SearchService implements OnModuleInit {
                   type: 'phrase_prefix',
                 },
               },
+              // reactivate when category search is needed
               // {
               //   match: {
               //     'detail.category.name': {
@@ -334,8 +335,6 @@ export class SearchService implements OnModuleInit {
           },
         },
       });
-
-      
       const hits = (result as any).hits?.hits || [];
 
       // Map search results
@@ -345,50 +344,34 @@ export class SearchService implements OnModuleInit {
         ...hit._source,
       }));
 
-      // Populate full image data from MongoDB (including base64)
-      for (const product of products) {
-        if (product.images && Array.isArray(product.images)) {
-          const populatedImages = await Promise.all(
-            product.images.map(async (img: any) => {
-              if (img._id) {
-                try {
-                  const fullImage = await this.imageProductService.findOne(
-                    img._id,
-                  );
-                  return fullImage;
-                } catch (error) {
-                  this.logger.warn(`Failed to fetch image ${img._id}:`, error);
-                  return img; // Return metadata if full fetch fails
-                }
-              }
-              return img;
-            }),
-          );
-          product.images = populatedImages;
-        }
+      const allImageIds = products.flatMap((p) =>
+        (p.images || []).map((img) => img._id).filter(Boolean),
+      );
+      // Fetch all images in one query
+      const allImages = await this.imageProductService.findMany(allImageIds);
+      const imageMap = new Map(
+        allImages.map((img) => [img._id.toString(), img]),
+      );
 
-        // Populate team data from MongoDB
-        if (product.team) {
-          // If team is already an object, keep it
-          if (typeof product.team === 'object') {
-            // Already populated, do nothing
-          } else if (typeof product.team === 'string') {
-            // Validate that team is a valid ObjectId (24 character hex string)
-            if (/^[0-9a-fA-F]{24}$/.test(product.team)) {
-              try {
-                const fullTeam = await this.teamsService.findOne(product.team);
-                product.team = fullTeam;
-              } catch (error) {
-                this.logger.warn(
-                  `Failed to fetch team ${product.team}:`,
-                  error,
-                );
-                // Keep team as ID if fetch fails
-              }
-            } else {
-              this.logger.warn(`Invalid team ID format: ${product.team}`);
-            }
-          }
+      // Collect all team IDs
+      const teamIds = products
+        .map((p) => p.team)
+        .filter((id) => typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id));
+      // Fetch all teams in one query
+      const allTeams = await this.teamsService.findMany(teamIds);
+      const teamMap = new Map(
+        allTeams.map((team) => [team._id.toString(), team]),
+      );
+
+      // Map results back to products
+      for (const product of products) {
+        if (product.images) {
+          product.images = product.images.map(
+            (img) => imageMap.get(img._id) || img,
+          );
+        }
+        if (product.team && teamMap.has(product.team)) {
+          product.team = teamMap.get(product.team);
         }
       }
 

@@ -65,7 +65,7 @@ export class InventoryService {
       update: { stockQuantity: newStock },
     });
 
-    product.populate('detail images team');
+    await product.populate('detail images team');
     await this.searchService.indexProduct(product);
     return transaction;
   }
@@ -115,7 +115,7 @@ export class InventoryService {
       update: { stockQuantity: newStock },
     });
 
-    product.populate('detail images team');
+    await product.populate('detail images team');
     await this.searchService.indexProduct(product);
     return transaction;
   }
@@ -161,7 +161,7 @@ export class InventoryService {
       update: { stockQuantity: newStock },
     });
 
-    product.populate('detail images team');
+    await product.populate('detail images team');
     await this.searchService.indexProduct(product);
 
     return transaction;
