@@ -46,7 +46,12 @@ describe('TeamsService', () => {
         logoUrl: undefined,
       };
 
-      const mockTeam = { ...dto, _id: 'abc123' } as Team;
+      const mockTeam = { 
+        ...dto, 
+        _id: 'abc123',
+        slug: 'team-example',
+        toObject: jest.fn().mockReturnValue({ ...dto, _id: 'abc123', slug: 'team-example' }),
+      };
 
       mockTeamsRepository.create.mockResolvedValue(mockTeam);
 

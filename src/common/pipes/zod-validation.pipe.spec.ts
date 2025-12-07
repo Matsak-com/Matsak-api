@@ -22,7 +22,7 @@ describe('ZodValidationPipe', () => {
       role: 'user',
     };
 
-    const result = pipe.transform(validData, { type: 'body', metatype: null });
+    const result = pipe.transform(validData);
     expect(result).toEqual(expect.objectContaining(validData));
   });
 
@@ -36,7 +36,7 @@ describe('ZodValidationPipe', () => {
     };
 
     expect(() =>
-      pipe.transform(invalidData, { type: 'body', metatype: null }),
+      pipe.transform(invalidData),
     ).toThrow(BadRequestException);
   });
 
@@ -50,7 +50,7 @@ describe('ZodValidationPipe', () => {
     };
 
     expect(() =>
-      pipe.transform(invalidData, { type: 'body', metatype: null }),
+      pipe.transform(invalidData),
     ).toThrow(BadRequestException);
   });
 
@@ -64,7 +64,7 @@ describe('ZodValidationPipe', () => {
     };
 
     expect(() =>
-      pipe.transform(invalidData, { type: 'body', metatype: null }),
+      pipe.transform(invalidData),
     ).toThrow(BadRequestException);
   });
 });

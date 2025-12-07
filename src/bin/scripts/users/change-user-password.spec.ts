@@ -59,13 +59,13 @@ describe('ChangeUserPassword Script Components', () => {
 
   describe('Script file structure', () => {
     it('should have script file accessible', () => {
-      const scriptPath = path.join(__dirname, './change-user-password.ts');
+      const scriptPath = require.resolve('./change-user-password');
 
       expect(fs.existsSync(scriptPath)).toBe(true);
     });
 
     it('should contain required modules in script', () => {
-      const scriptPath = path.join(__dirname, './change-user-password.ts');
+      const scriptPath = require.resolve('./change-user-password');
       const scriptContent = fs.readFileSync(scriptPath, 'utf8');
 
       expect(scriptContent).toContain('import { Command }');
