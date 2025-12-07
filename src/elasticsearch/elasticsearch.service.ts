@@ -345,7 +345,7 @@ export class SearchService implements OnModuleInit {
       }));
 
       const allImageIds = products.flatMap((p) =>
-        (p.images || []).map((img) => img._id).filter(Boolean),
+        (p.images || []).map((img) => img._id),
       );
       // Fetch all images in one query
       const allImages = await this.imageProductService.findMany(allImageIds);
@@ -360,7 +360,7 @@ export class SearchService implements OnModuleInit {
       // Fetch all teams in one query
       const allTeams = await this.teamsService.findMany(teamIds);
       const teamMap = new Map(
-        allTeams.map((team) => [team._id.toString(), team]),
+        (allTeams || []).map((team) => [team._id.toString(), team]),
       );
 
       // Map results back to products

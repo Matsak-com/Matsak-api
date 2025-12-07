@@ -76,6 +76,40 @@ describe('ImageProductService', () => {
     });
   });
 
+  describe('findMany', () => {
+    it('should return multiple image products by array of ids', async () => {
+      const ids = ['1', '2', '3'];
+      const mockMultipleImages = [
+        { _id: '1', url: 'http://example.com/image1.png', filename: 'image1.png' },
+        { _id: '2', url: 'http://example.com/image2.png', filename: 'image2.png' },
+        { _id: '3', url: 'http://example.com/image3.png', filename: 'image3.png' },
+      ];
+
+      mockImageProductModel.find = jest.fn().mockResolvedValue(mockMultipleImages);
+
+      const result = await service.findMany(ids);
+      expect(result).toEqual(mockMultipleImages);
+      expect(model.find).toHaveBeenCalled();
+    });
+
+    it('should return empty array when no ids provided', async () => {
+      mockImageProductModel.find = jest.fn().mockResolvedValue([]);
+
+      const result = await service.findMany([]);
+      expect(result).toEqual([]);
+      expect(model.find).toHaveBeenCalled();
+    });
+
+    it('should handle invalid ObjectId format gracefully', async () => {
+      const invalidIds = ['invalid-id', '123'];
+      
+      // Mock findAll to throw error for invalid ObjectIds
+      mockImageProductModel.find = jest.fn().mockRejectedValue(new Error('Invalid ObjectId'));
+
+      await expect(service.findMany(invalidIds)).rejects.toThrow('Invalid ObjectId');
+    });
+  });
+
   describe('update', () => {
     it('should update an image product and return the updated one', async () => {
       const id = '1';

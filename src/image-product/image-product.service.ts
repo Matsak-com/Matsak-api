@@ -67,7 +67,12 @@ export class ImageProductService {
   }
 
   async findMany(ids: string[]): Promise<ImageProductDocument[]> {
-    // ✅ Use standard BaseRepository findManyByIds method
+    const invalidIds = ids.filter((id) => !Types.ObjectId.isValid(id));
+    if (invalidIds.length > 0) {
+      throw new BadRequestException(
+        `Invalid ObjectId(s) provided: ${invalidIds.join(', ')}`
+      );
+    }
     return this.imageProductRepo.findAll({
       filter: { _id: { $in: ids.map((id) => new Types.ObjectId(id)) } },
     });
