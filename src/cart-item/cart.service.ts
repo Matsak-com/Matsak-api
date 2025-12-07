@@ -21,12 +21,13 @@ export class CartService {
       items.map(async (item) => {
         const product = await this.productRepository.findById({
           id: item.product,
-          options: { populate: ['detail', 'images'], lean: true },
+          options: { populate: ['detail', 'images', 'team'], lean: true },
         });
-
+        
+        // Ajouter la quantité directement dans l'objet produit
         return {
-          ...item,
-          product,
+          ...product,
+          quantity: item.quantity,
         };
       }),
     );
