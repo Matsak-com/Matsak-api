@@ -130,10 +130,5 @@
     "moduleNameMapper": {
       "^src/(.*)$": "<rootDir>/$1"
     }
-  },
-  "pnpm": {
-    "overrides": {
-      "bcrypt": "^5.1.1"
-    }
   }
 }
