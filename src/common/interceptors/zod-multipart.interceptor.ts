@@ -5,7 +5,7 @@ import {
   CallHandler,
   BadRequestException,
 } from '@nestjs/common';
-import { ERRORS } from 'src/common/errors';
+import { ERRORS } from '../errors';
 import { ZodSchema, ZodError } from 'zod';
 import { Observable } from 'rxjs';
 

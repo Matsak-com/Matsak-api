@@ -3,7 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../../../app.module';
 import { UsersService } from '../../../users/users.service';
 import { InternalServerErrorException } from '@nestjs/common';
-import { ERRORS } from 'src/common/errors';
+import { ERRORS } from '../../../common/errors';
 import * as promptLib from 'prompt';
 import * as bcrypt from 'bcrypt';
 
