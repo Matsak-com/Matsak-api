@@ -260,7 +260,7 @@ export class ProductService implements OnModuleInit {
             mimetype: file.mimetype,
           });
           newlyUploadedImageIds.push(
-            new Types.ObjectId(uploadedImage._id as string),
+            new Types.ObjectId(uploadedImage._id.toString()),
           );
         }
 
@@ -365,7 +365,7 @@ export class ProductService implements OnModuleInit {
           mimetype: mimeType,
         });
 
-        const newImageId = new Types.ObjectId(uploadedImage._id as string);
+        const newImageId = new Types.ObjectId(uploadedImage._id.toString());
 
         // Only remove old images after successful upload
         if (oldImageIds.length > 0) {

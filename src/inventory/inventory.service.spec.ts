@@ -17,6 +17,7 @@ describe('InventoryService', () => {
     lowStockThreshold: 10,
     trackStock: true,
     team: new Types.ObjectId('507f1f77bcf86cd799439012'),
+    populate: jest.fn().mockReturnThis(),
   };
 
   beforeEach(async () => {

@@ -3,6 +3,7 @@ import { UsersService } from './users.service';
 import { UserRepository } from './users.repository';
 import { RolesService } from '../roles/roles.service';
 import { AwsS3Service } from '../aws/aws-s3.service';
+import { MemberRepository } from '../members/member.repository';
 
 const mockUsersRepository = {
   create: jest.fn(),
@@ -24,6 +25,15 @@ const mockAwsS3Service = {
   getFileUrl: jest.fn(),
 };
 
+const mockMemberRepository = {
+  create: jest.fn(),
+  findAll: jest.fn(),
+  findById: jest.fn(),
+  findOne: jest.fn(),
+  update: jest.fn(),
+  delete: jest.fn(),
+};
+
 describe('UsersService', () => {
   let service: UsersService;
 
@@ -42,6 +52,10 @@ describe('UsersService', () => {
         {
           provide: AwsS3Service,
           useValue: mockAwsS3Service,
+        },
+        {
+          provide: MemberRepository,
+          useValue: mockMemberRepository,
         },
       ],
     }).compile();

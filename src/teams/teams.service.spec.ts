@@ -83,19 +83,31 @@ describe('TeamsService', () => {
       };
 
       const mockTeam = {
-        ...dto,
         _id: 'abc123',
+        name: 'Team Example',
+        phone: '123456789',
+        email: 'team@example.com',
+        language: 'en',
         slug: 'team-example',
-        toObject: jest
-          .fn()
-          .mockReturnValue({ ...dto, _id: 'abc123', slug: 'team-example' }),
+        picture: null,
+        save: jest.fn().mockResolvedValue(true),
       };
 
       mockTeamsRepository.create.mockResolvedValue(mockTeam);
 
       const result = await service.create(dto);
-      expect(result).toEqual(mockTeam);
-      expect(mockTeamsRepository.create).toHaveBeenCalledWith(dto);
+      expect(result.name).toBe('Team Example');
+      expect(result.slug).toBe('team-example');
+      expect(mockTeamsRepository.create).toHaveBeenCalledWith({
+        doc: expect.objectContaining({
+          name: 'Team Example',
+          phone: '123456789',
+          email: 'team@example.com',
+          language: 'en',
+          slug: 'team-example',
+        }),
+        options: { save: false },
+      });
     });
   });
 });
