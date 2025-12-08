@@ -4,7 +4,7 @@ import { EmailOptions } from '../interfaces/email-options.interface';
 import { IEmailProvider } from '../interfaces/notification-provider.interface';
 import * as nodemailer from 'nodemailer';
 import { ConfigService } from '@nestjs/config';
-import { I18nService, SupportedLocale } from '../i18n.service';
+import { I18nService } from '../i18n.service';
 
 @Injectable()
 export class EmailProvider implements IEmailProvider {

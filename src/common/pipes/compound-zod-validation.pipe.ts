@@ -5,7 +5,7 @@ import {
   ArgumentMetadata,
 } from '@nestjs/common';
 import { ZodSchema, ZodError } from 'zod';
-import { ERRORS } from 'src/common/errors';
+import { ERRORS } from '../errors';
 
 interface CompoundValidationSchemas {
   body?: ZodSchema;

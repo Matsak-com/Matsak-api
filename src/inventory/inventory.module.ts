@@ -8,7 +8,7 @@ import { InventoryService } from './inventory.service';
 import { InventoryController } from './inventory.controller';
 import { InventoryRepository } from './inventory.repository';
 import { ProductModule } from '../product/product.module';
-import { SearchModule } from 'src/elasticsearch/elasticsearch.module';
+import { SearchModule } from '../elasticsearch/elasticsearch.module';
 
 @Module({
   imports: [

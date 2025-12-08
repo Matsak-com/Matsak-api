@@ -1,5 +1,5 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
-import { ERRORS } from 'src/common/errors';
+import { ERRORS } from '../../common/errors';
 import axios, { AxiosResponse } from 'axios';
 
 interface GoogleUserInfo {
@@ -30,7 +30,7 @@ export class GoogleService {
         lastName: data.family_name,
         picture: data.picture,
       };
-    } catch (error) {
+    } catch {
       throw new HttpException(
         ERRORS.GOOGLE_FETCH_FAILED,
         HttpStatus.UNAUTHORIZED,

@@ -7,7 +7,7 @@ import {
 import { ERRORS } from '../common/errors';
 import { ImageProduct, ImageProductDocument } from './image-product.schema';
 import { CreateImageProductDto } from './dto/create-image-product.dto';
-import { encodeImageToBase64 } from 'src/helpers/base64.helper';
+import { encodeImageToBase64 } from '../helpers/base64.helper';
 import * as path from 'path';
 import { UpdateImageProductDto } from './dto/update-image-product.dto';
 import * as fs from 'fs';
@@ -70,7 +70,7 @@ export class ImageProductService {
     const invalidIds = ids.filter((id) => !Types.ObjectId.isValid(id));
     if (invalidIds.length > 0) {
       throw new BadRequestException(
-        `Invalid ObjectId(s) provided: ${invalidIds.join(', ')}`
+        `Invalid ObjectId(s) provided: ${invalidIds.join(', ')}`,
       );
     }
     return this.imageProductRepo.findAll({

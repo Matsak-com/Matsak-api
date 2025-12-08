@@ -94,11 +94,11 @@ export function readFileAsBase64(filePath: string): string {
 
     const fileData = fs.readFileSync(fullPath);
     const base64Data = fileData.toString('base64');
-    
+
     // Detect mime type from extension
     const ext = path.extname(filePath).toLowerCase().replace('.', '');
     const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
-    
+
     return `data:${mimeType};base64,${base64Data}`;
   } catch (error) {
     throw new InternalServerErrorException(

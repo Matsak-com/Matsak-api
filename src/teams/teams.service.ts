@@ -4,7 +4,7 @@ import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
 import { AwsS3Service } from '../aws/aws-s3.service';
 import { Team } from './team.schema';
-import { slugify } from 'src/helpers/stringUtils';
+import { slugify } from '../helpers/stringUtils';
 import { FilterQuery, Types } from 'mongoose';
 import { MembersService } from '../members/members.service';
 import { RolesService } from '../roles/roles.service';

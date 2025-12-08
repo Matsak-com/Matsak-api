@@ -2,7 +2,6 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
-  BadRequestException,
 } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { CreateMemberDto } from './dto/create-member.dto';

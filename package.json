@@ -126,16 +126,9 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
-  },
-  "pnpm": {
-    "ignoredBuiltDependencies": [
-      "@nestjs/core",
-      "@nestjs/core",
-      "bcrypt"
-    ],
-    "onlyBuiltDependencies": [
-      "bcrypt"
-    ]
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1"
+    }
   }
 }

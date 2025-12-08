@@ -23,7 +23,7 @@ export class CartService {
           id: item.product,
           options: { populate: ['detail', 'images', 'team'], lean: true },
         });
-        
+
         // Ajouter la quantité directement dans l'objet produit
         return {
           ...product,

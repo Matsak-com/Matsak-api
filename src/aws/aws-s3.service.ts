@@ -10,7 +10,7 @@ import { fileSchema } from '../users/utils/file-utils';
 import { z } from 'zod';
 import placeholder from './image-placeholder.json';
 import { InternalServerErrorException } from '@nestjs/common';
-import { ERRORS } from 'src/common/errors';
+import { ERRORS } from '../common/errors';
 
 const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY;
 const AWS_SECRET = process.env.AWS_SECRET;
