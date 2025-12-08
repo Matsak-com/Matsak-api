@@ -180,6 +180,21 @@ export class TeamsService {
     return team;
   }
 
+  /**
+   * Retrieves a single team by filter criteria, including the logo URL if available.
+   * @param filter - MongoDB filter query to find the team.
+   * @returns The team if found, otherwise null.
+   */
+  async findByFilter(filter: FilterQuery<Team>): Promise<Team | null> {
+    const team = await this.teamsRepository.findOne({ filter });
+    if (team && team.picture) {
+      team.picture = await this.awsS3Service.getFileUrl({
+        fileKey: team.picture,
+      });
+    }
+    return team;
+  }
+
   async findMany(ids: string[]): Promise<Team[] | null> {
     const teams = await this.teamsRepository.findAll({
       filter: { _id: { $in: ids.map((id) => new Types.ObjectId(id)) } },

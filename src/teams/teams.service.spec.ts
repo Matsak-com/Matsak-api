@@ -11,6 +11,7 @@ const mockTeamsRepository = {
   create: jest.fn(),
   findAll: jest.fn(),
   findById: jest.fn(),
+  findOne: jest.fn(),
   update: jest.fn(),
   delete: jest.fn(),
 };
@@ -107,6 +108,88 @@ describe('TeamsService', () => {
           slug: 'team-example',
         }),
         options: { save: false },
+      });
+    });
+  });
+
+  describe('findByFilter', () => {
+    it('should return a team when found by filter', async () => {
+      const mockTeam = {
+        _id: 'team-id-123',
+        name: 'Test Team',
+        slug: 'test-team',
+        email: 'test@team.com',
+        picture: null,
+      };
+
+      mockTeamsRepository.findOne.mockResolvedValue(mockTeam);
+
+      const result = await service.findByFilter({ slug: 'test-team' });
+
+      expect(result).toEqual(mockTeam);
+      expect(mockTeamsRepository.findOne).toHaveBeenCalledWith({
+        filter: { slug: 'test-team' },
+      });
+    });
+
+    it('should resolve picture URL when team has a picture', async () => {
+      const mockTeam = {
+        _id: 'team-id-456',
+        name: 'Team With Logo',
+        slug: 'team-with-logo',
+        email: 'logo@team.com',
+        picture: 'teams/logo.png',
+      };
+
+      const mockTeamWithUrl = {
+        ...mockTeam,
+        picture: 'https://s3.amazonaws.com/bucket/teams/logo.png',
+      };
+
+      mockTeamsRepository.findOne.mockResolvedValue(mockTeam);
+      mockAwsS3Service.getFileUrl.mockResolvedValue(
+        'https://s3.amazonaws.com/bucket/teams/logo.png',
+      );
+
+      const result = await service.findByFilter({ email: 'logo@team.com' });
+
+      expect(result).toEqual(mockTeamWithUrl);
+      expect(mockAwsS3Service.getFileUrl).toHaveBeenCalledWith({
+        fileKey: 'teams/logo.png',
+      });
+    });
+
+    it('should return null when team is not found', async () => {
+      mockTeamsRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.findByFilter({ slug: 'nonexistent' });
+
+      expect(result).toBeNull();
+      expect(mockTeamsRepository.findOne).toHaveBeenCalledWith({
+        filter: { slug: 'nonexistent' },
+      });
+    });
+
+    it('should accept complex filter queries', async () => {
+      const mockTeam = {
+        _id: 'team-id-789',
+        name: 'Complex Team',
+        slug: 'complex-team',
+        email: 'complex@team.com',
+        picture: null,
+      };
+
+      mockTeamsRepository.findOne.mockResolvedValue(mockTeam);
+
+      const complexFilter = {
+        $and: [{ slug: 'complex-team' }, { email: 'complex@team.com' }],
+      };
+
+      const result = await service.findByFilter(complexFilter);
+
+      expect(result).toEqual(mockTeam);
+      expect(mockTeamsRepository.findOne).toHaveBeenCalledWith({
+        filter: complexFilter,
       });
     });
   });
