@@ -4,6 +4,7 @@ import { ProductRepository } from './product.repository';
 import { DetailProductRepository } from '../detail-product/detail-product.repository';
 import { ImageProductService } from '../image-product/image-product.service';
 import { DetailProductService } from '../detail-product/detail-product.service';
+import { SearchService } from '../elasticsearch/elasticsearch.service';
 import { getModelToken } from '@nestjs/mongoose';
 import { Product } from './product.schema';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
@@ -54,6 +55,13 @@ describe('ProductService - Pricing', () => {
       create: jest.fn(),
     };
 
+    const mockSearchService = {
+      indexProduct: jest.fn(),
+      removeProduct: jest.fn(),
+      searchProducts: jest.fn(),
+      reindexAll: jest.fn(),
+    };
+
     mockProductModel = {
       findById: jest.fn(),
     };
@@ -76,6 +84,10 @@ describe('ProductService - Pricing', () => {
         {
           provide: DetailProductService,
           useValue: mockDetailService,
+        },
+        {
+          provide: SearchService,
+          useValue: mockSearchService,
         },
         {
           provide: getModelToken(Product.name),

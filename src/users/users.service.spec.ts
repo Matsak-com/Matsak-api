@@ -73,12 +73,27 @@ describe('UsersService', () => {
 
   describe('getUsers', () => {
     it('should return all users', async () => {
-      const mockUsers = [{ _id: '1', email: 'test@test.com' }];
+      const mockUser = {
+        _id: '1',
+        email: 'test@test.com',
+        firstName: 'Test',
+        avatarFileKey: null,
+        toObject: jest.fn().mockReturnValue({
+          _id: '1',
+          email: 'test@test.com',
+          firstName: 'Test',
+          avatarFileKey: null,
+        }),
+      };
+      const mockUsers = [mockUser];
       mockUsersRepository.findAll.mockResolvedValue(mockUsers);
+      mockAwsS3Service.getFileUrl.mockResolvedValue('');
 
       const result = await service.getUsers();
 
-      expect(result).toEqual(mockUsers);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toHaveProperty('email', 'test@test.com');
+      expect(result[0]).toHaveProperty('avatarUrl');
       expect(mockUsersRepository.findAll).toHaveBeenCalled();
     });
   });
