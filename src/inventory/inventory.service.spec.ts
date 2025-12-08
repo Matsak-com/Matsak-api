@@ -10,7 +10,6 @@ describe('InventoryService', () => {
   let service: InventoryService;
   let inventoryRepo: jest.Mocked<InventoryRepository>;
   let productRepo: jest.Mocked<ProductRepository>;
-  let searchService: jest.Mocked<SearchService>;
 
   const mockProduct = {
     _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
@@ -60,7 +59,6 @@ describe('InventoryService', () => {
     service = module.get<InventoryService>(InventoryService);
     inventoryRepo = module.get(InventoryRepository);
     productRepo = module.get(ProductRepository);
-    searchService = module.get(SearchService);
   });
 
   describe('stockIn', () => {
