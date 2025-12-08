@@ -18,7 +18,7 @@ import {
 } from '@nestjs/common';
 import { ERRORS } from '../common/errors';
 import { ProductService } from './product.service';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
 import {
   productIdParamSchema,
@@ -37,9 +37,9 @@ import {
   UpdateDiscountDto,
   CalculatePriceDto,
 } from './dto/pricing.dto';
-import { ZodMultipartFiles } from 'src/common/decorators/zod-multipart-files.decorator';
+import { ZodMultipartFiles } from '../common/decorators/zod-multipart-files.decorator';
 import { Types } from 'mongoose';
-import { MembersService } from 'src/members/members.service';
+import { MembersService } from '../members/members.service';
 
 @Controller('products')
 export class ProductController {

@@ -4,7 +4,7 @@ import { TeamsService } from './teams.service';
 import { Team, TeamSchema } from './team.schema';
 import { MongooseModule } from '@nestjs/mongoose';
 import { TeamsRepository } from './teams.repository';
-import { AwsS3Service } from 'src/aws/aws-s3.service';
+import { AwsS3Service } from '../aws/aws-s3.service';
 import { MembersModule } from '../members/members.module';
 import { RolesModule } from '../roles/roles.module';
 

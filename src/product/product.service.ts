@@ -10,9 +10,9 @@ import { Product } from './product.schema';
 import { ProductRepository } from './product.repository';
 import { DetailProductRepository } from '../detail-product/detail-product.repository';
 import { FilterQuery, Types } from 'mongoose';
-import { ImageProductService } from 'src/image-product/image-product.service';
-import { DetailProductService } from 'src/detail-product/detail-product.service';
-import { DetailProduct } from 'src/detail-product/detail-product.schema';
+import { ImageProductService } from '../image-product/image-product.service';
+import { DetailProductService } from '../detail-product/detail-product.service';
+import { DetailProduct } from '../detail-product/detail-product.schema';
 import { SearchService } from '../elasticsearch/elasticsearch.service';
 import { UpdateProductDto } from './dto/update-product.dto';
 

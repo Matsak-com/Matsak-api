@@ -15,7 +15,7 @@ import {
   QueryInventoryDto,
   BulkUpdateDto,
 } from './dto/inventory.dto';
-import { SearchService } from 'src/elasticsearch/elasticsearch.service';
+import { SearchService } from '../elasticsearch/elasticsearch.service';
 
 @Injectable()
 export class InventoryService {

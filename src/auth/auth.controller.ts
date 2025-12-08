@@ -16,10 +16,10 @@ import { LogUserDto } from './dto/log-user.dto';
 import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
 import { RequestWithUser } from './jwt/jwt.strategy';
 import { AuthGuard } from '@nestjs/passport';
-import { UserRole } from 'src/users/user.schema';
-import { FacebookProvider } from 'src/sso/facebook/facebook.provider';
-import { generateRandomPassword } from 'src/users/utils/password.utils';
-import { GoogleService } from 'src/sso/google/google.service';
+import { UserRole } from '../users/user.schema';
+import { FacebookProvider } from '../sso/facebook/facebook.provider';
+import { generateRandomPassword } from '../users/utils/password.utils';
+import { GoogleService } from '../sso/google/google.service';
 import { ZodValidation } from '../common/decorators/zod-validation.decorator';
 import {
   createUserSchema,

@@ -4,8 +4,8 @@ import { ProductDecond, ProductDecondSchema } from './product-decond.schema';
 import { ProductDecondService } from './product-decond.service';
 import { ProductDecondController } from './product-decond.controller';
 import { ProductDecondRepository } from './product-decond.repository';
-import { DetailProductModule } from 'src/detail-product/detail-product.module';
-import { ImageProductModule } from 'src/image-product/image-product.module';
+import { DetailProductModule } from '../detail-product/detail-product.module';
+import { ImageProductModule } from '../image-product/image-product.module';
 
 @Module({
   imports: [

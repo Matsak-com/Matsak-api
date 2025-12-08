@@ -2,8 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UserController } from './users.controller';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { UpdateUserDto } from 'src/auth/dto/update-user.dto';
-import { UpdatePasswordDto } from 'src/auth/dto/update-password.dto';
+import { UpdateUserDto } from '../auth/dto/update-user.dto';
+import { UpdatePasswordDto } from '../auth/dto/update-password.dto';
 
 describe('UserController', () => {
   let controller: UserController;

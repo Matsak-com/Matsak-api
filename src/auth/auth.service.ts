@@ -13,7 +13,7 @@ import { LogUserDto } from './dto/log-user.dto';
 import { UserPayload } from './jwt/jwt.strategy';
 import { hash } from 'bcrypt';
 import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
-import { UserRole } from 'src/users/user.schema';
+import { UserRole } from '../users/user.schema';
 
 @Injectable()
 export class AuthService {
