@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { ERRORS } from '../common/errors';
 import { UpdateDetailProductDto } from './dto/update-detail-product.dto';
 import { DetailProductRepository } from './detail-product.repository';

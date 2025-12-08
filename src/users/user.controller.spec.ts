@@ -70,9 +70,18 @@ describe('UserController', () => {
         currentPassword: 'oldpassword123',
         newPassword: 'newpassword123',
       };
-      const result = await controller.updateUser({ userId }, mockUser as any, updateDto, undefined);
+      const result = await controller.updateUser(
+        { userId },
+        mockUser as any,
+        updateDto,
+        undefined,
+      );
       expect(result).toEqual({ id: userId, ...updateDto });
-      expect(usersService.updateUser).toHaveBeenCalledWith(userId, updateDto, undefined);
+      expect(usersService.updateUser).toHaveBeenCalledWith(
+        userId,
+        updateDto,
+        undefined,
+      );
     });
 
     it('should throw HttpException on error', async () => {
@@ -89,7 +98,12 @@ describe('UserController', () => {
       });
 
       await expect(
-        controller.updateUser({ userId }, mockUser as any, updateDto, undefined),
+        controller.updateUser(
+          { userId },
+          mockUser as any,
+          updateDto,
+          undefined,
+        ),
       ).rejects.toThrow('Update failed');
     });
   });

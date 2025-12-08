@@ -13,7 +13,7 @@ program
   .option('-v, --verbose', 'Show detailed progress', false)
   .action(async (options) => {
     const app = await NestFactory.createApplicationContext(AppModule);
-    
+
     // Wait for MongoDB connection
     const connection = app.get<Connection>(getConnectionToken());
     if (connection.readyState !== 1) {
@@ -23,7 +23,7 @@ program
       });
     }
     console.log('✅ MongoDB connected');
-    
+
     const productService = app.get(ProductService);
 
     try {

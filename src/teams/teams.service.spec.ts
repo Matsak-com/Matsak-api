@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TeamsService } from './teams.service';
 import { TeamsRepository } from './teams.repository';
 import { CreateTeamDto } from './dto/create-team.dto';
-import { Team } from './team.schema';
 
 // On crée un mock de TeamsRepository
 const mockTeamsRepository = {
@@ -46,11 +45,13 @@ describe('TeamsService', () => {
         logoUrl: undefined,
       };
 
-      const mockTeam = { 
-        ...dto, 
+      const mockTeam = {
+        ...dto,
         _id: 'abc123',
         slug: 'team-example',
-        toObject: jest.fn().mockReturnValue({ ...dto, _id: 'abc123', slug: 'team-example' }),
+        toObject: jest
+          .fn()
+          .mockReturnValue({ ...dto, _id: 'abc123', slug: 'team-example' }),
       };
 
       mockTeamsRepository.create.mockResolvedValue(mockTeam);

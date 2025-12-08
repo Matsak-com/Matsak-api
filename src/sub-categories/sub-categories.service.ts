@@ -261,7 +261,7 @@ export class SubCategoriesService {
    */
   private async cascadeDeleteDescendants(parentId: string): Promise<number> {
     const parentObjectId = new Types.ObjectId(parentId);
-    
+
     // Delete all descendants in a single bulk operation using the ancestors array
     // This is much more efficient than recursive N+1 queries
     const result = await this.subCategoryRepo.deleteMany({

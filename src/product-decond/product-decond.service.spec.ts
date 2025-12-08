@@ -61,8 +61,12 @@ describe('ProductDecondService', () => {
         image: '507f1f77bcf86cd799439012',
       };
 
-      mockDetailProductRepository.findById.mockResolvedValue({ _id: mockData.detailProduct });
-      mockImageProductRepository.findById.mockResolvedValue({ _id: mockData.image });
+      mockDetailProductRepository.findById.mockResolvedValue({
+        _id: mockData.detailProduct,
+      });
+      mockImageProductRepository.findById.mockResolvedValue({
+        _id: mockData.image,
+      });
       mockProductDecondRepository.create.mockResolvedValue(mockData);
 
       const result = await service.create(mockData as any);
@@ -81,7 +85,9 @@ describe('ProductDecondService', () => {
 
       mockDetailProductRepository.findById.mockResolvedValue(null);
 
-      await expect(service.create(mockData as any)).rejects.toThrow(NotFoundException);
+      await expect(service.create(mockData as any)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

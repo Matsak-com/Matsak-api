@@ -76,12 +76,29 @@ describe('ImageProductService', () => {
     it('should return multiple image products by array of ids', async () => {
       const ids = ['1', '2', '3'];
       const mockMultipleImages = [
-        { _id: '1', url: 'http://example.com/image1.png', filename: 'image1.png', data: 'base64' },
-        { _id: '2', url: 'http://example.com/image2.png', filename: 'image2.png', data: 'base64' },
-        { _id: '3', url: 'http://example.com/image3.png', filename: 'image3.png', data: 'base64' },
+        {
+          _id: '1',
+          url: 'http://example.com/image1.png',
+          filename: 'image1.png',
+          data: 'base64',
+        },
+        {
+          _id: '2',
+          url: 'http://example.com/image2.png',
+          filename: 'image2.png',
+          data: 'base64',
+        },
+        {
+          _id: '3',
+          url: 'http://example.com/image3.png',
+          filename: 'image3.png',
+          data: 'base64',
+        },
       ];
 
-      mockImageProductRepository.findAll = jest.fn().mockResolvedValue(mockMultipleImages);
+      mockImageProductRepository.findAll = jest
+        .fn()
+        .mockResolvedValue(mockMultipleImages);
 
       const result = await service.findMany(ids);
       expect(result).toEqual(mockMultipleImages);
@@ -98,10 +115,14 @@ describe('ImageProductService', () => {
 
     it('should handle invalid ObjectId format gracefully', async () => {
       const invalidIds = ['invalid-id', '123'];
-      
-      mockImageProductRepository.findAll = jest.fn().mockRejectedValue(new Error('Invalid ObjectId'));
 
-      await expect(service.findMany(invalidIds)).rejects.toThrow('Invalid ObjectId');
+      mockImageProductRepository.findAll = jest
+        .fn()
+        .mockRejectedValue(new Error('Invalid ObjectId'));
+
+      await expect(service.findMany(invalidIds)).rejects.toThrow(
+        'Invalid ObjectId',
+      );
     });
   });
 

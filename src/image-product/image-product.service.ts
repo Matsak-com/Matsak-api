@@ -70,7 +70,7 @@ export class ImageProductService {
     const invalidIds = ids.filter((id) => !Types.ObjectId.isValid(id));
     if (invalidIds.length > 0) {
       throw new BadRequestException(
-        `Invalid ObjectId(s) provided: ${invalidIds.join(', ')}`
+        `Invalid ObjectId(s) provided: ${invalidIds.join(', ')}`,
       );
     }
     return this.imageProductRepo.findAll({
