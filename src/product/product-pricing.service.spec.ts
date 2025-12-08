@@ -122,7 +122,11 @@ describe('ProductService - Pricing', () => {
       });
       expect(productRepository.update).toHaveBeenCalledWith({
         id: productId,
-        update: { basePrice, currency },
+        update: expect.objectContaining({
+          basePrice,
+          currency,
+          updatedAt: expect.any(Date),
+        }),
       });
       expect(result.basePrice).toBe(basePrice);
       expect(result.currency).toBe(currency);
@@ -156,15 +160,20 @@ describe('ProductService - Pricing', () => {
       };
       productRepository.update.mockResolvedValue(updatedProduct);
 
+      const result = await service.addDiscount(productId, discountData);
+
       expect(productRepository.findById).toHaveBeenCalledWith({
         id: productId,
       });
       expect(productRepository.update).toHaveBeenCalledWith({
         id: productId,
-        update: { $push: { discounts: discountData } },
+        update: expect.objectContaining({
+          $push: { discounts: expect.objectContaining(discountData) },
+          updatedAt: expect.any(Date),
+        }),
       });
-      const calledUpdated = productRepository.update.mock.results[0].value;
-      expect(calledUpdated).toBeDefined();
+      expect(result).toBeDefined();
+      expect(result.discounts.length).toBeGreaterThan(mockProduct.discounts.length);
     });
 
     it('should throw BadRequestException for percentage > 100', async () => {
