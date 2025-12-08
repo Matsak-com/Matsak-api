@@ -77,16 +77,14 @@ export class ProductService implements OnModuleInit {
         try {
           for (const file of files) {
             const uploadedImage = await this.imageservice.upload({
-              buffer: file.buffer,
-              originalname: file.originalname,
-              mimetype: file.mimetype,
-            });
-            uploadedImageIds.push(
-              new Types.ObjectId(uploadedImage._id as string),
-            );
-          }
-
-          // Update product with all image IDs
+            buffer: file.buffer,
+            originalname: file.originalname,
+            mimetype: file.mimetype,
+          });
+          uploadedImageIds.push(
+            new Types.ObjectId(uploadedImage._id.toString()),
+          );
+        }          // Update product with all image IDs
           await this.productRepo.update({
             id: productId,
             update: { images: uploadedImageIds },

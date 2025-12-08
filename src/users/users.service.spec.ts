@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UsersService } from './users.service';
-import { UsersRepository } from './users.repository';
+import { UserRepository } from './users.repository';
 import { RolesService } from '../roles/roles.service';
 import { AwsS3Service } from '../aws/aws-s3.service';
 
@@ -32,7 +32,7 @@ describe('UsersService', () => {
       providers: [
         UsersService,
         {
-          provide: UsersRepository,
+          provide: UserRepository,
           useValue: mockUsersRepository,
         },
         {

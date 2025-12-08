@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { MembersService } from './members.service';
-import { MembersRepository } from './members.repository';
+import { MemberRepository } from './member.repository';
 import { UsersService } from '../users/users.service';
 import { RolesService } from '../roles/roles.service';
 
@@ -32,7 +32,7 @@ describe('MembersService', () => {
       providers: [
         MembersService,
         {
-          provide: MembersRepository,
+          provide: MemberRepository,
           useValue: mockMembersRepository,
         },
         {

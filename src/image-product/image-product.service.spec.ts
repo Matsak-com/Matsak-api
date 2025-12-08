@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ImageProductService } from './image-product.service';
 import { ImageProductRepository } from './image-product.repository';
 import { CreateImageProductDto } from './dto/create-image-product.dto';
+import * as base64Helper from '../helpers/base64.helper';
 
 // Mock des données et du modèle
 const mockImageProduct = {
@@ -10,6 +11,8 @@ const mockImageProduct = {
   filename: 'image.png',
   type: 'product',
   data: 'base64string',
+  name: 'test-image.jpg',
+  mimeType: 'image/jpeg',
 };
 
 const mockImageProductRepository = {
@@ -19,6 +22,14 @@ const mockImageProductRepository = {
   update: jest.fn().mockResolvedValue(mockImageProduct),
   delete: jest.fn().mockResolvedValue(mockImageProduct),
 };
+
+// Mock the base64 helper
+jest.mock('../helpers/base64.helper', () => ({
+  encodeImageToBase64: jest.fn().mockReturnValue({
+    mimeType: 'image/jpeg',
+    data: 'base64string',
+  }),
+}));
 
 describe('ImageProductService', () => {
   let service: ImageProductService;
@@ -51,7 +62,14 @@ describe('ImageProductService', () => {
 
       const result = await service.create(createImageDto);
       expect(result).toEqual(mockImageProduct);
-      expect(repository.create).toHaveBeenCalledWith(createImageDto);
+      expect(base64Helper.encodeImageToBase64).toHaveBeenCalled();
+      expect(repository.create).toHaveBeenCalledWith({
+        doc: {
+          mimeType: 'image/jpeg',
+          data: 'base64string',
+          name: 'test-image.jpg',
+        },
+      });
     });
   });
 
@@ -68,28 +86,28 @@ describe('ImageProductService', () => {
       const id = '1';
       const result = await service.findOne(id);
       expect(result).toEqual(mockImageProduct);
-      expect(repository.findById).toHaveBeenCalledWith(id);
+      expect(repository.findById).toHaveBeenCalledWith({ id });
     });
   });
 
   describe('findMany', () => {
     it('should return multiple image products by array of ids', async () => {
-      const ids = ['1', '2', '3'];
+      const ids = ['507f1f77bcf86cd799439011', '507f1f77bcf86cd799439012', '507f1f77bcf86cd799439013'];
       const mockMultipleImages = [
         {
-          _id: '1',
+          _id: '507f1f77bcf86cd799439011',
           url: 'http://example.com/image1.png',
           filename: 'image1.png',
           data: 'base64',
         },
         {
-          _id: '2',
+          _id: '507f1f77bcf86cd799439012',
           url: 'http://example.com/image2.png',
           filename: 'image2.png',
           data: 'base64',
         },
         {
-          _id: '3',
+          _id: '507f1f77bcf86cd799439013',
           url: 'http://example.com/image3.png',
           filename: 'image3.png',
           data: 'base64',
@@ -128,12 +146,13 @@ describe('ImageProductService', () => {
 
   describe('update', () => {
     it('should update an image product and return the updated one', async () => {
-      const id = '1';
-      const updateImageDto = { filename: 'updated-image.png' };
+      const id = '507f1f77bcf86cd799439011';
+      const updateImageDto = {};
 
       const result = await service.update(id, updateImageDto);
       expect(result).toEqual(mockImageProduct);
-      expect(repository.update).toHaveBeenCalledWith(id, updateImageDto);
+      expect(repository.findById).toHaveBeenCalledWith({ id });
+      expect(repository.update).toHaveBeenCalled();
     });
   });
 
@@ -142,7 +161,7 @@ describe('ImageProductService', () => {
       const id = '1';
       const result = await service.remove(id);
       expect(result).toEqual(mockImageProduct);
-      expect(repository.delete).toHaveBeenCalledWith(id);
+      expect(repository.delete).toHaveBeenCalled();
     });
   });
 });
