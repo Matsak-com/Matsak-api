@@ -363,15 +363,15 @@ jobs:
           project-id: ${{ secrets.SCW_PROJECT_ID }}
 
       - name: Ensure Serverless Container namespace exists
-        id: container_namespace
+        id: serverless_namespace
         run: |
           # Check if serverless container namespace exists
-          NAMESPACE_ID=$(scw container namespace list -o json | jq -r '.[0].id // empty')
+          NAMESPACE_ID=$(scw container namespace list -o json | jq -r '.[] | select(.name=="matsak-containers") | .id')
           
           if [ -z "$NAMESPACE_ID" ]; then
             echo "Serverless Container namespace not found. Creating..."
             NAMESPACE_ID=$(scw container namespace create \
-              name="matsak-containers" \
+              name="dev-matsak" \
               region=fr-par \
               -o json | jq -r '.id')
             
