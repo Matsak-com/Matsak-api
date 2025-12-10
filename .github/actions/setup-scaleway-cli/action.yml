@@ -28,7 +28,19 @@ runs:
     - name: Install Scaleway CLI
       shell: bash
       run: |
-        curl -fsSL -o /usr/local/bin/scw "https://github.com/scaleway/scaleway-cli/releases/latest/download/scaleway-cli_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/')"
+        # Determine OS and architecture
+        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        ARCH=$(uname -m)
+        
+        # Map architecture to Scaleway's naming convention
+        case "$ARCH" in
+          x86_64) ARCH="amd64" ;;
+          aarch64|arm64) ARCH="arm64" ;;
+          *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
+        esac
+        
+        # Download Scaleway CLI
+        curl -fsSL -o /usr/local/bin/scw "https://github.com/scaleway/scaleway-cli/releases/latest/download/scaleway-cli_${OS}_${ARCH}"
         chmod +x /usr/local/bin/scw
         scw version
 
