@@ -36,11 +36,23 @@ runs:
         case "$ARCH" in
           x86_64) ARCH="amd64" ;;
           aarch64|arm64) ARCH="arm64" ;;
+          i386|i686) ARCH="386" ;;
           *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
         esac
         
-        # Download Scaleway CLI
-        curl -fsSL -o /usr/local/bin/scw "https://github.com/scaleway/scaleway-cli/releases/latest/download/scaleway-cli_${OS}_${ARCH}"
+        # Get latest version number
+        VERSION=$(curl -s -H "Authorization: token ${{ github.token }}" https://api.github.com/repos/scaleway/scaleway-cli/releases/latest | jq -r '.tag_name' | sed 's/^v//')
+        if [ -z "$VERSION" ]; then
+          echo "Error: Failed to fetch latest Scaleway CLI version from GitHub API"
+          exit 1
+        fi
+        
+        # Download Scaleway CLI with version in filename
+        curl -fsSL -o /usr/local/bin/scw "https://github.com/scaleway/scaleway-cli/releases/download/v${VERSION}/scaleway-cli_${VERSION}_${OS}_${ARCH}"
+        if [ ! -f /usr/local/bin/scw ] || [ ! -s /usr/local/bin/scw ]; then
+          echo "Error: Failed to download Scaleway CLI from https://github.com/scaleway/scaleway-cli/releases/download/v${VERSION}/scaleway-cli_${VERSION}_${OS}_${ARCH}"
+          exit 1
+        fi
         chmod +x /usr/local/bin/scw
         scw version
 
