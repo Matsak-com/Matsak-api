@@ -296,15 +296,20 @@ jobs:
       - name: Ensure Container Registry namespace exists
         run: |
           # Check if namespace exists by name
-          NAMESPACE_EXISTS=$(scw registry namespace list -o json | jq -r '.[] | select(.name=="${{ env.CONTAINER_NAMESPACE }}") | .id')
+          NAMESPACE_EXISTS=$(scw registry namespace list -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAMESPACE }}"'") | .id')
           
           if [ -z "$NAMESPACE_EXISTS" ]; then
             echo "Container Registry namespace not found. Creating..."
             NAMESPACE_ID=$(scw registry namespace create \
-              name=${{ env.CONTAINER_NAMESPACE }} \
+              name="${{ env.CONTAINER_NAMESPACE }}" \
               region=fr-par \
               is-public=false \
               -o json | jq -r '.id')
+
+            if [ -z "$NAMESPACE_ID" ]; then
+              echo "Failed to create namespace"
+              exit 1
+            fi
             echo "Created namespace: $NAMESPACE_ID"
             echo "⚠️  Please add SCW_CONTAINER_NAMESPACE_ID=$NAMESPACE_ID to your GitHub secrets"
           else
