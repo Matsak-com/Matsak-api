@@ -294,11 +294,12 @@ jobs:
           project-id: ${{ secrets.SCW_PROJECT_ID }}
 
       - name: Ensure Container Registry namespace exists
+        id: registry_namespace
         run: |
           # Check if namespace exists by name
-          NAMESPACE_EXISTS=$(scw registry namespace list -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAMESPACE }}"'") | .id')
+          NAMESPACE_ID=$(scw registry namespace list -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAMESPACE }}"'") | .id')
           
-          if [ -z "$NAMESPACE_EXISTS" ]; then
+          if [ -z "$NAMESPACE_ID" ]; then
             echo "Container Registry namespace not found. Creating..."
             NAMESPACE_ID=$(scw registry namespace create \
               name="${{ env.CONTAINER_NAMESPACE }}" \
@@ -313,8 +314,12 @@ jobs:
             echo "Created namespace: $NAMESPACE_ID"
             echo "⚠️  Please add SCW_CONTAINER_NAMESPACE_ID=$NAMESPACE_ID to your GitHub secrets"
           else
-            echo "Container Registry namespace exists: $NAMESPACE_EXISTS"
+            echo "Container Registry namespace exists: $NAMESPACE_ID"
           fi
+          
+          # Export namespace ID for later steps
+          echo "namespace_id=$NAMESPACE_ID" >> $GITHUB_OUTPUT
+          echo "SCW_CONTAINER_NAMESPACE_ID=$NAMESPACE_ID" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -357,6 +362,31 @@ jobs:
           organization-id: ${{ secrets.SCW_ORGANIZATION_ID }}
           project-id: ${{ secrets.SCW_PROJECT_ID }}
 
+      - name: Ensure Serverless Container namespace exists
+        id: serverless_namespace
+        run: |
+          # Check if serverless container namespace exists
+          NAMESPACE_ID=$(scw container namespace list -o json | jq -r '.[] | select(.name=="matsak-containers") | .id')
+          
+          if [ -z "$NAMESPACE_ID" ]; then
+            echo "Serverless Container namespace not found. Creating..."
+            NAMESPACE_ID=$(scw container namespace create \
+              name="dev-matsak" \
+              region=fr-par \
+              -o json | jq -r '.id')
+            
+            if [ -z "$NAMESPACE_ID" ]; then
+              echo "Failed to create container namespace"
+              exit 1
+            fi
+            echo "Created container namespace: $NAMESPACE_ID"
+          else
+            echo "Container namespace exists: $NAMESPACE_ID"
+          fi
+          
+          # Export namespace ID for container creation
+          echo "namespace_id=$NAMESPACE_ID" >> $GITHUB_OUTPUT
+
       - name: Check if container exists
         id: check_container
         run: |
@@ -373,7 +403,7 @@ jobs:
         run: |
           scw container container create \
             name=${{ env.CONTAINER_NAME }} \
-            namespace-id=${{ secrets.SCW_CONTAINER_NAMESPACE_ID }} \
+            namespace-id=${{ steps.container_namespace.outputs.namespace_id }} \
             registry-image=${{ env.REGISTRY }}/${{ env.CONTAINER_NAMESPACE }}/${{ env.IMAGE_NAME }}:dev \
             port=3000 \
             min-scale=1 \
