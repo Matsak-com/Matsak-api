@@ -24,9 +24,9 @@ RUN if ! addgroup -S appgroup 2>/dev/null; then true; fi && \
 RUN chown -R appuser:appgroup /app
 USER appuser
 
-# Run focused linter check for CI and fail build on lint errors, then build
-RUN pnpm run lint:ci && \
-    pnpm run build
+# Build the application
+# Note: Linting is already validated in CI, so we skip it here to speed up deployment
+RUN pnpm run build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
