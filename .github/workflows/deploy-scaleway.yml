@@ -280,7 +280,6 @@ jobs:
     needs: [deploy-mongodb, deploy-elasticsearch, deploy-redis, deploy-mailhog]
     environment:
       name: development
-      url: https://${{ secrets.SCW_CONTAINER_DOMAIN }}
 
     steps:
       - name: Checkout code
