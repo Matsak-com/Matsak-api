@@ -365,8 +365,8 @@ jobs:
       - name: Ensure Serverless Container namespace exists
         id: serverless_namespace
         run: |
-          # List all container namespaces and get the first one (or a specific one if exists)
-          NAMESPACE_ID=$(scw container namespace list -o json | jq -r '.[0].id // empty')
+          # Check if serverless container namespace exists by name
+          NAMESPACE_ID=$(scw container namespace list -o json | jq -r '.[] | select(.name=="matsak-containers") | .id')
           
           if [ -z "$NAMESPACE_ID" ]; then
             echo "Serverless Container namespace not found. Creating..."
