@@ -118,6 +118,8 @@ jobs:
       - name: Create Elasticsearch container
         if: steps.check_es.outputs.exists == 'false'
         run: |
+          # WARNING: Elasticsearch security is disabled for development only.
+          # Do NOT use this configuration in production as it leaves Elasticsearch unprotected.
           scw container container create \
             name=${{ env.ELASTICSEARCH_CONTAINER_NAME }} \
             namespace-id=${{ secrets.SCW_CONTAINER_NAMESPACE_ID }} \
@@ -129,10 +131,8 @@ jobs:
             memory-limit=4096 \
             timeout=300s \
             privacy=private \
-            environment-variables.discovery.type=single-node \
-            environment-variables.xpack.security.enabled=false \
-            # WARNING: Elasticsearch security is disabled for development only.
-            # Do NOT use this configuration in production as it leaves Elasticsearch unprotected.
+            environment-variables.discovery__type=single-node \
+            environment-variables.xpack__security__enabled=false \
             environment-variables.ES_JAVA_OPTS="-Xms2g -Xmx2g"
 
       - name: Deploy Elasticsearch container
