@@ -285,6 +285,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Scaleway CLI
+        uses: ./.github/actions/setup-scaleway-cli
+        with:
+          access-key: ${{ secrets.SCW_ACCESS_KEY }}
+          secret-key: ${{ secrets.SCW_SECRET_KEY }}
+          organization-id: ${{ secrets.SCW_ORGANIZATION_ID }}
+          project-id: ${{ secrets.SCW_PROJECT_ID }}
+
+      - name: Ensure Container Registry namespace exists
+        run: |
+          # Check if namespace exists, create if not
+          if ! scw registry namespace get ${{ secrets.SCW_CONTAINER_NAMESPACE_ID }} > /dev/null 2>&1; then
+            echo "Container Registry namespace not found, it should exist. Please create it in Scaleway console."
+            exit 1
+          fi
+          echo "Container Registry namespace verified: ${{ secrets.SCW_CONTAINER_NAMESPACE_ID }}"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
