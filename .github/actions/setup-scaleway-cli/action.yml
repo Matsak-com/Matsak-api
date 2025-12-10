@@ -41,10 +41,18 @@ runs:
         esac
         
         # Get latest version number
-        VERSION=$(curl -s https://api.github.com/repos/scaleway/scaleway-cli/releases/latest | jq -r '.tag_name' | sed 's/^v//')
+        VERSION=$(curl -s -H "Authorization: token ${{ github.token }}" https://api.github.com/repos/scaleway/scaleway-cli/releases/latest | jq -r '.tag_name' | sed 's/^v//')
+        if [ -z "$VERSION" ]; then
+          echo "Error: Failed to fetch latest Scaleway CLI version from GitHub API"
+          exit 1
+        fi
         
         # Download Scaleway CLI with version in filename
         curl -fsSL -o /usr/local/bin/scw "https://github.com/scaleway/scaleway-cli/releases/download/v${VERSION}/scaleway-cli_${VERSION}_${OS}_${ARCH}"
+        if [ ! -f /usr/local/bin/scw ] || [ ! -s /usr/local/bin/scw ]; then
+          echo "Error: Failed to download Scaleway CLI from https://github.com/scaleway/scaleway-cli/releases/download/v${VERSION}/scaleway-cli_${VERSION}_${OS}_${ARCH}"
+          exit 1
+        fi
         chmod +x /usr/local/bin/scw
         scw version
 
