@@ -216,16 +216,21 @@ jobs:
             environment-variables.AWS_REGION=${{ secrets.AWS_REGION }} \
             environment-variables.AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
 
-      - name: Update container (if exists)
+      - name: Delete existing container (force fresh deploy)
         if: steps.check_container.outputs.exists == 'true'
         run: |
-          scw container container update \
-            ${{ steps.check_container.outputs.container_id }} \
-            registry-image=${{ env.REGISTRY }}/${{ env.CONTAINER_NAMESPACE }}/${{ env.IMAGE_NAME }}:dev
+          echo "Deleting existing container to force fresh deployment with new image..."
+          scw container container delete ${{ steps.check_container.outputs.container_id }}
+          echo "Waiting for container deletion..."
+          sleep 10
 
       - name: Deploy container
         run: |
           CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAME }}"'") | .id')
+          if [ -z "$CONTAINER_ID" ]; then
+            echo "Error: Container was not created"
+            exit 1
+          fi
           scw container container deploy $CONTAINER_ID
           echo "Container deployed: $CONTAINER_ID"
 
