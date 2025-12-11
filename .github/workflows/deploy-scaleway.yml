@@ -84,8 +84,9 @@ jobs:
         run: |
           CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="'"${{ env.MONGODB_CONTAINER_NAME }}"'") | .id')
           MONGODB_HOST=$(scw container container get $CONTAINER_ID -o json | jq -r '.domain_name')
-          echo "url=mongodb://$MONGODB_HOST:27017/matsak" >> $GITHUB_OUTPUT
-          echo "MongoDB URL: mongodb://$MONGODB_HOST:27017/matsak"
+          # Scaleway containers expose via HTTPS, MongoDB needs direct connection without protocol prefix
+          echo "url=$MONGODB_HOST" >> $GITHUB_OUTPUT
+          echo "MongoDB Host: $MONGODB_HOST"
 
   deploy-elasticsearch:
     name: Deploy Elasticsearch Container
@@ -413,7 +414,7 @@ jobs:
             memory-limit=2048 \
             timeout=300s \
             environment-variables.NODE_ENV=production \
-            environment-variables.MONGODB_URI=${{ needs.deploy-mongodb.outputs.mongodb_url }} \
+            environment-variables.MONGODB_URI=mongodb://${{ needs.deploy-mongodb.outputs.mongodb_url }}:27017/matsak \
             environment-variables.REDIS_HOST=${{ needs.deploy-redis.outputs.redis_url }} \
             environment-variables.REDIS_PORT=6379 \
             environment-variables.MAIL_HOST=${{ needs.deploy-mailhog.outputs.mailhog_url }} \
