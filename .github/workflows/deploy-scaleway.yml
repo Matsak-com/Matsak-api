@@ -366,7 +366,7 @@ jobs:
         id: serverless_namespace
         run: |
           # Check if serverless container namespace exists by name
-          NAMESPACE_ID=$(scw container namespace list -o json | jq -r '.[] | select(.name=="${{ secrets.SCW_SERVERLESS_NAMESPACE_NAME }}") | .id')
+          NAMESPACE_ID=$(scw container namespace list -o json | jq -r ".[] | select(.name==\"${{ secrets.SCW_SERVERLESS_NAMESPACE_NAME }}\") | .id")
           
           if [ -z "$NAMESPACE_ID" ]; then
             echo "Serverless Container namespace not found. Creating..."

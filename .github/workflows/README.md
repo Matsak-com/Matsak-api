@@ -49,13 +49,13 @@ Add these secrets in your GitHub repository settings (`Settings > Secrets and va
 
 ### Scaleway Secrets:
 ```
-SCW_ACCESS_KEY              # Scaleway API access key
-SCW_SECRET_KEY              # Scaleway API secret key
-SCW_ORGANIZATION_ID         # Scaleway organization ID
-SCW_PROJECT_ID              # Scaleway project ID
-SCW_CONTAINER_NAMESPACE     # Container registry namespace (e.g., matsak)
-SCW_CONTAINER_NAMESPACE_ID  # Container namespace ID
-SCW_CONTAINER_DOMAIN        # Container domain (optional, for environment URL)
+SCW_ACCESS_KEY                 # Scaleway API access key
+SCW_SECRET_KEY                 # Scaleway API secret key
+SCW_ORGANIZATION_ID            # Scaleway organization ID
+SCW_PROJECT_ID                 # Scaleway project ID
+SCW_CONTAINER_NAMESPACE        # Container registry namespace (e.g., matsak)
+SCW_CONTAINER_NAMESPACE_ID     # Container namespace ID
+SCW_SERVERLESS_NAMESPACE_NAME  # Serverless container namespace name (e.g., prod-matsak)
 ```
 
 ### Application Secrets:
