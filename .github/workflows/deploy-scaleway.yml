@@ -51,7 +51,16 @@ jobs:
             echo "Please add your MongoDB connection string to GitHub secrets"
             exit 1
           fi
-          echo "✅ Database secrets validated"
+          if [ -z "${{ secrets.REDIS_URL }}" ]; then
+            echo "❌ REDIS_URL secret is not set"
+            echo "Please add your Redis connection string to GitHub secrets"
+            exit 1
+          fi
+          if [ -z "${{ secrets.ELASTICSEARCH_NODE }}" ]; then
+            echo "❌ ELASTICSEARCH_NODE secret is not set"
+            echo "Please add your Elasticsearch node URL to GitHub secrets"
+            exit 1
+          fi
   
   build-and-deploy:
     name: Build and Deploy to Scaleway
@@ -198,7 +207,6 @@ jobs:
             environment-variables.MAIL_PORT=${{ secrets.MAIL_PORT }} \
             environment-variables.MAIL_USER=${{ secrets.MAIL_USER }} \
             environment-variables.MAIL_FROM=${{ secrets.MAIL_FROM }} \
-            environment-variables.ELASTICSEARCH_NODE=${{ needs.deploy-elasticsearch.outputs.elasticsearch_url }} \
             environment-variables.JWT_SECRET=${{ secrets.JWT_SECRET }} \
             environment-variables.AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
             environment-variables.AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
