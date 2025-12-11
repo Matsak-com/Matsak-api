@@ -55,7 +55,6 @@ SCW_ORGANIZATION_ID            # Scaleway organization ID
 SCW_PROJECT_ID                 # Scaleway project ID
 SCW_CONTAINER_NAMESPACE        # Container registry namespace (e.g., matsak)
 SCW_CONTAINER_NAMESPACE_ID     # Container namespace ID
-SCW_SERVERLESS_NAMESPACE_NAME  # Serverless container namespace name (e.g., prod-matsak)
 ```
 
 ### Application Secrets:
