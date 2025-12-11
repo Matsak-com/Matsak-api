@@ -366,12 +366,12 @@ jobs:
         id: serverless_namespace
         run: |
           # Check if serverless container namespace exists by name
-          NAMESPACE_ID=$(scw container namespace list -o json | jq -r '.[] | select(.name=="dev-matsak") | .id')
+          NAMESPACE_ID=$(scw container namespace list -o json | jq -r '.[] | select(.name=="${{ secrets.SCW_SERVERLESS_NAMESPACE_NAME }}") | .id')
           
           if [ -z "$NAMESPACE_ID" ]; then
             echo "Serverless Container namespace not found. Creating..."
             NAMESPACE_ID=$(scw container namespace create \
-              name="dev-matsak" \
+              name="${{ secrets.SCW_SERVERLESS_NAMESPACE_NAME }}" \
               region=fr-par \
               -o json | jq -r '.id')
             
@@ -412,7 +412,6 @@ jobs:
             memory-limit=2048 \
             timeout=300s \
             environment-variables.NODE_ENV=production \
-            environment-variables.PORT=3000 \
             environment-variables.MONGODB_URI=${{ needs.deploy-mongodb.outputs.mongodb_url }} \
             environment-variables.REDIS_HOST=${{ needs.deploy-redis.outputs.redis_url }} \
             environment-variables.REDIS_PORT=6379 \
