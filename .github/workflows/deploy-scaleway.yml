@@ -403,7 +403,7 @@ jobs:
         run: |
           scw container container create \
             name=${{ env.CONTAINER_NAME }} \
-            namespace-id=${{ steps.container_namespace.outputs.namespace_id }} \
+            namespace-id=${{ steps.serverless_namespace.outputs.namespace_id }} \
             registry-image=${{ env.REGISTRY }}/${{ env.CONTAINER_NAMESPACE }}/${{ env.IMAGE_NAME }}:dev \
             port=3000 \
             min-scale=1 \
