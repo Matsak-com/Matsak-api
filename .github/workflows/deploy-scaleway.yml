@@ -23,270 +23,40 @@ env:
   SCW_SERVERLESS_NAMESPACE_NAME: dev-matsak
 
 jobs:
-  deploy-mongodb:
-    name: Deploy MongoDB Container
+  # NOTE: MongoDB, Redis, and Elasticsearch cannot be deployed as Scaleway Serverless Containers
+  # because they require raw TCP connections, not HTTP/HTTPS.
+  # 
+  # RECOMMENDED SOLUTIONS:
+  # 1. Use Scaleway Managed Databases (recommended for production):
+  #    - https://www.scaleway.com/en/database/
+  # 2. Use external managed services:
+  #    - MongoDB Atlas (https://www.mongodb.com/cloud/atlas)
+  #    - Redis Cloud (https://redis.com/cloud/)
+  #    - Elastic Cloud (https://cloud.elastic.co/)
+  # 3. Deploy on Scaleway Instances with Docker Compose
+  #
+  # For now, this workflow expects you to provide connection strings via GitHub Secrets:
+  # - MONGO_URI (full connection string with credentials)
+  # - REDIS_URL (hostname or full connection string)
+  # - ELASTICSEARCH_NODE (full URL with protocol)
+  
+  validate-database-secrets:
+    name: Validate Database Configuration
     runs-on: ubuntu-latest
-    outputs:
-      mongodb_url: ${{ steps.get_mongodb_url.outputs.url }}
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Scaleway CLI
-        uses: ./.github/actions/setup-scaleway-cli
-        with:
-          access-key: ${{ secrets.SCW_ACCESS_KEY }}
-          secret-key: ${{ secrets.SCW_SECRET_KEY }}
-          organization-id: ${{ secrets.SCW_ORGANIZATION_ID }}
-          project-id: ${{ secrets.SCW_PROJECT_ID }}
-
-      - name: Check if MongoDB container exists
-        id: check_mongodb
+      - name: Check required secrets
         run: |
-          if scw container container list | grep -q "${{ env.MONGODB_CONTAINER_NAME }}"; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="'"${{ env.MONGODB_CONTAINER_NAME }}"'") | .id')
-            echo "container_id=$CONTAINER_ID" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create MongoDB container
-        if: steps.check_mongodb.outputs.exists == 'false'
-        run: |
-          scw container container create \
-            name=${{ env.MONGODB_CONTAINER_NAME }} \
-            namespace-id=${{ secrets.SCW_CONTAINER_NAMESPACE_ID }} \
-            registry-image=mongo:7.0 \
-            port=27017 \
-            min-scale=1 \
-            max-scale=1 \
-            cpu-limit=1000 \
-            memory-limit=2048 \
-            timeout=300s \
-            privacy=private \
-            environment-variables.MONGO_INITDB_DATABASE=matsak
-
-      - name: Deploy MongoDB container
-        run: |
-          CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="'"${{ env.MONGODB_CONTAINER_NAME }}"'") | .id')
-          scw container container deploy $CONTAINER_ID
-          echo "MongoDB container deployed: $CONTAINER_ID"
-
-      - name: Wait for MongoDB to be ready
-        run: |
-          echo "Waiting for MongoDB to start..."
-          sleep 30
-
-      - name: Get MongoDB URL
-        id: get_mongodb_url
-        run: |
-          CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="'"${{ env.MONGODB_CONTAINER_NAME }}"'") | .id')
-          MONGODB_HOST=$(scw container container get $CONTAINER_ID -o json | jq -r '.domain_name')
-          
-          if [ -z "$MONGODB_HOST" ] || [ "$MONGODB_HOST" = "null" ]; then
-            echo "Error: Failed to get MongoDB domain name"
+          if [ -z "${{ secrets.MONGO_URI }}" ]; then
+            echo "❌ MONGO_URI secret is not set"
+            echo "Please add your MongoDB connection string to GitHub secrets"
             exit 1
           fi
-          
-          # Return full MongoDB connection string
-          MONGODB_URL="mongodb://${MONGODB_HOST}:27017/matsak"
-          echo "url=$MONGODB_URL" >> $GITHUB_OUTPUT
-          echo "MongoDB URL: $MONGODB_URL"
-
-  deploy-elasticsearch:
-    name: Deploy Elasticsearch Container
-    runs-on: ubuntu-latest
-    outputs:
-      elasticsearch_url: ${{ steps.get_es_url.outputs.url }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Scaleway CLI
-        uses: ./.github/actions/setup-scaleway-cli
-        with:
-          access-key: ${{ secrets.SCW_ACCESS_KEY }}
-          secret-key: ${{ secrets.SCW_SECRET_KEY }}
-          organization-id: ${{ secrets.SCW_ORGANIZATION_ID }}
-          project-id: ${{ secrets.SCW_PROJECT_ID }}
-
-      - name: Check if Elasticsearch container exists
-        id: check_es
-        run: |
-          if scw container container list | grep -q "${{ env.ELASTICSEARCH_CONTAINER_NAME }}"; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="'"${{ env.ELASTICSEARCH_CONTAINER_NAME }}"'") | .id')
-            echo "container_id=$CONTAINER_ID" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create Elasticsearch container
-        if: steps.check_es.outputs.exists == 'false'
-        run: |
-          # WARNING: Elasticsearch security is disabled for development only.
-          # Do NOT use this configuration in production as it leaves Elasticsearch unprotected.
-          scw container container create \
-            name=${{ env.ELASTICSEARCH_CONTAINER_NAME }} \
-            namespace-id=${{ secrets.SCW_CONTAINER_NAMESPACE_ID }} \
-            registry-image=docker.elastic.co/elasticsearch/elasticsearch:8.11.0 \
-            port=9200 \
-            min-scale=1 \
-            max-scale=1 \
-            cpu-limit=2000 \
-            memory-limit=4096 \
-            timeout=300s \
-            privacy=private \
-            environment-variables.discovery__type=single-node \
-            environment-variables.xpack__security__enabled=false \
-            environment-variables.ES_JAVA_OPTS="-Xms2g -Xmx2g"
-
-      - name: Deploy Elasticsearch container
-        run: |
-          CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="'"${{ env.ELASTICSEARCH_CONTAINER_NAME }}"'") | .id')
-          scw container container deploy $CONTAINER_ID
-          echo "Elasticsearch container deployed: $CONTAINER_ID"
-
-      - name: Wait for Elasticsearch to be ready
-        run: |
-          echo "Waiting for Elasticsearch to start..."
-          sleep 30
-
-      - name: Get Elasticsearch URL
-        id: get_es_url
-        run: |
-          CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="'"${{ env.ELASTICSEARCH_CONTAINER_NAME }}"'") | .id')
-          ES_URL=$(scw container container get $CONTAINER_ID -o json | jq -r '.domain_name')
-          echo "url=http://$ES_URL:9200" >> $GITHUB_OUTPUT
-          echo "Elasticsearch URL: http://$ES_URL:9200"
-
-
-  deploy-redis:
-    name: Deploy Redis Container
-    runs-on: ubuntu-latest
-    outputs:
-      redis_url: ${{ steps.get_redis_url.outputs.url }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Scaleway CLI
-        uses: ./.github/actions/setup-scaleway-cli
-        with:
-          access-key: ${{ secrets.SCW_ACCESS_KEY }}
-          secret-key: ${{ secrets.SCW_SECRET_KEY }}
-          organization-id: ${{ secrets.SCW_ORGANIZATION_ID }}
-          project-id: ${{ secrets.SCW_PROJECT_ID }}
-
-      - name: Check if Redis container exists
-        id: check_redis
-        run: |
-          if scw container container list | grep -q "${{ env.REDIS_CONTAINER_NAME }}"; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="'"${{ env.REDIS_CONTAINER_NAME }}"'") | .id')
-            echo "container_id=$CONTAINER_ID" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create Redis container
-        if: steps.check_redis.outputs.exists == 'false'
-        run: |
-          scw container container create \
-            name=${{ env.REDIS_CONTAINER_NAME }} \
-            namespace-id=${{ secrets.SCW_CONTAINER_NAMESPACE_ID }} \
-            registry-image=redis:7-alpine \
-            port=6379 \
-            min-scale=1 \
-            max-scale=1 \
-            cpu-limit=500 \
-            memory-limit=512 \
-            timeout=300s \
-            privacy=private
-
-      - name: Deploy Redis container
-        run: |
-          CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="'"${{ env.REDIS_CONTAINER_NAME }}"'") | .id')
-          scw container container deploy $CONTAINER_ID
-          echo "Redis container deployed: $CONTAINER_ID"
-
-      - name: Get Redis URL
-        id: get_redis_url
-        run: |
-          CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="${{ env.REDIS_CONTAINER_NAME }}") | .id')
-          REDIS_URL=$(scw container container get $CONTAINER_ID -o json | jq -r '.domain_name')
-          echo "url=$REDIS_URL" >> $GITHUB_OUTPUT
-          echo "Redis URL: $REDIS_URL"
-
-  deploy-mailhog:
-    name: Deploy Mailhog Container
-    runs-on: ubuntu-latest
-    outputs:
-      mailhog_url: ${{ steps.get_mailhog_url.outputs.url }}
-      mailhog_ui_url: ${{ steps.get_mailhog_url.outputs.ui_url }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Scaleway CLI
-        uses: ./.github/actions/setup-scaleway-cli
-        with:
-          access-key: ${{ secrets.SCW_ACCESS_KEY }}
-          secret-key: ${{ secrets.SCW_SECRET_KEY }}
-          organization-id: ${{ secrets.SCW_ORGANIZATION_ID }}
-          project-id: ${{ secrets.SCW_PROJECT_ID }}
-
-      - name: Check if Mailhog container exists
-        id: check_mailhog
-        run: |
-          if scw container container list | grep -q "${{ env.MAILHOG_CONTAINER_NAME }}"; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="'"${{ env.MAILHOG_CONTAINER_NAME }}"'") | .id')
-            echo "container_id=$CONTAINER_ID" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create Mailhog container
-        if: steps.check_mailhog.outputs.exists == 'false'
-        run: |
-          scw container container create \
-            name=${{ env.MAILHOG_CONTAINER_NAME }} \
-            namespace-id=${{ secrets.SCW_CONTAINER_NAMESPACE_ID }} \
-            registry-image=mailhog/mailhog:latest \
-            port=8025 \
-            min-scale=1 \
-            max-scale=1 \
-            cpu-limit=250 \
-            memory-limit=256 \
-            timeout=300s \
-            privacy=public
-
-      - name: Deploy Mailhog container
-        run: |
-          CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="'"${{ env.MAILHOG_CONTAINER_NAME }}"'") | .id')
-          scw container container deploy $CONTAINER_ID
-          echo "Mailhog container deployed: $CONTAINER_ID"
-
-      - name: Get Mailhog URLs
-        id: get_mailhog_url
-        run: |
-          CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="'"${{ env.MAILHOG_CONTAINER_NAME }}"'") | .id')
-          MAILHOG_DOMAIN=$(scw container container get $CONTAINER_ID -o json | jq -r '.domain_name')
-          echo "url=$MAILHOG_DOMAIN:1025" >> $GITHUB_OUTPUT
-          echo "ui_url=https://$MAILHOG_DOMAIN" >> $GITHUB_OUTPUT
-          echo "Mailhog SMTP: $MAILHOG_DOMAIN:1025"
-          echo "Mailhog UI: https://$MAILHOG_DOMAIN"
-
+          echo "✅ Database secrets validated"
+  
   build-and-deploy:
     name: Build and Deploy to Scaleway
     runs-on: ubuntu-latest
-    needs: [deploy-mongodb, deploy-elasticsearch, deploy-redis, deploy-mailhog]
+    needs: [validate-database-secrets]
     environment:
       name: development
 
@@ -421,12 +191,12 @@ jobs:
             memory-limit=2048 \
             timeout=300s \
             environment-variables.NODE_ENV=production \
-            environment-variables.MONGODB_URI=${{ needs.deploy-mongodb.outputs.mongodb_url }} \
-            environment-variables.REDIS_HOST=${{ needs.deploy-redis.outputs.redis_url }} \
-            environment-variables.REDIS_PORT=6379 \
-            environment-variables.MAIL_HOST=${{ needs.deploy-mailhog.outputs.mailhog_url }} \
-            environment-variables.MAIL_PORT=1025 \
-            environment-variables.MAIL_USER=mailhog \
+            environment-variables.MONGO_URI=${{ secrets.MONGO_URI }} \
+            environment-variables.REDIS_URL=${{ secrets.REDIS_URL }} \
+            environment-variables.ELASTICSEARCH_NODE=${{ secrets.ELASTICSEARCH_NODE }} \
+            environment-variables.MAIL_HOST=${{ secrets.MAIL_HOST }} \
+            environment-variables.MAIL_PORT=${{ secrets.MAIL_PORT }} \
+            environment-variables.MAIL_USER=${{ secrets.MAIL_USER }} \
             environment-variables.MAIL_FROM=${{ secrets.MAIL_FROM }} \
             environment-variables.ELASTICSEARCH_NODE=${{ needs.deploy-elasticsearch.outputs.elasticsearch_url }} \
             environment-variables.JWT_SECRET=${{ secrets.JWT_SECRET }} \
@@ -492,16 +262,20 @@ jobs:
       - name: Notify deployment status
         if: always()
         run: |
+          CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAME }}"'") | .id')
+          CONTAINER_URL=$(scw container container get $CONTAINER_ID -o json | jq -r '.domain_name')
+          
           if [ "${{ job.status }}" = "success" ]; then
             echo "✅ Deployment to Scaleway completed successfully"
             echo ""
-            echo "📦 Deployed Services:"
-            echo "  - API: https://${{ secrets.SCW_CONTAINER_DOMAIN }}"
-            echo "  - MongoDB: ${{ needs.deploy-mongodb.outputs.mongodb_url }}"
-            echo "  - Elasticsearch: ${{ needs.deploy-elasticsearch.outputs.elasticsearch_url }}"
-            echo "  - Redis: ${{ needs.deploy-redis.outputs.redis_url }}:6379"
-            echo "  - Mailhog UI: ${{ needs.deploy-mailhog.outputs.mailhog_ui_url }}"
-            echo "  - Mailhog SMTP: ${{ needs.deploy-mailhog.outputs.mailhog_url }}"
+            echo "📦 API Container:"
+            echo "  - URL: https://$CONTAINER_URL"
+            echo ""
+            echo "⚠️  Database services should be configured externally:"
+            echo "  - Use Scaleway Managed Databases or external services"
+            echo "  - MongoDB: Set MONGO_URI secret with your connection string"
+            echo "  - Redis: Set REDIS_URL secret with your Redis endpoint"
+            echo "  - Elasticsearch: Set ELASTICSEARCH_NODE secret with your endpoint"
           else
             echo "❌ Deployment to Scaleway failed"
           fi
