@@ -20,6 +20,7 @@ env:
   REDIS_CONTAINER_NAME: matsak-redis-dev
   MAILHOG_CONTAINER_NAME: matsak-mailhog-dev
   ELASTICSEARCH_CONTAINER_NAME: matsak-elasticsearch-dev
+  SCW_SERVERLESS_NAMESPACE_NAME: dev-matsak
 
 jobs:
   deploy-mongodb:
@@ -366,12 +367,12 @@ jobs:
         id: serverless_namespace
         run: |
           # Check if serverless container namespace exists by name
-          NAMESPACE_ID=$(scw container namespace list -o json | jq -r ".[] | select(.name==\"${{ secrets.SCW_SERVERLESS_NAMESPACE_NAME }}\") | .id")
+          NAMESPACE_ID=$(scw container namespace list -o json | jq -r ".[] | select(.name==\"${{ env.SCW_SERVERLESS_NAMESPACE_NAME }}\") | .id")
           
           if [ -z "$NAMESPACE_ID" ]; then
             echo "Serverless Container namespace not found. Creating..."
             NAMESPACE_ID=$(scw container namespace create \
-              name="${{ secrets.SCW_SERVERLESS_NAMESPACE_NAME }}" \
+              name="${{ env.SCW_SERVERLESS_NAMESPACE_NAME }}" \
               region=fr-par \
               -o json | jq -r '.id')
             
@@ -405,7 +406,7 @@ jobs:
             name=${{ env.CONTAINER_NAME }} \
             namespace-id=${{ steps.serverless_namespace.outputs.namespace_id }} \
             registry-image=${{ env.REGISTRY }}/${{ env.CONTAINER_NAMESPACE }}/${{ env.IMAGE_NAME }}:dev \
-            port=3000 \
+            port=8080 \
             min-scale=1 \
             max-scale=5 \
             cpu-limit=1000 \
