@@ -189,8 +189,15 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create container (if not exists)
-        if: steps.check_container.outputs.exists == 'false'
+      - name: Delete existing container (force fresh deploy)
+        if: steps.check_container.outputs.exists == 'true'
+        run: |
+          echo "Deleting existing container to force fresh deployment with new image..."
+          scw container container delete ${{ steps.check_container.outputs.container_id }}
+          echo "Waiting for container deletion..."
+          sleep 10
+
+      - name: Create container
         run: |
           scw container container create \
             name=${{ env.CONTAINER_NAME }} \
@@ -215,14 +222,6 @@ jobs:
             environment-variables.AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
             environment-variables.AWS_REGION=${{ secrets.AWS_REGION }} \
             environment-variables.AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
-
-      - name: Delete existing container (force fresh deploy)
-        if: steps.check_container.outputs.exists == 'true'
-        run: |
-          echo "Deleting existing container to force fresh deployment with new image..."
-          scw container container delete ${{ steps.check_container.outputs.container_id }}
-          echo "Waiting for container deletion..."
-          sleep 10
 
       - name: Deploy container
         run: |
