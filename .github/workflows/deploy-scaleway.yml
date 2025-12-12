@@ -18,12 +18,12 @@ env:
   REGISTRY: rg.fr-par.scw.cloud
   IMAGE_NAME: matsak-api
   CONTAINER_NAMESPACE: ${{ secrets.SCW_CONTAINER_NAMESPACE }}
-  CONTAINER_NAME: matsak-api-dev
-  MONGODB_CONTAINER_NAME: matsak-mongodb-dev
-  REDIS_CONTAINER_NAME: matsak-redis-dev
-  MAILHOG_CONTAINER_NAME: matsak-mailhog-dev
-  ELASTICSEARCH_CONTAINER_NAME: matsak-elasticsearch-dev
-  SCW_SERVERLESS_NAMESPACE_NAME: dev-matsak
+  CONTAINER_NAME: matsak-api-prod
+  MONGODB_CONTAINER_NAME: matsak-mongodb-prod
+  REDIS_CONTAINER_NAME: matsak-redis-prod
+  MAILHOG_CONTAINER_NAME: matsak-mailhog-prod
+  ELASTICSEARCH_CONTAINER_NAME: matsak-elasticsearch-prod
+  SCW_SERVERLESS_NAMESPACE_NAME: prod-matsak
 
 jobs:
   # NOTE: MongoDB, Redis, and Elasticsearch cannot be deployed as Scaleway Serverless Containers
@@ -70,7 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [validate-database-secrets]
     environment:
-      name: development
+      name: production
 
     steps:
       - name: Checkout code
@@ -202,7 +202,7 @@ jobs:
           scw container container create \
             name=${{ env.CONTAINER_NAME }} \
             namespace-id=${{ steps.serverless_namespace.outputs.namespace_id }} \
-            registry-image=${{ env.REGISTRY }}/${{ env.CONTAINER_NAMESPACE }}/${{ env.IMAGE_NAME }}:dev \
+            registry-image=${{ env.REGISTRY }}/${{ env.CONTAINER_NAMESPACE }}/${{ env.IMAGE_NAME }}:latest \
             port=8080 \
             min-scale=1 \
             max-scale=5 \
@@ -211,8 +211,12 @@ jobs:
             timeout=300s \
             environment-variables.NODE_ENV=production \
             environment-variables.MONGO_URI=${{ secrets.MONGO_URI }} \
+            environment-variables.DB_URI=${{ secrets.MONGO_URI }} \
             environment-variables.REDIS_URL=${{ secrets.REDIS_URL }} \
             environment-variables.ELASTICSEARCH_NODE=${{ secrets.ELASTICSEARCH_NODE }} \
+            environment-variables.ELASTICSEARCH_USER=${{ secrets.ELASTICSEARCH_USER }} \
+            environment-variables.ELASTICSEARCH_PASSWORD=${{ secrets.ELASTICSEARCH_PASSWORD }} \
+            environment-variables.CORS_ORIGIN=${{ secrets.CORS_ORIGIN }} \
             environment-variables.MAIL_HOST=${{ secrets.MAIL_HOST }} \
             environment-variables.MAIL_PORT=${{ secrets.MAIL_PORT }} \
             environment-variables.MAIL_USER=${{ secrets.MAIL_USER }} \
