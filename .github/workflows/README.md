@@ -86,8 +86,8 @@ MONGO_URI                         # Full connection string with auth
 
 **Redis** (Required):
 ```
-REDIS_URL                         # Full connection URL
-                                  # Example: redis://user:pass@hostname:port
+REDIS_URL                         # Full Redis connection URL
+                                  # Example: redis://default:password@hostname:port
                                   # Providers: Redis Cloud, Scaleway Managed Database
 ```
 
@@ -109,11 +109,18 @@ CORS_ORIGIN                       # Allowed CORS origins
                                   # Example: ["https://yourdomain.com","https://app.yourdomain.com"]
 ```
 
+**Redis:**
+```
+REDIS_URL                         # Full Redis connection URL or hostname
+                                  # Example: redis://hostname:6379 or just hostname
+```
+
 **Email/SMTP:**
 ```
 MAIL_HOST                         # SMTP server host
 MAIL_PORT                         # SMTP port (usually 587 or 465)
 MAIL_USER                         # SMTP username
+MAIL_PASSWORD                     # SMTP password
 MAIL_FROM                         # Sender email address
 ```
 
@@ -166,8 +173,8 @@ AWS_S3_BUCKET                     # S3 bucket name
 ### Redis Cloud (Free Tier Available):
 1. Create account at [Redis Cloud](https://redis.com/cloud/)
 2. Create free database (30MB)
-3. Get connection string from database details
-4. Add as `REDIS_URL` secret
+3. Get connection URL from database details
+4. Add as `REDIS_URL` secret (format: `redis://default:password@hostname:port`)
 
 ### Elastic Cloud (Free Trial):
 1. Create account at [Elastic Cloud](https://cloud.elastic.co/)

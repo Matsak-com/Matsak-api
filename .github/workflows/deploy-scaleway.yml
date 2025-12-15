@@ -36,7 +36,7 @@ jobs:
   #
   # For now, this workflow expects you to provide connection strings via GitHub Secrets:
   # - MONGO_URI (full connection string with credentials)
-  # - REDIS_URL (hostname or full connection string)
+  # - REDIS_URL (full Redis connection URL)
   # - ELASTICSEARCH_NODE (full URL with protocol)
   
   validate-database-secrets:
@@ -52,7 +52,7 @@ jobs:
           fi
           if [ -z "${{ secrets.REDIS_URL }}" ]; then
             echo "❌ REDIS_URL secret is not set"
-            echo "Please add your Redis connection string to GitHub secrets"
+            echo "Please add your Redis connection URL to GitHub secrets"
             exit 1
           fi
           if [ -z "${{ secrets.ELASTICSEARCH_NODE }}" ]; then
@@ -238,6 +238,7 @@ jobs:
             environment-variables.MAIL_HOST=${{ secrets.MAIL_HOST }} \
             environment-variables.MAIL_PORT=${{ secrets.MAIL_PORT }} \
             environment-variables.MAIL_USER=${{ secrets.MAIL_USER }} \
+            environment-variables.MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }} \
             environment-variables.MAIL_FROM=${{ secrets.MAIL_FROM }} \
             environment-variables.JWT_SECRET=${{ secrets.JWT_SECRET }} \
             environment-variables.AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
@@ -292,16 +293,42 @@ jobs:
           fi
           CONTAINER_URL=$(scw container container get $CONTAINER_ID region=fr-par -o json | jq -r '.domain_name')
           
-          echo "Performing health check..."
-          for i in {1..10}; do
-            if curl -f -s https://$CONTAINER_URL/api > /dev/null; then
-              echo "✅ Health check passed!"
-              exit 0
+          echo "Performing health check and database connectivity test..."
+          echo "Waiting for application to start (30s)..."
+          sleep 30
+          
+          for i in {1..15}; do
+            echo "Attempt $i/15: Testing health endpoint..."
+            RESPONSE=$(curl -s https://$CONTAINER_URL/api/health 2>&1 || echo "")
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://$CONTAINER_URL/api/health 2>&1 || echo "000")
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ API is responding (HTTP $HTTP_CODE)"
+              echo "Response: $RESPONSE"
+              
+              # Check if database is connected
+              DB_STATUS=$(echo "$RESPONSE" | jq -r '.database.status' 2>/dev/null || echo "unknown")
+              OVERALL_STATUS=$(echo "$RESPONSE" | jq -r '.status' 2>/dev/null || echo "unknown")
+              
+              if [ "$DB_STATUS" = "connected" ] && [ "$OVERALL_STATUS" = "ok" ]; then
+                echo "✅ Database connection verified!"
+                echo "✅ Health check passed!"
+                exit 0
+              else
+                echo "⚠️  API is up but database status: $DB_STATUS (overall: $OVERALL_STATUS)"
+                echo "Checking container logs..."
+                scw container container logs $CONTAINER_ID region=fr-par 2>&1 | tail -20 || true
+              fi
+            else
+              echo "Health check attempt $i/15 failed (HTTP $HTTP_CODE), retrying..."
             fi
-            echo "Health check attempt $i/10 failed, retrying..."
-            sleep 5
+            
+            sleep 10
           done
-          echo "❌ Health check failed after 10 attempts"
+          
+          echo "❌ Health check failed after 15 attempts"
+          echo "Final container logs:"
+          scw container container logs $CONTAINER_ID region=fr-par 2>&1 | tail -50 || true
           exit 1
 
       - name: Notify deployment status
@@ -319,7 +346,7 @@ jobs:
             echo "⚠️  Database services should be configured externally:"
             echo "  - Use Scaleway Managed Databases or external services"
             echo "  - MongoDB: Set MONGO_URI secret with your connection string"
-            echo "  - Redis: Set REDIS_URL secret with your Redis endpoint"
+            echo "  - Redis: Set REDIS_URL secret with your Redis connection URL"
             echo "  - Elasticsearch: Set ELASTICSEARCH_NODE secret with your endpoint"
           else
             echo "❌ Deployment to Scaleway failed"
