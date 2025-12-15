@@ -262,16 +262,24 @@ jobs:
 
       - name: Get container URL
         run: |
-          CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAME }}"'") | .id')
-          CONTAINER_URL=$(scw container container get $CONTAINER_ID -o json | jq -r '.domain_name')
+          CONTAINER_ID=$(scw container container list region=fr-par -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAME }}"'") | .id')
+          if [ -z "$CONTAINER_ID" ]; then
+            echo "❌ Container not found"
+            exit 1
+          fi
+          CONTAINER_URL=$(scw container container get $CONTAINER_ID region=fr-par -o json | jq -r '.domain_name')
           echo "🚀 Deployment successful!"
           echo "📍 Container URL: https://$CONTAINER_URL"
           echo "container_url=https://$CONTAINER_URL" >> $GITHUB_OUTPUT
 
       - name: Health check
         run: |
-          CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAME }}"'") | .id')
-          CONTAINER_URL=$(scw container container get $CONTAINER_ID -o json | jq -r '.domain_name')
+          CONTAINER_ID=$(scw container container list region=fr-par -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAME }}"'") | .id')
+          if [ -z "$CONTAINER_ID" ]; then
+            echo "❌ Container not found"
+            exit 1
+          fi
+          CONTAINER_URL=$(scw container container get $CONTAINER_ID region=fr-par -o json | jq -r '.domain_name')
           
           echo "Performing health check..."
           for i in {1..10}; do
@@ -288,10 +296,10 @@ jobs:
       - name: Notify deployment status
         if: always()
         run: |
-          CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAME }}"'") | .id')
-          CONTAINER_URL=$(scw container container get $CONTAINER_ID -o json | jq -r '.domain_name')
+          CONTAINER_ID=$(scw container container list region=fr-par -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAME }}"'") | .id')
           
           if [ "${{ job.status }}" = "success" ]; then
+            CONTAINER_URL=$(scw container container get $CONTAINER_ID region=fr-par -o json | jq -r '.domain_name')
             echo "✅ Deployment to Scaleway completed successfully"
             echo ""
             echo "📦 API Container:"
@@ -300,6 +308,15 @@ jobs:
             echo "⚠️  Database services should be configured externally:"
             echo "  - Use Scaleway Managed Databases or external services"
             echo "  - MongoDB: Set MONGO_URI secret with your connection string"
+            echo "  - Redis: Set REDIS_URL secret with your Redis endpoint"
+            echo "  - Elasticsearch: Set ELASTICSEARCH_NODE secret with your endpoint"
+          else
+            echo "❌ Deployment to Scaleway failed"
+            if [ -n "$CONTAINER_ID" ]; then
+              echo "Checking container logs for errors..."
+              scw container container logs $CONTAINER_ID region=fr-par --tail 50 || true
+            fi
+          fi
             echo "  - Redis: Set REDIS_URL secret with your Redis endpoint"
             echo "  - Elasticsearch: Set ELASTICSEARCH_NODE secret with your endpoint"
           else
