@@ -3,7 +3,10 @@ name: Deploy to Scaleway
 on:
   push:
     branches:
-      - main
+      - dev
+  pull_request:
+    branches:
+      - dev
   workflow_dispatch:
 
 permissions:
@@ -217,6 +220,7 @@ jobs:
             name=${{ env.CONTAINER_NAME }} \
             namespace-id=${{ steps.serverless_namespace.outputs.namespace_id }} \
             registry-image=${{ steps.image_tag.outputs.full_image }} \
+            region=fr-par \
             port=8080 \
             min-scale=1 \
             max-scale=5 \
