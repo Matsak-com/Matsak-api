@@ -129,5 +129,10 @@
     "moduleNameMapper": {
       "^src/(.*)$": "<rootDir>/$1"
     }
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "bcrypt"
+    ]
   }
 }
