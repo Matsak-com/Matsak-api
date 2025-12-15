@@ -141,6 +141,11 @@ jobs:
           build-args: |
             NODE_ENV=production
 
+      - name: Verify image tags
+        run: |
+          echo "Docker image tags that were built:"
+          echo "${{ steps.meta.outputs.tags }}"
+
       - name: Setup Scaleway CLI
         uses: ./.github/actions/setup-scaleway-cli
         with:
@@ -198,6 +203,8 @@ jobs:
           # Get the branch name and sanitize it for use in image tag
           BRANCH_NAME="${GITHUB_REF#refs/heads/}"
           IMAGE_TAG=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          
+          echo "Using image: ${{ env.REGISTRY }}/${{ env.CONTAINER_NAMESPACE }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}"
           
           scw container container create \
             name=${{ env.CONTAINER_NAME }} \
