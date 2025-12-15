@@ -129,6 +129,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
+        id: docker_build
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -141,10 +142,23 @@ jobs:
           build-args: |
             NODE_ENV=production
 
+      - name: Get primary image tag
+        id: image_tag
+        run: |
+          # Get the first tag from the list (branch-based tag)
+          FIRST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+          # Extract just the tag part after the last colon
+          IMAGE_TAG="${FIRST_TAG##*:}"
+          echo "Primary image tag: $IMAGE_TAG"
+          echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "full_image=$FIRST_TAG" >> $GITHUB_OUTPUT
+
       - name: Verify image tags
         run: |
           echo "Docker image tags that were built:"
           echo "${{ steps.meta.outputs.tags }}"
+          echo ""
+          echo "Using primary tag for deployment: ${{ steps.image_tag.outputs.tag }}"
 
       - name: Setup Scaleway CLI
         uses: ./.github/actions/setup-scaleway-cli
@@ -200,16 +214,12 @@ jobs:
 
       - name: Create container
         run: |
-          # Get the branch name and sanitize it for use in image tag
-          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
-          IMAGE_TAG=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9._-]/-/g')
-          
-          echo "Using image: ${{ env.REGISTRY }}/${{ env.CONTAINER_NAMESPACE }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}"
+          echo "Using image: ${{ steps.image_tag.outputs.full_image }}"
           
           scw container container create \
             name=${{ env.CONTAINER_NAME }} \
             namespace-id=${{ steps.serverless_namespace.outputs.namespace_id }} \
-            registry-image=${{ env.REGISTRY }}/${{ env.CONTAINER_NAMESPACE }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG} \
+            registry-image=${{ steps.image_tag.outputs.full_image }} \
             port=8080 \
             min-scale=1 \
             max-scale=5 \
