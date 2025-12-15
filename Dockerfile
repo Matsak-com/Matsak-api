@@ -31,21 +31,24 @@ RUN pnpm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Enable pnpm in the runtime image so the entrypoint can call pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Enable pnpm in the runtime image
+RUN corepack enable
+
+# Copy package files first
+COPY --from=builder /app/package*.json /app/pnpm-lock.yaml ./
+
+# Install production dependencies only
+RUN pnpm install --prod --frozen-lockfile
+
+# Copy the built dist
+COPY --from=builder /app/dist ./dist
+
+# Copy entrypoint script
+COPY --from=builder /app/scripts/docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Create uploads directory
 RUN mkdir -p uploads
-
-# Copy production dependencies from builder's pnpm store via node_modules
-# and the built dist
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package*.json ./
-
-# Copy and set permissions for entrypoint script
-COPY --from=builder /app/scripts/docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
