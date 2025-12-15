@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
@@ -19,8 +19,8 @@ COPY . .
 RUN rm -rf ./dist || true
 
 # Run build as a non-root user to avoid permission issues when files are created by root on host
-RUN if ! addgroup -S appgroup 2>/dev/null; then true; fi && \
-    if ! adduser -S appuser -G appgroup 2>/dev/null; then true; fi && \
+RUN if ! addgroup --system appgroup 2>/dev/null; then true; fi && \
+    if ! adduser --system --ingroup appgroup appuser 2>/dev/null; then true; fi && \
     chown -R appuser:appgroup /app
 USER appuser
 
@@ -28,7 +28,7 @@ USER appuser
 # Note: Linting is already validated in CI, so we skip it here to speed up deployment
 RUN pnpm run build
 
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 WORKDIR /app
 
 # Enable pnpm in the runtime image
