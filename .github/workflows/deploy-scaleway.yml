@@ -314,10 +314,9 @@ jobs:
             echo "❌ Deployment to Scaleway failed"
             if [ -n "$CONTAINER_ID" ]; then
               echo "Checking container logs for errors..."
-              scw container container logs $CONTAINER_ID region=fr-par --tail 50 || true
+              scw container container logs $CONTAINER_ID region=fr-par 2>&1 | tail -50 || true
             fi
           fi
-            echo "  - Redis: Set REDIS_URL secret with your Redis endpoint"
             echo "  - Elasticsearch: Set ELASTICSEARCH_NODE secret with your endpoint"
           else
             echo "❌ Deployment to Scaleway failed"
