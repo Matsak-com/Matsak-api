@@ -328,10 +328,6 @@ jobs:
               scw container container logs $CONTAINER_ID region=fr-par 2>&1 | tail -50 || true
             fi
           fi
-            echo "  - Elasticsearch: Set ELASTICSEARCH_NODE secret with your endpoint"
-          else
-            echo "❌ Deployment to Scaleway failed"
-          fi
 
   cleanup:
     name: Cleanup old images
