@@ -244,7 +244,13 @@ jobs:
             environment-variables.AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
             environment-variables.AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
             environment-variables.AWS_REGION=${{ secrets.AWS_REGION }} \
-            environment-variables.AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
+            environment-variables.AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }} \
+            environment-variables.GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
+            environment-variables.GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} \
+            environment-variables.GOOGLE_CALLBACK_URL=${{ secrets.GOOGLE_CALLBACK_URL }} \
+            environment-variables.FACEBOOK_APP_ID=${{ secrets.FACEBOOK_APP_ID }} \
+            environment-variables.FACEBOOK_APP_SECRET=${{ secrets.FACEBOOK_APP_SECRET }} \
+            environment-variables.FACEBOOK_CALLBACK_URL=${{ secrets.FACEBOOK_CALLBACK_URL }}
 
       - name: Deploy container
         run: |

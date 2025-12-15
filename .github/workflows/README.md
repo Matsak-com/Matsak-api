@@ -132,6 +132,16 @@ AWS_REGION                        # AWS region (e.g., eu-west-1)
 AWS_S3_BUCKET                     # S3 bucket name
 ```
 
+**Social Authentication (Optional):**
+```
+GOOGLE_CLIENT_ID                  # Google OAuth 2.0 Client ID
+GOOGLE_CLIENT_SECRET              # Google OAuth 2.0 Client Secret
+GOOGLE_CALLBACK_URL               # Google OAuth callback URL (e.g., https://yourdomain.com/auth/google/callback)
+FACEBOOK_APP_ID                   # Facebook App ID
+FACEBOOK_APP_SECRET               # Facebook App Secret
+FACEBOOK_CALLBACK_URL             # Facebook OAuth callback URL (e.g., https://yourdomain.com/auth/facebook/callback)
+```
+
 ## Getting Scaleway Credentials
 
 1. **Create Scaleway Account**:

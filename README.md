@@ -148,11 +148,20 @@ The application is automatically deployed to Scaleway Serverless Containers on e
    - `MAIL_HOST` - SMTP host
    - `MAIL_PORT` - SMTP port
    - `MAIL_USER` - SMTP username
+   - `MAIL_PASSWORD` - SMTP password
    - `MAIL_FROM` - Email sender address
    - `AWS_ACCESS_KEY_ID` - AWS access key for S3
    - `AWS_SECRET_ACCESS_KEY` - AWS secret key for S3
    - `AWS_REGION` - AWS region
    - `AWS_S3_BUCKET` - S3 bucket name
+
+   **Social Authentication (Optional):**
+   - `GOOGLE_CLIENT_ID` - Google OAuth 2.0 Client ID
+   - `GOOGLE_CLIENT_SECRET` - Google OAuth 2.0 Client Secret
+   - `GOOGLE_CALLBACK_URL` - Google OAuth callback URL
+   - `FACEBOOK_APP_ID` - Facebook App ID
+   - `FACEBOOK_APP_SECRET` - Facebook App Secret
+   - `FACEBOOK_CALLBACK_URL` - Facebook OAuth callback URL
 
 2. **External Services** - Since Scaleway Serverless Containers only support HTTP/HTTPS (not raw TCP), you need external managed services:
    - **MongoDB**: [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) or [Scaleway Managed Database](https://www.scaleway.com/en/database/)
