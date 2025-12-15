@@ -20,8 +20,8 @@ RUN rm -rf ./dist || true
 
 # Run build as a non-root user to avoid permission issues when files are created by root on host
 RUN if ! addgroup -S appgroup 2>/dev/null; then true; fi && \
-    if ! adduser -S appuser -G appgroup 2>/dev/null; then true; fi
-RUN chown -R appuser:appgroup /app
+    if ! adduser -S appuser -G appgroup 2>/dev/null; then true; fi && \
+    chown -R appuser:appgroup /app
 USER appuser
 
 # Build the application
@@ -43,12 +43,10 @@ RUN pnpm install --prod --frozen-lockfile
 # Copy the built dist
 COPY --from=builder /app/dist ./dist
 
-# Copy entrypoint script
+# Copy entrypoint script and create uploads directory
 COPY --from=builder /app/scripts/docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-# Create uploads directory
-RUN mkdir -p uploads
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh && \
+    mkdir -p uploads
 
 EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
