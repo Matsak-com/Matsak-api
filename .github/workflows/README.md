@@ -22,205 +22,423 @@ Runs automatically on:
 
 ## 2. Deploy to Scaleway (`deploy-scaleway.yml`)
 
+**Production deployment workflow for Scaleway Serverless Containers**
+
 Runs automatically on:
-- Pushes to `dev` branch
+- Pushes to `main` branch
 - Manual trigger via workflow dispatch
 
-### What it does:
-- **Deploy MongoDB**: Deploys MongoDB 7.0 container (private, 2GB RAM, 1 vCPU)
-- **Deploy Elasticsearch**: Deploys Elasticsearch 8.11.0 container (private, 4GB RAM, 2 vCPU)
-- **Deploy Redis**: Deploys Redis 7-alpine container (private, 512MB RAM, 0.5 vCPU)
-- **Deploy Mailhog**: Deploys Mailhog container for email testing (public UI, 256MB RAM, 0.25 vCPU)
-- **Build Docker Image**: Builds and pushes API to Scaleway Container Registry
-- **Deploy API Container**: Creates or updates main API container with auto-configured service URLs
-- **Health Check**: Verifies deployment is successful
-- **Auto-scaling**: API configured with min 1, max 5 instances
+### Architecture Overview
 
-### Deployed Services:
-- **API**: Main application (1-5 instances, 2GB RAM, 1 vCPU)
-- **MongoDB**: Database (private network, 2GB RAM, 1 vCPU)
-- **Elasticsearch**: Search and indexing (private network, 4GB RAM, 2 vCPU)
-- **Redis**: Cache and session storage (private network, 512MB RAM, 0.5 vCPU)
-- **Mailhog**: Email testing (public web UI at port 8025, 256MB RAM, 0.25 vCPU)
+⚠️ **Important**: Scaleway Serverless Containers only support HTTP/HTTPS protocols. Raw TCP services (MongoDB, Redis, Elasticsearch) cannot be deployed as serverless containers.
+
+**Deployment Strategy:**
+- **API Application**: Deployed as Scaleway Serverless Container
+- **Databases & Services**: External managed services (MongoDB Atlas, Redis Cloud, Elastic Cloud, etc.)
+
+### What it does:
+
+1. **Validate Secrets**: Ensures all required database connection strings are configured
+2. **Build Docker Image**: Builds production image using `Dockerfile` (not `Dockerfile.dev`)
+3. **Push to Registry**: Pushes image to Scaleway Container Registry with tags (`latest`, `main`, `sha-short`)
+4. **Setup Namespaces**: Auto-creates Container Registry and Serverless Container namespaces if needed
+5. **Delete Old Container**: Removes existing container to force fresh image pull
+6. **Deploy Container**: Creates new container with updated environment variables
+7. **Health Check**: Waits for container to be ready and healthy
+
+### Deployed Configuration:
+
+**API Container (Production):**
+- **Name**: `matsak-api-prod`
+- **CPU**: 1000m (1 vCPU)
+- **Memory**: 2048MB (2GB)
+- **Port**: 8080 (auto-injected by Scaleway)
+- **Timeout**: 300s
+- **Auto-scaling**: 1-5 instances
+- **Region**: fr-par (Paris, France)
+- **Image**: Production build (`Dockerfile`)
+- **Update Strategy**: Delete & recreate (forces fresh image)
 
 ## Required GitHub Secrets
 
 Add these secrets in your GitHub repository settings (`Settings > Secrets and variables > Actions`):
 
-### Scaleway Secrets:
+### Scaleway Credentials:
 ```
-SCW_ACCESS_KEY                 # Scaleway API access key
-SCW_SECRET_KEY                 # Scaleway API secret key
-SCW_ORGANIZATION_ID            # Scaleway organization ID
-SCW_PROJECT_ID                 # Scaleway project ID
-SCW_CONTAINER_NAMESPACE        # Container registry namespace (e.g., matsak)
-SCW_CONTAINER_NAMESPACE_ID     # Container namespace ID
-```
-
-### Application Secrets:
-```
-JWT_SECRET                  # JWT signing secret
+SCW_ACCESS_KEY                    # Scaleway API access key
+SCW_SECRET_KEY                    # Scaleway API secret key
+SCW_ORGANIZATION_ID               # Scaleway organization ID
+SCW_PROJECT_ID                    # Scaleway project ID
+SCW_CONTAINER_NAMESPACE           # Container registry namespace name
+SCW_SERVERLESS_NAMESPACE_NAME     # Serverless namespace (default: prod-matsak)
 ```
 
-### AWS S3 Secrets:
+### External Database Services:
+
+⚠️ **Required**: Since Scaleway Serverless Containers don't support raw TCP, you must use external managed services:
+
+**MongoDB** (Required):
 ```
-AWS_ACCESS_KEY_ID          # AWS access key for S3
-AWS_SECRET_ACCESS_KEY      # AWS secret access key
-AWS_REGION                 # AWS region (e.g., us-east-1)
-AWS_S3_BUCKET              # S3 bucket name
+MONGO_URI                         # Full connection string with auth
+                                  # Example: mongodb+srv://user:pass@cluster.mongodb.net/matsak?retryWrites=true&w=majority
+                                  # Providers: MongoDB Atlas, Scaleway Managed Database
 ```
 
-### Email Secrets:
+**Redis** (Required):
 ```
-MAIL_FROM                  # Sender email address
+REDIS_URL                         # Full connection URL
+                                  # Example: redis://user:pass@hostname:port
+                                  # Providers: Redis Cloud, Scaleway Managed Database
 ```
 
-**Note**: MongoDB, Elasticsearch, Redis, and Mailhog are automatically deployed as separate containers in Scaleway. No manual configuration needed for:
-- `MONGODB_URI`
-- `ELASTICSEARCH_NODE`
-- `REDIS_HOST`, `REDIS_PORT`
-- `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`, `MAIL_PASSWORD`
+**Elasticsearch** (Required):
+```
+ELASTICSEARCH_NODE                # Full URL with protocol
+ELASTICSEARCH_USER                # Elasticsearch username
+ELASTICSEARCH_PASSWORD            # Elasticsearch password
+                                  # Example: https://cluster-id.es.region.aws.cloud.es.io:9243
+                                  # Providers: Elastic Cloud, Scaleway Managed Database
+```
+
+### Application Configuration:
+
+**Security:**
+```
+JWT_SECRET                        # JWT signing secret (generate secure random string)
+CORS_ORIGIN                       # Allowed CORS origins
+                                  # Example: ["https://yourdomain.com","https://app.yourdomain.com"]
+```
+
+**Email/SMTP:**
+```
+MAIL_HOST                         # SMTP server host
+MAIL_PORT                         # SMTP port (usually 587 or 465)
+MAIL_USER                         # SMTP username
+MAIL_FROM                         # Sender email address
+```
+
+**AWS S3 (for file uploads):**
+```
+AWS_ACCESS_KEY_ID                 # AWS access key
+AWS_SECRET_ACCESS_KEY             # AWS secret key
+AWS_REGION                        # AWS region (e.g., eu-west-1)
+AWS_S3_BUCKET                     # S3 bucket name
+```
 
 ## Getting Scaleway Credentials
 
-1. **Access Keys**: 
-   - Go to [Scaleway Console](https://console.scaleway.com/)
-   - Navigate to `Project > API Keys`
-   - Create a new API key
+1. **Create Scaleway Account**:
+   - Sign up at [Scaleway Console](https://console.scaleway.com/)
+   - Complete email verification
 
-2. **Container Registry**:
-   - Go to `Containers > Container Registry`
-   - Create a namespace if you don't have one
-   - Copy the namespace ID and name
+2. **Generate API Keys**: 
+   - Navigate to: `Project > API Keys`
+   - Click **Generate API Key**
+   - Copy `Access Key` and `Secret Key`
+   - Add to GitHub secrets as `SCW_ACCESS_KEY` and `SCW_SECRET_KEY`
 
-3. **Organization & Project IDs**:
-   - Found in your Scaleway Console URL
-   - Or in `Project Settings > Project ID`
+3. **Get Organization & Project IDs**:
+   - In Scaleway Console, go to `Organization Settings`
+   - Copy **Organization ID**
+   - Go to `Project Settings` → Copy **Project ID**
+   - Add to GitHub secrets
 
-## Container Configuration
+4. **Container Registry Namespace**:
+   - The workflow auto-creates the namespace if it doesn't exist
+   - Choose a name (e.g., `matsak`) and add as `SCW_CONTAINER_NAMESPACE`
+   - Or create manually: `Containers > Container Registry > Create namespace`
 
-### API Container:
-- **CPU**: 1000m (1 vCPU)
-- **Memory**: 2048MB (2GB)
-- **Port**: 3000
-- **Timeout**: 300s
-- **Auto-scaling**: 1-5 instances
-- **Health check**: GET /api
+5. **Serverless Container Namespace**:
+   - Default: `prod-matsak`
+   - The workflow auto-creates it if needed
+   - Add as `SCW_SERVERLESS_NAMESPACE_NAME` (or use default)
 
-### MongoDB Container:
-- **CPU**: 1000m (1 vCPU)
-- **Memory**: 2048MB (2GB)
-- **Port**: 27017
-- **Privacy**: Private (internal network only)
-- **Scaling**: Fixed at 1 instance
-- **Database**: matsak (auto-initialized)
+## Setting Up External Services
 
-### Elasticsearch Container:
-- **CPU**: 2000m (2 vCPU)
-- **Memory**: 4096MB (4GB)
-- **Port**: 9200
-- **Privacy**: Private (internal network only)
-- **Scaling**: Fixed at 1 instance
-- **Java Heap**: 2GB (-Xms2g -Xmx2g)
-- **Security**: Disabled (xpack.security.enabled=false)
+### MongoDB Atlas (Free Tier Available):
+1. Create account at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
+2. Create a free M0 cluster
+3. Create database user with password
+4. Whitelist IP: `0.0.0.0/0` (allow all) or specific Scaleway IPs
+5. Get connection string: `mongodb+srv://user:password@cluster.mongodb.net/matsak`
+6. Add as `MONGO_URI` secret
 
-### Redis Container:
-- **CPU**: 500m (0.5 vCPU)
-- **Memory**: 512MB
-- **Port**: 6379
-- **Privacy**: Private (internal network only)
-- **Scaling**: Fixed at 1 instance
+### Redis Cloud (Free Tier Available):
+1. Create account at [Redis Cloud](https://redis.com/cloud/)
+2. Create free database (30MB)
+3. Get connection string from database details
+4. Add as `REDIS_URL` secret
 
-### Mailhog Container:
-- **CPU**: 250m (0.25 vCPU)
-- **Memory**: 256MB
-- **Port**: 8025 (Web UI)
-- **SMTP Port**: 1025 (Email ingress)
-- **Privacy**: Public (web UI accessible)
-- **Scaling**: Fixed at 1 instance
+### Elastic Cloud (Free Trial):
+1. Create account at [Elastic Cloud](https://cloud.elastic.co/)
+2. Create deployment (14-day trial)
+3. Get Elasticsearch endpoint and credentials
+4. Add as `ELASTICSEARCH_NODE`, `ELASTICSEARCH_USER`, `ELASTICSEARCH_PASSWORD`
+
+### Alternative: Scaleway Managed Databases
+Scaleway offers managed PostgreSQL, MySQL, and Redis:
+- Go to: `Managed Databases > Create Instance`
+- Choose your database type and plan
+- Get connection details after provisioning
+
+## Local Development vs Production
+
+### Local Development (docker-compose.yml):
+```bash
+# Start all services locally
+docker-compose up -d
+```
+
+**Includes:**
+- MongoDB 7.0 (local container)
+- Elasticsearch 8.10.0 (local container)
+- API (built from Dockerfile)
+
+**Use for:**
+- Local development and testing
+- Running migrations
+- Testing with real databases
+- Debugging
+
+### Production (Scaleway):
+**API Only** deployed as serverless container + **External managed services**
+
+**Advantages:**
+- Auto-scaling (1-5 instances)
+- High availability
+- Managed infrastructure
+- Pay-per-use pricing
+- Better security (managed databases with backups, monitoring)
+
+## Environment Variables Reference
+
+The production container receives these environment variables:
+
+**Auto-injected by Scaleway:**
+- `PORT=8080` (cannot be changed)
+
+**From GitHub Secrets:**
+- `NODE_ENV=production`
+- `MONGO_URI` - MongoDB connection string
+- `DB_URI` - Same as MONGO_URI (for compatibility)
+- `REDIS_URL` - Redis connection URL
+- `ELASTICSEARCH_NODE` - Elasticsearch endpoint
+- `ELASTICSEARCH_USER` - Elasticsearch username
+- `ELASTICSEARCH_PASSWORD` - Elasticsearch password
+- `CORS_ORIGIN` - Allowed origins
+- `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`, `MAIL_FROM` - SMTP config
+- `JWT_SECRET` - JWT signing key
+- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_S3_BUCKET` - AWS S3 config
+
+## Container Lifecycle
+
+1. **Push to main** → Workflow triggered
+2. **Validate secrets** → Ensures all required secrets exist
+3. **Build image** → Docker build from `Dockerfile`
+4. **Push to registry** → Tags: `latest`, `main`, `sha-short`
+5. **Delete old container** → Forces fresh image pull
+6. **Create new container** → With updated environment variables
+7. **Deploy** → Container starts and runs migrations
+8. **Health check** → Waits for container to respond
+9. **Ready** → API is live and serving requests
+
+## Cost Optimization
+
+**Scaleway Serverless Containers Pricing** (as of 2025):
+- **Free tier**: 400,000 vCPU-seconds + 200,000 GB-seconds per month
+- **Scaling**: Only pay for active instances
+- **Auto-scaling**: Scales down to min instances when idle
+
+**External Services Free Tiers:**
+- **MongoDB Atlas**: M0 cluster (512MB, shared) - Forever free
+- **Redis Cloud**: 30MB - Forever free
+- **Elastic Cloud**: 14-day trial, then paid
+
+**Estimated Monthly Cost:**
+- Low traffic: ~€5-10 (mostly free tiers)
+- Medium traffic: ~€20-40
+- High traffic: ~€50+ (depends on scaling)
 
 ## Manual Deployment
 
-To manually trigger a deployment:
-1. Go to `Actions` tab in GitHub
-2. Select `Deploy to Scaleway` workflow
-3. Click `Run workflow`
-4. Select the `dev` branch
-5. Click `Run workflow`
+To manually trigger a production deployment:
+
+1. Go to **Actions** tab in GitHub
+2. Select **Deploy to Scaleway** workflow
+3. Click **Run workflow**
+4. Select the `main` branch
+5. Click **Run workflow**
+
+The deployment process takes approximately 3-5 minutes.
 
 ## Monitoring Deployments
 
-After deployment, you can monitor your containers:
-- **Scaleway Console**: `Containers > Containers`
-- **API Logs**: Check logs for matsak-api-dev container
-- **MongoDB Logs**: Check logs for matsak-mongodb-dev container
-- **Elasticsearch Logs**: Check logs for matsak-elasticsearch-dev container
-- **Redis Logs**: Check logs for matsak-redis-dev container
-- **Mailhog UI**: Access via the public URL (displayed in deployment logs)
-- **Metrics**: CPU, Memory, Request count in Console
-- **GitHub Actions**: Check workflow run logs for deployment status and URLs
+### Scaleway Console:
+- **Containers**: `Containers > Serverless Containers > matsak-api-prod`
+- **Logs**: Click on container → Logs tab
+- **Metrics**: CPU usage, memory, request count, response times
+- **Container Registry**: `Containers > Container Registry` → View pushed images
+
+### GitHub Actions:
+- **Workflow Status**: Check run status and logs
+- **Build Logs**: See Docker build output
+- **Deployment Steps**: Monitor each deployment phase
+- **Container URL**: Displayed in deployment logs after success
+
+### Health Monitoring:
+```bash
+# Install Scaleway CLI
+curl -o /usr/local/bin/scw -L "https://github.com/scaleway/scaleway-cli/releases/latest/download/scaleway-cli_$(uname -s)_$(uname -m)"
+chmod +x /usr/local/bin/scw
+
+# Configure CLI
+scw init
+
+# Check container status
+scw container container list region=fr-par
+
+# View logs
+scw container container logs <container-id> region=fr-par
+
+# Get container details
+scw container container get <container-id> region=fr-par
+```
 
 ## Troubleshooting
 
-### Tests failing:
-- Check service health in CI logs
-- Verify MongoDB/Elasticsearch/Redis are running
-- Check test environment variables
+### Secret Validation Fails:
+```
+❌ MONGO_URI secret is not set
+```
+**Solution**: Add the missing secret in GitHub repository settings
 
-### Deployment failing:
-- Verify all required secrets are set
-- Check Scaleway API key permissions
-- Review container logs in Scaleway Console
-- Ensure Docker build completes successfully
+### Container Creation Fails:
+```
+Error: Namespace was not found
+```
+**Solution**: Workflow auto-creates namespaces. Check Scaleway API key permissions.
 
-### Health check failing:
-- Container might need more time to start
-- Check application logs in Scaleway Console
-- Verify environment variables are correct
-- Test the /api endpoint manually
+### Image Not Updated:
+```
+Container is using old code
+```
+**Solution**: The workflow now deletes and recreates containers on every deploy to force fresh image pull.
 
-## Local Testing
+### Container Won't Start:
+```
+Container is unable to start OR is not listening on port 8080
+```
+**Solutions**:
+- Check container logs in Scaleway Console
+- Verify all environment variables are set correctly
+- Ensure `MONGO_URI` is a valid connection string
+- Check if external services (MongoDB, Redis, Elasticsearch) are accessible
 
-To test the workflows locally:
+### Database Connection Fails:
+```
+MongoServerError: Authentication failed
+```
+**Solutions**:
+- Verify MongoDB connection string includes username, password, and `authSource`
+- Example: `mongodb+srv://user:pass@host/dbname?authSource=admin`
+- Check database user permissions
+- Verify IP whitelist allows Scaleway IPs
+
+### Health Check Timeout:
+```
+Waiting for container to be ready... (timeout)
+```
+**Solutions**:
+- Container needs more time to start (migrations running)
+- Check application logs for startup errors
+- Verify the `/api` endpoint is accessible
+- Increase timeout in workflow if needed
+
+### Tests Failing in CI:
+- Check MongoDB/Elasticsearch/Redis service health in CI logs
+- Verify test environment variables
+- Review test output for specific failures
+
+## Local Testing with act
+
+To test workflows locally before pushing:
 
 ```bash
 # Install act (GitHub Actions local runner)
+# macOS
 brew install act
 
-# Run CI workflow
+# Linux
+curl https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
+
+# Run CI workflow locally
 act pull_request -W .github/workflows/ci.yml
 
-# Run deployment workflow (requires secrets)
+# Test deployment workflow (requires secrets file)
+# Create .secrets file with your secrets (DO NOT COMMIT)
 act push -W .github/workflows/deploy-scaleway.yml --secret-file .secrets
 ```
 
-## Accessing Deployed Services
+**Note**: Full deployment testing with act is limited. Use staging deployments instead.
 
-After successful deployment, you'll see URLs in the GitHub Actions logs:
+## Security Best Practices
 
-- **API**: `https://your-api-domain.scw.cloud/api`
-- **MongoDB**: `mongodb://mongodb-domain.scw.cloud:27017/matsak` (private, internal only)
-- **Elasticsearch**: `http://elasticsearch-domain.scw.cloud:9200` (private, internal only)
-- **Redis**: `redis-domain.scw.cloud:6379` (private, internal only)
-- **Mailhog UI**: `https://mailhog-domain.scw.cloud` (public, for viewing test emails)
-- **Mailhog SMTP**: `mailhog-domain.scw.cloud:1025` (internal)
-
-## Email Testing with Mailhog
-
-Mailhog captures all emails sent by your application:
-1. Your API sends emails to the Mailhog SMTP server
-2. Access the Mailhog web UI to view captured emails
-3. No emails are actually sent externally (perfect for testing)
-
-## Security Notes
-
-- Never commit secrets to the repository
-- Rotate API keys regularly
-- Use least privilege access for API keys
+✅ **Do:**
+- Rotate API keys and secrets regularly (every 90 days)
+- Use strong, unique passwords for all services
 - Enable 2FA on Scaleway account
-- Elasticsearch is on private network with security disabled (dev only)
-- Redis is on private network (not publicly accessible)
-- Mailhog UI is public (consider adding auth in production)
+- Use least privilege access for API keys
+- Keep dependencies updated (`pnpm update`)
 - Review container security settings
-- Keep dependencies updated
-- For production, enable Elasticsearch security features
+- Monitor logs for suspicious activity
+- Use environment-specific secrets (prod vs dev)
+- Whitelist specific IPs when possible
+
+❌ **Don't:**
+- Commit secrets to repository
+- Use weak or default passwords
+- Share API keys across environments
+- Disable security features in production
+- Use public endpoints for databases
+- Ignore security alerts and updates
+
+## Accessing Deployed Application
+
+After successful deployment, your API will be available at:
+
+```
+https://<container-id>-matsak-api-prod.functions.fnc.fr-par.scw.cloud
+```
+
+The exact URL is displayed in the GitHub Actions deployment logs.
+
+**API Endpoints:**
+- Health check: `GET /api`
+- API documentation: `GET /api/docs` (if Swagger is enabled)
+- All other endpoints as defined in your application
+
+**External Services:**
+- MongoDB: Accessible via `MONGO_URI` connection string (private)
+- Redis: Accessible via `REDIS_URL` (private)
+- Elasticsearch: Accessible via `ELASTICSEARCH_NODE` (private)
+
+## Additional Resources
+
+- [Scaleway Serverless Containers Documentation](https://www.scaleway.com/en/docs/serverless/containers/)
+- [NestJS Deployment Guide](https://docs.nestjs.com/deployment)
+- [MongoDB Atlas Documentation](https://docs.atlas.mongodb.com/)
+- [Redis Cloud Documentation](https://docs.redis.com/latest/rc/)
+- [Elastic Cloud Documentation](https://www.elastic.co/guide/en/cloud/current/index.html)
+- [Docker Best Practices](https://docs.docker.com/develop/dev-best-practices/)
+
+## Support and Contributing
+
+For issues related to:
+- **Application**: Open an issue in this repository
+- **Scaleway Platform**: [Scaleway Support](https://console.scaleway.com/support)
+- **External Services**: Contact respective service providers
+
+---
+
+**Last Updated**: December 2025
+**Production Environment**: Scaleway Serverless Containers (fr-par region)

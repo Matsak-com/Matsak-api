@@ -19,10 +19,6 @@ env:
   IMAGE_NAME: matsak-api
   CONTAINER_NAMESPACE: ${{ secrets.SCW_CONTAINER_NAMESPACE }}
   CONTAINER_NAME: matsak-api-prod
-  MONGODB_CONTAINER_NAME: matsak-mongodb-prod
-  REDIS_CONTAINER_NAME: matsak-redis-prod
-  MAILHOG_CONTAINER_NAME: matsak-mailhog-prod
-  ELASTICSEARCH_CONTAINER_NAME: matsak-elasticsearch-prod
   SCW_SERVERLESS_NAMESPACE_NAME: prod-matsak
 
 jobs:
@@ -181,9 +177,9 @@ jobs:
       - name: Check if container exists
         id: check_container
         run: |
-          if scw container container list | grep -q "${{ env.CONTAINER_NAME }}"; then
+          if scw container container list region=fr-par | grep -q "${{ env.CONTAINER_NAME }}"; then
             echo "exists=true" >> $GITHUB_OUTPUT
-            CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="${{ env.CONTAINER_NAME }}") | .id')
+            CONTAINER_ID=$(scw container container list region=fr-par -o json | jq -r '.[] | select(.name=="${{ env.CONTAINER_NAME }}") | .id')
             echo "container_id=$CONTAINER_ID" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
@@ -193,7 +189,7 @@ jobs:
         if: steps.check_container.outputs.exists == 'true'
         run: |
           echo "Deleting existing container to force fresh deployment with new image..."
-          scw container container delete ${{ steps.check_container.outputs.container_id }}
+          scw container container delete ${{ steps.check_container.outputs.container_id }} region=fr-par
           echo "Waiting for container deletion..."
           sleep 10
 
@@ -229,20 +225,20 @@ jobs:
 
       - name: Deploy container
         run: |
-          CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAME }}"'") | .id')
+          CONTAINER_ID=$(scw container container list region=fr-par -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAME }}"'") | .id')
           if [ -z "$CONTAINER_ID" ]; then
             echo "Error: Container was not created"
             exit 1
           fi
-          scw container container deploy $CONTAINER_ID
+          scw container container deploy $CONTAINER_ID region=fr-par
           echo "Container deployed: $CONTAINER_ID"
 
       - name: Wait for deployment
         run: |
-          CONTAINER_ID=$(scw container container list -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAME }}"'") | .id')
+          CONTAINER_ID=$(scw container container list region=fr-par -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAME }}"'") | .id')
           echo "Waiting for container to be ready..."
           for i in {1..30}; do
-            STATUS=$(scw container container get $CONTAINER_ID -o json | jq -r '.status')
+            STATUS=$(scw container container get $CONTAINER_ID region=fr-par -o json | jq -r '.status')
             if [ "$STATUS" = "ready" ]; then
               echo "Container is ready!"
               exit 0
