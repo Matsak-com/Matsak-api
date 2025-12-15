@@ -195,10 +195,14 @@ jobs:
 
       - name: Create container
         run: |
+          # Get the branch name and sanitize it for use in image tag
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          IMAGE_TAG=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          
           scw container container create \
             name=${{ env.CONTAINER_NAME }} \
             namespace-id=${{ steps.serverless_namespace.outputs.namespace_id }} \
-            registry-image=${{ env.REGISTRY }}/${{ env.CONTAINER_NAMESPACE }}/${{ env.IMAGE_NAME }}:latest \
+            registry-image=${{ env.REGISTRY }}/${{ env.CONTAINER_NAMESPACE }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG} \
             port=8080 \
             min-scale=1 \
             max-scale=5 \
