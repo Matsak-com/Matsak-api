@@ -37,6 +37,9 @@ RUN pnpm install --prod --frozen-lockfile
 # Copy the built dist
 COPY --from=builder /app/dist ./dist
 
+# Copy migrations directory for database migrations
+COPY --from=builder /app/migrations ./migrations
+
 # Copy entrypoint script and create uploads directory
 COPY --from=builder /app/scripts/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh && \
