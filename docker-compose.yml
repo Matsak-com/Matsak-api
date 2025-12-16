@@ -1,0 +1,85 @@
+services:
+  # MongoDB service with authentication
+  mongodb:
+    image: mongo:7.0
+    container_name: matsak-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-matsak_admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: matsak
+      MONGO_APP_USERNAME: ${MONGO_APP_USERNAME:-matsak_user}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD}
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - matsak-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--username", "${MONGO_ROOT_USERNAME:-matsak_admin}", "--password", "${MONGO_ROOT_PASSWORD}", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  # Elasticsearch service (NEW)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.0
+    container_name: matsak-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - matsak-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  # API service (includes migration execution on startup)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: matsak-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - MONGO_URI=mongodb://${MONGO_APP_USERNAME:-matsak_user}:${MONGO_APP_PASSWORD}@mongodb:27017/matsak?authSource=matsak
+      - DB_URI=mongodb://${MONGO_APP_USERNAME:-matsak_user}:${MONGO_APP_PASSWORD}@mongodb:27017/matsak?authSource=matsak
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGIN=["http://localhost:3000", "http://localhost:8080"]
+      # Elasticsearch (NEW)
+      - ELASTICSEARCH_NODE=http://elasticsearch:9200
+      - ELASTICSEARCH_USER=elastic
+      - ELASTICSEARCH_PASSWORD=changeme
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    volumes:
+      - ./uploads:/app/uploads
+    networks:
+      - matsak-network
+
+volumes:
+  mongodb_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+
+networks:
+  matsak-network:
+    driver: bridge
