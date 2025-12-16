@@ -12,27 +12,33 @@ import placeholder from './image-placeholder.json';
 import { InternalServerErrorException } from '@nestjs/common';
 import { ERRORS } from '../common/errors';
 
-const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY;
-const AWS_SECRET = process.env.AWS_SECRET;
+const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
+const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;
 const AWS_REGION = process.env.AWS_REGION;
+const AWS_S3_BUCKET = process.env.AWS_S3_BUCKET;
 
 export class AwsS3Service {
   private readonly client: S3Client;
   constructor() {
-    if (!AWS_ACCESS_KEY) {
+    if (!AWS_ACCESS_KEY_ID) {
       throw new InternalServerErrorException(ERRORS.AWS_INVALID_ACCESS_KEY);
     }
 
-    if (!AWS_SECRET) {
+    if (!AWS_SECRET_ACCESS_KEY) {
       throw new InternalServerErrorException(ERRORS.AWS_INVALID_SECRET);
     }
     if (!AWS_REGION) {
       throw new InternalServerErrorException(ERRORS.AWS_INVALID_REGION);
     }
+    if (!AWS_S3_BUCKET) {
+      throw new InternalServerErrorException(
+        ERRORS.AWS_S3_BUCKET_NOT_CONFIGURED,
+      );
+    }
     const client = new S3Client({
       credentials: {
-        accessKeyId: AWS_ACCESS_KEY,
-        secretAccessKey: AWS_SECRET,
+        accessKeyId: AWS_ACCESS_KEY_ID,
+        secretAccessKey: AWS_SECRET_ACCESS_KEY,
       },
       region: AWS_REGION,
     });
@@ -55,7 +61,7 @@ export class AwsS3Service {
       fileKey = `${fileKey}.${extension}`;
     }
     const putObjectCommand = new PutObjectCommand({
-      Bucket: process.env.AWS_BUCKET_NAME,
+      Bucket: AWS_S3_BUCKET,
       Key: fileKey,
       ContentType: file.mimetype,
       Body: file.buffer,
@@ -71,7 +77,7 @@ export class AwsS3Service {
 
   async deleteFile({ fileKey }: { fileKey: string }) {
     const deleteObjectCommand = new DeleteObjectCommand({
-      Bucket: process.env.AWS_BUCKET_NAME,
+      Bucket: AWS_S3_BUCKET,
       Key: fileKey,
     });
 
@@ -82,7 +88,7 @@ export class AwsS3Service {
 
   async getFileUrl({ fileKey }: { fileKey: string }) {
     const getObjectCommand = new GetObjectCommand({
-      Bucket: process.env.AWS_BUCKET_NAME,
+      Bucket: AWS_S3_BUCKET,
       Key: fileKey,
     });
 

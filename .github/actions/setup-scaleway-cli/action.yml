@@ -40,19 +40,44 @@ runs:
           *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
         esac
         
-        # Get latest version number
-        VERSION=$(curl -s -H "Authorization: token ${{ github.token }}" https://api.github.com/repos/scaleway/scaleway-cli/releases/latest | jq -r '.tag_name' | sed 's/^v//')
-        if [ -z "$VERSION" ]; then
-          echo "Error: Failed to fetch latest Scaleway CLI version from GitHub API"
+        # Get latest version number with retry logic
+        MAX_RETRIES=3
+        RETRY_COUNT=0
+        VERSION=""
+        
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ -z "$VERSION" ]; do
+          echo "Attempting to fetch Scaleway CLI version (attempt $((RETRY_COUNT + 1))/$MAX_RETRIES)..."
+          VERSION=$(curl -s --retry 3 --retry-delay 2 https://api.github.com/repos/scaleway/scaleway-cli/releases/latest | jq -r '.tag_name' | sed 's/^v//')
+          
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "Failed to fetch version, waiting 5 seconds before retry..."
+              sleep 5
+            fi
+            VERSION=""
+          else
+            echo "Successfully fetched version: $VERSION"
+          fi
+        done
+        
+        # Fallback to a known stable version if API fetch fails
+        if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+          VERSION="2.47.0"
+          echo "Warning: Could not fetch latest version from GitHub API, using fallback version $VERSION"
+        fi
+        
+        # Download Scaleway CLI with retry logic
+        DOWNLOAD_URL="https://github.com/scaleway/scaleway-cli/releases/download/v${VERSION}/scaleway-cli_${VERSION}_${OS}_${ARCH}"
+        echo "Downloading from: $DOWNLOAD_URL"
+        
+        curl -fsSL --retry 3 --retry-delay 2 -o /usr/local/bin/scw "$DOWNLOAD_URL"
+        
+        if [ ! -f /usr/local/bin/scw ] || [ ! -s /usr/local/bin/scw ]; then
+          echo "Error: Failed to download Scaleway CLI"
           exit 1
         fi
         
-        # Download Scaleway CLI with version in filename
-        curl -fsSL -o /usr/local/bin/scw "https://github.com/scaleway/scaleway-cli/releases/download/v${VERSION}/scaleway-cli_${VERSION}_${OS}_${ARCH}"
-        if [ ! -f /usr/local/bin/scw ] || [ ! -s /usr/local/bin/scw ]; then
-          echo "Error: Failed to download Scaleway CLI from https://github.com/scaleway/scaleway-cli/releases/download/v${VERSION}/scaleway-cli_${VERSION}_${OS}_${ARCH}"
-          exit 1
-        fi
         chmod +x /usr/local/bin/scw
         scw version
 

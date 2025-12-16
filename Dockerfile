@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
@@ -18,34 +18,29 @@ COPY . .
 # Clean any existing build output that might be present (e.g., from mounting host volume)
 RUN rm -rf ./dist || true
 
-# Run build as a non-root user to avoid permission issues when files are created by root on host
-RUN if ! addgroup -S appgroup 2>/dev/null; then true; fi && \
-    if ! adduser -S appuser -G appgroup 2>/dev/null; then true; fi
-RUN chown -R appuser:appgroup /app
-USER appuser
-
 # Build the application
 # Note: Linting is already validated in CI, so we skip it here to speed up deployment
 RUN pnpm run build
 
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 WORKDIR /app
 
-# Enable pnpm in the runtime image so the entrypoint can call pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Enable pnpm in the runtime image
+RUN corepack enable
 
-# Create uploads directory
-RUN mkdir -p uploads
+# Copy package files first
+COPY --from=builder /app/package*.json /app/pnpm-lock.yaml ./
 
-# Copy production dependencies from builder's pnpm store via node_modules
-# and the built dist
+# Install production dependencies only
+RUN pnpm install --prod --frozen-lockfile
+
+# Copy the built dist
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package*.json ./
 
-# Copy and set permissions for entrypoint script
+# Copy entrypoint script and create uploads directory
 COPY --from=builder /app/scripts/docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh && \
+    mkdir -p uploads
 
 EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

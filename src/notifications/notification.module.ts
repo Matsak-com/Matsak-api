@@ -42,7 +42,7 @@ import { I18nService } from './i18n.service';
     }),
     BullModule.registerQueue({
       name: 'notifications',
-      redis: {
+      redis: process.env.REDIS_URL || {
         host: process.env.REDIS_HOST || 'localhost',
         port: parseInt(process.env.REDIS_PORT || '6379', 10),
       },
