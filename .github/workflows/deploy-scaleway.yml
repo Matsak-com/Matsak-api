@@ -211,6 +211,7 @@ jobs:
           scw container container update ${{ steps.check_container.outputs.container_id }} \
             region=fr-par \
             registry-image=${{ steps.image_tag.outputs.full_image }} \
+            port=8080 \
             min-scale=1 \
             max-scale=5 \
             cpu-limit=1000 \
