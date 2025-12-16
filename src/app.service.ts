@@ -15,17 +15,13 @@ export class AppService {
       this.connection.readyState === 1 ? 'connected' : 'disconnected';
     const isHealthy = this.connection.readyState === 1;
 
-    const response: any = {
+    return {
       status: isHealthy ? 'ok' : 'error',
       timestamp: new Date().toISOString(),
-    };
-    // Only expose database details in non-production environments
-    if (process.env.NODE_ENV !== 'production') {
-      response.database = {
+      database: {
         status: dbStatus,
         ready: isHealthy,
-      };
-    }
-    return response;
+      },
+    };
   }
 }

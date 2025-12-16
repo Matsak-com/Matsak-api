@@ -356,7 +356,7 @@ jobs:
               else
                 echo "⚠️  API is up but database status: $DB_STATUS (overall: $OVERALL_STATUS)"
                 echo "Checking container logs..."
-                scw container container logs $CONTAINER_ID region=fr-par 2>&1 | tail -20 || true
+                scw container logs $CONTAINER_ID region=fr-par 2>&1 | tail -20 || true
               fi
             else
               echo "Health check attempt $i/15 failed (HTTP $HTTP_CODE), retrying..."
@@ -367,7 +367,7 @@ jobs:
           
           echo "❌ Health check failed after 15 attempts"
           echo "Final container logs:"
-          scw container container logs $CONTAINER_ID region=fr-par 2>&1 | tail -50 || true
+          scw container logs $CONTAINER_ID region=fr-par 2>&1 | tail -50 || true
           exit 1
 
       - name: Notify deployment status
