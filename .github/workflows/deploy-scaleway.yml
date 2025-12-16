@@ -226,6 +226,7 @@ jobs:
             timeout=300s \
             environment-variables.NODE_ENV=production \
             environment-variables.MONGO_URI="${{ secrets.MONGO_URI }}" \
+            environment-variables.MONGO_DB_NAME=matsakprod \
             environment-variables.DB_URI="${{ secrets.MONGO_URI }}" \
             environment-variables.REDIS_URL="${{ secrets.REDIS_URL }}" \
             environment-variables.ELASTICSEARCH_NODE="${{ secrets.ELASTICSEARCH_NODE }}" \

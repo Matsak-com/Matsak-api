@@ -28,6 +28,9 @@ import { BullModule } from '@nestjs/bull';
   imports: [
     MongooseModule.forRoot(
       process.env.MONGO_URI || 'mongodb://localhost:27017/matsak',
+      {
+        dbName: process.env.MONGO_DB_NAME || (process.env.NODE_ENV === 'production' ? 'matsakprod' : 'matsak'),
+      },
     ),
     BullModule.forRoot({
       redis: process.env.REDIS_URL || {
