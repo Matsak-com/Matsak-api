@@ -193,23 +193,57 @@ jobs:
       - name: Check if container exists
         id: check_container
         run: |
-          if scw container container list region=fr-par | grep -q "${{ env.CONTAINER_NAME }}"; then
+          CONTAINER_ID=$(scw container container list region=fr-par -o json | jq -r '.[] | select(.name=="${{ env.CONTAINER_NAME }}") | .id')
+          if [ -n "$CONTAINER_ID" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
-            CONTAINER_ID=$(scw container container list region=fr-par -o json | jq -r '.[] | select(.name=="${{ env.CONTAINER_NAME }}") | .id')
             echo "container_id=$CONTAINER_ID" >> $GITHUB_OUTPUT
+            echo "Found existing container: $CONTAINER_ID"
           else
             echo "exists=false" >> $GITHUB_OUTPUT
+            echo "No existing container found, will create new one"
           fi
 
-      - name: Delete existing container (force fresh deploy)
+      - name: Update existing container
         if: steps.check_container.outputs.exists == 'true'
         run: |
-          echo "Deleting existing container to force fresh deployment with new image..."
-          scw container container delete ${{ steps.check_container.outputs.container_id }} region=fr-par
-          echo "Waiting for container deletion..."
-          sleep 10
+          echo "Updating existing container with new image: ${{ steps.image_tag.outputs.full_image }}"
+          
+          scw container container update ${{ steps.check_container.outputs.container_id }} \
+            region=fr-par \
+            registry-image=${{ steps.image_tag.outputs.full_image }} \
+            min-scale=1 \
+            max-scale=5 \
+            cpu-limit=1000 \
+            memory-limit=2048 \
+            timeout=300s \
+            environment-variables.NODE_ENV=production \
+            environment-variables.MONGO_URI="${{ secrets.MONGO_URI }}" \
+            environment-variables.MONGO_DB_NAME=matsakprod \
+            environment-variables.DB_URI="${{ secrets.MONGO_URI }}" \
+            environment-variables.REDIS_URL="${{ secrets.REDIS_URL }}" \
+            environment-variables.ELASTICSEARCH_NODE="${{ secrets.ELASTICSEARCH_NODE }}" \
+            environment-variables.ELASTICSEARCH_USER="${{ secrets.ELASTICSEARCH_USER }}" \
+            environment-variables.ELASTICSEARCH_PASSWORD="${{ secrets.ELASTICSEARCH_PASSWORD }}" \
+            environment-variables.CORS_ORIGIN="${{ secrets.CORS_ORIGIN }}" \
+            environment-variables.MAIL_HOST="${{ secrets.MAIL_HOST }}" \
+            environment-variables.MAIL_PORT="${{ secrets.MAIL_PORT }}" \
+            environment-variables.MAIL_USER="${{ secrets.MAIL_USER }}" \
+            environment-variables.MAIL_PASSWORD="${{ secrets.MAIL_PASSWORD }}" \
+            environment-variables.MAIL_FROM='${{ secrets.MAIL_FROM }}' \
+            environment-variables.JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            environment-variables.AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
+            environment-variables.AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
+            environment-variables.AWS_REGION="${{ secrets.AWS_REGION }}" \
+            environment-variables.AWS_S3_BUCKET="${{ secrets.AWS_S3_BUCKET }}" \
+            environment-variables.GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
+            environment-variables.GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
+            environment-variables.GOOGLE_CALLBACK_URL="${{ secrets.GOOGLE_CALLBACK_URL }}" \
+            environment-variables.FACEBOOK_APP_ID="${{ secrets.FACEBOOK_APP_ID }}" \
+            environment-variables.FACEBOOK_APP_SECRET="${{ secrets.FACEBOOK_APP_SECRET }}" \
+            environment-variables.FACEBOOK_CALLBACK_URL="${{ secrets.FACEBOOK_CALLBACK_URL }}"
 
       - name: Create container
+        if: steps.check_container.outputs.exists == 'false'
         run: |
           echo "Using image: ${{ steps.image_tag.outputs.full_image }}"
           
