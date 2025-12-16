@@ -1,7 +1,7 @@
 // In this file you can configure migrate-mongo
 import 'dotenv/config';
 import * as path from 'path';
-const migrationsDirectory = path.resolve(__dirname, '../../../migrations');
+const migrationsDirectory = path.resolve(__dirname, '../../../../migrations');
 // In this file you can configure migrate-mongo
 
 const config = {
