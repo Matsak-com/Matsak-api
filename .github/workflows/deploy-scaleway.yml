@@ -193,7 +193,7 @@ jobs:
       - name: Check if container exists
         id: check_container
         run: |
-          CONTAINER_ID=$(scw container container list region=fr-par -o json | jq -r '.[] | select(.name=="${{ env.CONTAINER_NAME }}") | .id')
+          CONTAINER_ID=$(scw container container list region=fr-par -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAME }}"'") | .id')
           if [ -n "$CONTAINER_ID" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
             echo "container_id=$CONTAINER_ID" >> $GITHUB_OUTPUT
