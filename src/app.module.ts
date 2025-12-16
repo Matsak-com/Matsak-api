@@ -24,6 +24,32 @@ import { InventoryModule } from './inventory/inventory.module';
 import { NotificationModule } from './notifications/notification.module';
 import { BullModule } from '@nestjs/bull';
 
+/**
+ * Parse and validate Redis configuration
+ * BullJS accepts either a connection URL string or a configuration object
+ */
+function getRedisConfig() {
+  const redisUrl = process.env.REDIS_URL;
+  
+  // If REDIS_URL is provided, validate it's a proper Redis URL
+  if (redisUrl) {
+    const redisUrlPattern = /^redis:\/\/.+/i;
+    if (!redisUrlPattern.test(redisUrl)) {
+      console.warn(`⚠️  REDIS_URL is set but doesn't match redis:// format: ${redisUrl}`);
+      console.warn('Falling back to REDIS_HOST/REDIS_PORT configuration');
+    } else {
+      // Valid Redis URL, return it as string for Bull to parse
+      return redisUrl;
+    }
+  }
+  
+  // Fallback to host/port configuration
+  return {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '6379', 10),
+  };
+}
+
 @Module({
   imports: [
     MongooseModule.forRoot(
@@ -33,10 +59,7 @@ import { BullModule } from '@nestjs/bull';
       },
     ),
     BullModule.forRoot({
-      redis: process.env.REDIS_URL || {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379', 10),
-      },
+      redis: getRedisConfig(),
     }),
     UsersModule,
     AuthModule,

@@ -9,9 +9,13 @@ fi
 echo "MONGO_URI is configured"
 echo "Starting application..."
 
-# Run migrations (optional - fails gracefully)
+# Run migrations (fail if migrations fail)
 echo "Attempting to run database migrations..."
-pnpm run migrate-mongo:up 2>&1 || echo "Note: Migrations skipped or failed - continuing with startup"
+if ! OUTPUT=$(pnpm run migrate-mongo:up 2>&1); then
+  echo "Error: Database migrations failed:"
+  echo "$OUTPUT"
+  exit 1
+fi
 
 # Start the application
 echo "Starting NestJS application on port ${PORT:-8080}..."

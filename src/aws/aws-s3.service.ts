@@ -31,7 +31,9 @@ export class AwsS3Service {
       throw new InternalServerErrorException(ERRORS.AWS_INVALID_REGION);
     }
     if (!AWS_S3_BUCKET) {
-      throw new InternalServerErrorException('AWS S3 bucket name is not configured');
+      throw new InternalServerErrorException(
+        ERRORS.AWS_S3_BUCKET_NOT_CONFIGURED,
+      );
     }
     const client = new S3Client({
       credentials: {
