@@ -119,16 +119,104 @@ $ pnpm run test:cov
 
 ## Deployment
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### Scaleway Serverless Containers (Production)
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+The application is automatically deployed to Scaleway Serverless Containers on every push to the `main` branch.
+
+#### Prerequisites
+
+1. **GitHub Secrets** - Configure the following secrets in your repository:
+
+   **Scaleway Credentials:**
+   - `SCW_ACCESS_KEY` - Scaleway API access key
+   - `SCW_SECRET_KEY` - Scaleway API secret key
+   - `SCW_ORGANIZATION_ID` - Scaleway organization ID
+   - `SCW_PROJECT_ID` - Scaleway project ID
+   - `SCW_CONTAINER_NAMESPACE` - Container registry namespace name
+   - `SCW_SERVERLESS_NAMESPACE_NAME` - Serverless namespace name (default: `prod-matsak`)
+
+   **External Database Services:**
+   - `MONGO_URI` - MongoDB connection string (e.g., MongoDB Atlas)
+   - `REDIS_URL` - Redis connection URL (e.g., Redis Cloud)
+   - `ELASTICSEARCH_NODE` - Elasticsearch node URL (e.g., Elastic Cloud)
+   - `ELASTICSEARCH_USER` - Elasticsearch username
+   - `ELASTICSEARCH_PASSWORD` - Elasticsearch password
+
+   **Application Configuration:**
+   - `JWT_SECRET` - JWT signing secret
+   - `CORS_ORIGIN` - Allowed CORS origins (e.g., `["https://yourdomain.com"]`)
+   - `MAIL_HOST` - SMTP host
+   - `MAIL_PORT` - SMTP port
+   - `MAIL_USER` - SMTP username
+   - `MAIL_PASSWORD` - SMTP password
+   - `MAIL_FROM` - Email sender address
+   - `AWS_ACCESS_KEY_ID` - AWS access key for S3
+   - `AWS_SECRET_ACCESS_KEY` - AWS secret key for S3
+   - `AWS_REGION` - AWS region
+   - `AWS_S3_BUCKET` - S3 bucket name
+
+   **Social Authentication (Optional):**
+   - `GOOGLE_CLIENT_ID` - Google OAuth 2.0 Client ID
+   - `GOOGLE_CLIENT_SECRET` - Google OAuth 2.0 Client Secret
+   - `GOOGLE_CALLBACK_URL` - Google OAuth callback URL
+   - `FACEBOOK_APP_ID` - Facebook App ID
+   - `FACEBOOK_APP_SECRET` - Facebook App Secret
+   - `FACEBOOK_CALLBACK_URL` - Facebook OAuth callback URL
+
+2. **External Services** - Since Scaleway Serverless Containers only support HTTP/HTTPS (not raw TCP), you need external managed services:
+   - **MongoDB**: [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) or [Scaleway Managed Database](https://www.scaleway.com/en/database/)
+   - **Redis**: [Redis Cloud](https://redis.com/cloud/) or Scaleway Managed Database
+   - **Elasticsearch**: [Elastic Cloud](https://cloud.elastic.co/)
+
+#### Deployment Workflow
+
+The deployment is handled by the `.github/workflows/deploy-scaleway.yml` workflow:
+
+1. **Validation** - Checks that all required secrets are configured
+2. **Build** - Builds Docker image using `Dockerfile` (production)
+3. **Push** - Pushes image to Scaleway Container Registry
+4. **Deploy** - Creates/updates serverless container with environment variables
+5. **Health Check** - Waits for container to be ready and healthy
+
+#### Manual Deployment
+
+Trigger a manual deployment using GitHub Actions:
+
+1. Go to **Actions** tab in GitHub
+2. Select **Deploy to Scaleway** workflow
+3. Click **Run workflow**
+4. Select `main` branch
+5. Click **Run workflow**
+
+#### Local Development with Docker
+
+For local development with all services (MongoDB, Elasticsearch, etc.):
 
 ```bash
-$ pnpm install -g mau
-$ mau deploy
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f api
+
+# Stop all services
+docker-compose down
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+#### Environment Variables
+
+The production container receives these environment variables:
+- `NODE_ENV=production`
+- `PORT` (auto-injected by Scaleway, typically 8080)
+- All secrets configured in GitHub (see Prerequisites above)
+
+#### Monitoring
+
+- **Container Status**: Check in Scaleway Console → Serverless Containers
+- **Logs**: Available in Scaleway Console or via CLI: `scw container container logs <container-id> region=fr-par`
+- **Health**: The API exposes health check endpoints for monitoring
+
+For more details on NestJS deployment best practices, check out the [deployment documentation](https://docs.nestjs.com/deployment).
 
 ## Resources
 

@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { InternalServerErrorException } from '@nestjs/common';
-import { ERRORS } from 'src/common/errors';
+import { ERRORS } from '../common/errors';
 
 export function encodeImageToBase64(filePath: string): {
   mimeType: string;

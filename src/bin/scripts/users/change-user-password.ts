@@ -3,7 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../../../app.module';
 import { UsersService } from '../../../users/users.service';
 import { InternalServerErrorException } from '@nestjs/common';
-import { ERRORS } from 'src/common/errors';
+import { ERRORS } from '../../../common/errors';
 import * as promptLib from 'prompt';
 import * as bcrypt from 'bcrypt';
 
@@ -64,7 +64,7 @@ async function changeUserPasswordInteractive(userService: UsersService) {
     if (!user) {
       throw new InternalServerErrorException(ERRORS.SCRIPT_USER_NOT_FOUND);
     }
-  } catch (error) {
+  } catch {
     throw new InternalServerErrorException(ERRORS.SCRIPT_USER_NOT_FOUND);
   }
 
@@ -158,7 +158,7 @@ async function changeUserPasswordInteractive(userService: UsersService) {
     console.log(
       "\n🔐 L'utilisateur peut maintenant se connecter avec son nouveau mot de passe.",
     );
-  } catch (error) {
+  } catch {
     throw new InternalServerErrorException(ERRORS.PASSWORD_UPDATE_FAILED);
   }
 }

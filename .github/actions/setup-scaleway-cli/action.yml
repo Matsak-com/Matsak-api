@@ -1,0 +1,94 @@
+name: 'Setup Scaleway CLI'
+description: 'Install and configure Scaleway CLI'
+inputs:
+  access-key:
+    description: 'Scaleway access key'
+    required: true
+  secret-key:
+    description: 'Scaleway secret key'
+    required: true
+  organization-id:
+    description: 'Scaleway organization ID'
+    required: true
+  project-id:
+    description: 'Scaleway project ID'
+    required: true
+  default-region:
+    description: 'Default region'
+    required: false
+    default: 'fr-par'
+  default-zone:
+    description: 'Default zone'
+    required: false
+    default: 'fr-par-1'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Scaleway CLI
+      shell: bash
+      run: |
+        # Determine OS and architecture
+        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        ARCH=$(uname -m)
+        
+        # Map architecture to Scaleway's naming convention
+        case "$ARCH" in
+          x86_64) ARCH="amd64" ;;
+          aarch64|arm64) ARCH="arm64" ;;
+          i386|i686) ARCH="386" ;;
+          *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
+        esac
+        
+        # Get latest version number with retry logic
+        MAX_RETRIES=3
+        RETRY_COUNT=0
+        VERSION=""
+        
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ -z "$VERSION" ]; do
+          echo "Attempting to fetch Scaleway CLI version (attempt $((RETRY_COUNT + 1))/$MAX_RETRIES)..."
+          VERSION=$(curl -s --retry 3 --retry-delay 2 https://api.github.com/repos/scaleway/scaleway-cli/releases/latest | jq -r '.tag_name' | sed 's/^v//')
+          
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "Failed to fetch version, waiting 5 seconds before retry..."
+              sleep 5
+            fi
+            VERSION=""
+          else
+            echo "Successfully fetched version: $VERSION"
+          fi
+        done
+        
+        # Fallback to a known stable version if API fetch fails
+        if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+          VERSION="2.47.0"
+          echo "Warning: Could not fetch latest version from GitHub API, using fallback version $VERSION"
+        fi
+        
+        # Download Scaleway CLI with retry logic
+        DOWNLOAD_URL="https://github.com/scaleway/scaleway-cli/releases/download/v${VERSION}/scaleway-cli_${VERSION}_${OS}_${ARCH}"
+        echo "Downloading from: $DOWNLOAD_URL"
+        
+        curl -fsSL --retry 3 --retry-delay 2 -o /usr/local/bin/scw "$DOWNLOAD_URL"
+        
+        if [ ! -f /usr/local/bin/scw ] || [ ! -s /usr/local/bin/scw ]; then
+          echo "Error: Failed to download Scaleway CLI"
+          exit 1
+        fi
+        
+        chmod +x /usr/local/bin/scw
+        scw version
+
+    - name: Configure Scaleway CLI
+      shell: bash
+      run: |
+        # Export environment variables for subsequent steps in the workflow
+        echo "SCW_ACCESS_KEY=${{ inputs.access-key }}" >> $GITHUB_ENV
+        echo "SCW_SECRET_KEY=${{ inputs.secret-key }}" >> $GITHUB_ENV
+        echo "SCW_DEFAULT_ORGANIZATION_ID=${{ inputs.organization-id }}" >> $GITHUB_ENV
+        echo "SCW_DEFAULT_PROJECT_ID=${{ inputs.project-id }}" >> $GITHUB_ENV
+        echo "SCW_DEFAULT_REGION=${{ inputs.default-region }}" >> $GITHUB_ENV
+        echo "SCW_DEFAULT_ZONE=${{ inputs.default-zone }}" >> $GITHUB_ENV
+        echo "Scaleway CLI configured via environment variables"
