@@ -67,7 +67,7 @@ services:
       MONGO_URI: "mongodb://${MONGO_APP_USERNAME:-matsak_user}:${MONGO_APP_PASSWORD:-dev_user_password}@mongodb:27017/matsak?authSource=matsak"
       DB_URI: "mongodb://${MONGO_APP_USERNAME:-matsak_user}:${MONGO_APP_PASSWORD:-dev_user_password}@mongodb:27017/matsak?authSource=matsak"
       JWT_SECRET: "${JWT_SECRET:-development-jwt-secret}"
-      CORS_ORIGIN: '["http://localhost:3000","http://localhost:8080"]'
+      CORS_ORIGIN: '["http://localhost:3000","http://localhost:3001","http://localhost:8080"]'
       MAIL_HOST: mailhog
       MAIL_PORT: "1025"
       MAIL_SECURE: "false"
