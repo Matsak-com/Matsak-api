@@ -144,13 +144,13 @@ async function changeUserPasswordInteractive(userService: UsersService) {
 
   try {
     // Hash the new password
-    const hashedPassword = await bcrypt.hash(passwordInput.newPassword, 10);
+    const password = await passwordInput.newPassword;
 
-    // Update user directly with the new hashed password
+    // Update user directly with the new password
     await userService.update(
-      { email: userEmailInput.email },
-      { password: hashedPassword },
-    );
+    { email: userEmailInput.email },
+    { password: password },
+  );
 
     console.log('\n✅ Mot de passe changé avec succès!');
     console.log(`   - Utilisateur: ${user.email}`);
