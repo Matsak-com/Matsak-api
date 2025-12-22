@@ -5,7 +5,6 @@ import { UsersService } from '../../../users/users.service';
 import { InternalServerErrorException } from '@nestjs/common';
 import { ERRORS } from '../../../common/errors';
 import * as promptLib from 'prompt';
-import * as bcrypt from 'bcrypt';
 
 async function main() {
   const program = new Command();
@@ -144,13 +143,13 @@ async function changeUserPasswordInteractive(userService: UsersService) {
 
   try {
     // Hash the new password
-    const password = await passwordInput.newPassword;
+    const password = passwordInput.newPassword;
 
     // Update user directly with the new password
     await userService.update(
-    { email: userEmailInput.email },
-    { password: password },
-  );
+      { email: userEmailInput.email },
+      { password: password },
+    );
 
     console.log('\n✅ Mot de passe changé avec succès!');
     console.log(`   - Utilisateur: ${user.email}`);
