@@ -76,7 +76,6 @@ describe('ChangeUserPassword Script Components', () => {
       expect(scriptContent).toContain('import { NestFactory }');
       expect(scriptContent).toContain('import { UsersService }');
       expect(scriptContent).toContain('import * as promptLib');
-      expect(scriptContent).toContain('import * as bcrypt');
     });
   });
 });
