@@ -23,7 +23,7 @@ import {
   updateMemberSchema,
   memberIdParamSchema,
 } from '../common/schemas/member.schemas';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('members')
 export class MembersController {

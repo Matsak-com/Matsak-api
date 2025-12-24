@@ -18,7 +18,7 @@ import {
 } from '@nestjs/common';
 import { ERRORS } from '../common/errors';
 import { ProductService } from './product.service';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
 import {
   productIdParamSchema,
@@ -37,9 +37,9 @@ import {
   UpdateDiscountDto,
   CalculatePriceDto,
 } from './dto/pricing.dto';
-import { ZodMultipartFiles } from 'src/common/decorators/zod-multipart-files.decorator';
+import { ZodMultipartFiles } from '../common/decorators/zod-multipart-files.decorator';
 import { Types } from 'mongoose';
-import { MembersService } from 'src/members/members.service';
+import { MembersService } from '../members/members.service';
 
 @Controller('products')
 export class ProductController {
@@ -50,20 +50,20 @@ export class ProductController {
 
   /**
    * Create a new product with multiple images
-   * 
+   *
    * @param body Product data (form fields)
    * @param productImages Array of image files (max 10, 3MB each)
    * @returns Created product with populated images
-   * 
+   *
    * @remarks
-   * **BREAKING CHANGE (v2.0):** Field name changed from `productImage` (singular) 
+   * **BREAKING CHANGE (v2.0):** Field name changed from `productImage` (singular)
    * to `productImages` (plural). Accepts multiple files as an array.
-   * 
+   *
    * @example
    * ```
    * POST /products
    * Content-Type: multipart/form-data
-   * 
+   *
    * productImages: <file1>
    * productImages: <file2>
    * name: "Product Name"
@@ -95,11 +95,8 @@ export class ProductController {
       // For true backward compatibility, clients should migrate to 'productImages'
 
       const files = productImages;
-      
-      return await this.productService.createProduct(
-        validated as any,
-        files,
-      );
+
+      return await this.productService.createProduct(validated as any, files);
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;
@@ -172,7 +169,7 @@ export class ProductController {
   findAll() {
     return this.productService.findAll();
   }
-  
+
   @UseGuards(JwtAuthGuard)
   @Get('team/:teamId')
   @CompoundZodValidation({ params: teamIdParamSchema })
@@ -343,5 +340,11 @@ export class ProductController {
         ? this.productService.calculatePrice(product, 1)
         : null,
     };
+  }
+
+  @Post('reindex')
+  @HttpCode(HttpStatus.OK)
+  async reindexAll() {
+    return this.productService.reindexAll();
   }
 }

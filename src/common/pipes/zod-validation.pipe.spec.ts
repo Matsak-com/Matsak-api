@@ -22,7 +22,7 @@ describe('ZodValidationPipe', () => {
       role: 'user',
     };
 
-    const result = pipe.transform(validData, { type: 'body', metatype: null });
+    const result = pipe.transform(validData);
     expect(result).toEqual(expect.objectContaining(validData));
   });
 
@@ -35,9 +35,7 @@ describe('ZodValidationPipe', () => {
       role: 'user',
     };
 
-    expect(() =>
-      pipe.transform(invalidData, { type: 'body', metatype: null }),
-    ).toThrow(BadRequestException);
+    expect(() => pipe.transform(invalidData)).toThrow(BadRequestException);
   });
 
   it('should reject short password', () => {
@@ -49,9 +47,7 @@ describe('ZodValidationPipe', () => {
       role: 'user',
     };
 
-    expect(() =>
-      pipe.transform(invalidData, { type: 'body', metatype: null }),
-    ).toThrow(BadRequestException);
+    expect(() => pipe.transform(invalidData)).toThrow(BadRequestException);
   });
 
   it('should reject empty required fields', () => {
@@ -63,8 +59,6 @@ describe('ZodValidationPipe', () => {
       role: 'user',
     };
 
-    expect(() =>
-      pipe.transform(invalidData, { type: 'body', metatype: null }),
-    ).toThrow(BadRequestException);
+    expect(() => pipe.transform(invalidData)).toThrow(BadRequestException);
   });
 });

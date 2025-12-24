@@ -3,7 +3,7 @@ import { UsersService } from './users.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from './user.schema';
 import { UserController } from './users.controller';
-import { AwsS3Service } from 'src/aws/aws-s3.service';
+import { AwsS3Service } from '../aws/aws-s3.service';
 import { UserRepository } from './users.repository';
 import { MulterModule } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';

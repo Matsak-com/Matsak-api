@@ -4,7 +4,7 @@ import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
 import { AwsS3Service } from '../aws/aws-s3.service';
 import { Team } from './team.schema';
-import { slugify } from 'src/helpers/stringUtils';
+import { slugify } from '../helpers/stringUtils';
 import { FilterQuery, Types } from 'mongoose';
 import { MembersService } from '../members/members.service';
 import { RolesService } from '../roles/roles.service';
@@ -178,6 +178,24 @@ export class TeamsService {
       });
     }
     return team;
+  }
+
+  async findMany(ids: string[]): Promise<Team[] | null> {
+    const teams = await this.teamsRepository.findAll({
+      filter: { _id: { $in: ids.map((id) => new Types.ObjectId(id)) } },
+    });
+    if (teams.length === 0) return null;
+    const results = await Promise.all(
+      teams.map(async (team) => {
+        if (team.picture) {
+          team.picture = await this.awsS3Service.getFileUrl({
+            fileKey: team.picture,
+          });
+        }
+        return team;
+      }),
+    );
+    return results;
   }
 
   /**
