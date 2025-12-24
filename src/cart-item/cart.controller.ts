@@ -34,7 +34,8 @@ export class CartController {
     if (!sessionId) {
       throw new BadRequestException(ERRORS.SESSION_ID_MISSING);
     }
-    return this.cartService.addToCart(sessionId, dto);
+
+    return this.cartService.addToCart(dto, sessionId);
   }
 
   @Get()
@@ -43,6 +44,7 @@ export class CartController {
     if (!sessionId) {
       throw new BadRequestException(ERRORS.SESSION_ID_MISSING);
     }
+
     return this.cartService.getCart(sessionId);
   }
 
@@ -60,17 +62,11 @@ export class CartController {
     if (!sessionId) {
       throw new BadRequestException(ERRORS.SESSION_ID_MISSING);
     }
-    if (!query.productId) {
-      throw new BadRequestException(ERRORS.PRODUCT_ID_MISSING);
-    }
-    if (body.quantity == null || body.quantity < 1) {
-      throw new BadRequestException(ERRORS.INVALID_QUANTITY);
-    }
 
     return this.cartService.updateItemQuantity(
-      sessionId,
       query.productId,
       body.quantity,
+      sessionId,
     );
   }
 
@@ -81,7 +77,8 @@ export class CartController {
     if (!sessionId) {
       throw new BadRequestException(ERRORS.SESSION_ID_MISSING);
     }
-    return this.cartService.deleteItem(sessionId, query.productId);
+
+    return this.cartService.deleteItem(query.productId, sessionId);
   }
 
   @Delete('clear')
@@ -90,15 +87,7 @@ export class CartController {
     if (!sessionId) {
       throw new BadRequestException(ERRORS.SESSION_ID_MISSING);
     }
-    return this.cartService.clearCart(sessionId);
-  }
 
-  @Get('debug')
-  async debug(@Req() req: Request) {
-    const sessionId = req.cookies.sessionId;
-    if (!sessionId) {
-      throw new BadRequestException(ERRORS.SESSION_ID_MISSING);
-    }
-    return this.cartService.debugCart(sessionId);
+    return this.cartService.clearCart(sessionId);
   }
 }

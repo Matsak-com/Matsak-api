@@ -70,6 +70,7 @@ export class ProductController {
    * price: 100
    * ```
    */
+
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ZodMultipartFiles(createProductMultipartSchema, 'productImages', 10)
@@ -88,10 +89,11 @@ export class ProductController {
   ) {
     try {
       const validated = body;
-      
+
       // Backward compatibility: Support both 'productImages' (new) and 'productImage' (old)
       // Note: FilesInterceptor only captures one field name at a time
       // For true backward compatibility, clients should migrate to 'productImages'
+
       const files = productImages;
       
       return await this.productService.createProduct(
@@ -108,7 +110,7 @@ export class ProductController {
     }
   }
 
-  /**
+    /**
    * Update an existing product with new images
    *
    * @param id Product ID
@@ -130,6 +132,7 @@ export class ProductController {
    * name: "Updated Name"
    * ```
    */
+
   @Put(':id')
   @ZodMultipartFiles(simpleUpdateMultipartSchema, 'productImages', 10)
   async update(
@@ -183,13 +186,45 @@ export class ProductController {
   @Get('user/:userId')
   @CompoundZodValidation({ params: userIdParamSchema })
   async findByUser(@Param() params: { userId: string }) {
-    const members = await this.membersService.getTeamMembersByUserId(
-      params.userId,
-    );
-    const results = await this.productService.findBy({
-      filter: { team: { $in: members.map((member) => member.team._id) } },
-    });
-    return results;
+    try {
+
+      const members = await this.membersService.getTeamMembersByUserId(
+        params.userId,
+      );
+      
+      if (!members || members.length === 0) {
+        return [];
+      }
+
+      const teamIds = members
+        .map((member) => {
+          if (typeof member.team === 'string') {
+            return member.team;
+          } else if (member.team?._id) {
+            return member.team._id.toString();
+          } else if (Types.ObjectId.isValid(member.team)) {
+            return member.team.toString();
+          }
+          return null;
+        })
+        .filter((id) => id !== null);
+      if (teamIds.length === 0) {
+        return [];
+      }
+
+      const results = await this.productService.findBy({
+        filter: { 
+          team: { $in: teamIds.map(id => new Types.ObjectId(id)) },
+          deleted_at: { $exists: false }
+        },
+      });
+      return results;
+      
+    } catch (error) {
+      throw new BadRequestException(
+        `Failed to fetch products: ${error.message}`
+      );
+    }
   }
 
   @Get(':id')
@@ -309,5 +344,4 @@ export class ProductController {
         : null,
     };
   }
-
 }
