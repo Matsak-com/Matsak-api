@@ -10,9 +10,9 @@ import { Product } from './product.schema';
 import { ProductRepository } from './product.repository';
 import { DetailProductRepository } from '../detail-product/detail-product.repository';
 import { FilterQuery, Types } from 'mongoose';
-import { ImageProductService } from 'src/image-product/image-product.service';
-import { DetailProductService } from 'src/detail-product/detail-product.service';
-import { DetailProduct } from 'src/detail-product/detail-product.schema';
+import { ImageProductService } from '../image-product/image-product.service';
+import { DetailProductService } from '../detail-product/detail-product.service';
+import { DetailProduct } from '../detail-product/detail-product.schema';
 import { SearchService } from '../elasticsearch/elasticsearch.service';
 import { UpdateProductDto } from './dto/update-product.dto';
 
@@ -77,16 +77,14 @@ export class ProductService implements OnModuleInit {
         try {
           for (const file of files) {
             const uploadedImage = await this.imageservice.upload({
-              buffer: file.buffer,
-              originalname: file.originalname,
-              mimetype: file.mimetype,
-            });
-            uploadedImageIds.push(
-              new Types.ObjectId(uploadedImage._id as string),
-            );
-          }
-
-          // Update product with all image IDs
+            buffer: file.buffer,
+            originalname: file.originalname,
+            mimetype: file.mimetype,
+          });
+          uploadedImageIds.push(
+            new Types.ObjectId(uploadedImage._id.toString()),
+          );
+        }          // Update product with all image IDs
           await this.productRepo.update({
             id: productId,
             update: { images: uploadedImageIds },
@@ -262,7 +260,7 @@ export class ProductService implements OnModuleInit {
             mimetype: file.mimetype,
           });
           newlyUploadedImageIds.push(
-            new Types.ObjectId(uploadedImage._id as string),
+            new Types.ObjectId(uploadedImage._id.toString()),
           );
         }
 
@@ -367,7 +365,7 @@ export class ProductService implements OnModuleInit {
           mimetype: mimeType,
         });
 
-        const newImageId = new Types.ObjectId(uploadedImage._id as string);
+        const newImageId = new Types.ObjectId(uploadedImage._id.toString());
 
         // Only remove old images after successful upload
         if (oldImageIds.length > 0) {

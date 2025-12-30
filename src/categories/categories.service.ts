@@ -20,7 +20,7 @@ export class CategoriesService {
 
   async create(createCategoryDto: CreateCategoryDto): Promise<Category> {
     const { imageUrl, ...categoryData } = createCategoryDto;
-    
+
     // If name is not provided, use the first available translation
     if (!categoryData.name && categoryData.translations?.name) {
       const translations = categoryData.translations.name;
@@ -31,12 +31,12 @@ export class CategoriesService {
         translations.zh ||
         'Unnamed Category';
     }
-    
+
     // Validate that we have at least a name
     if (!categoryData.name) {
       throw new Error('Category must have a name or translations');
     }
-    
+
     const category = await this.categoryRepository.create({
       doc: categoryData,
       options: { save: false },
@@ -153,7 +153,7 @@ export class CategoriesService {
    */
   async getCategoriesTree(): Promise<any[]> {
     const categories = await this.categoryRepository.findAll();
-    
+
     const categoriesWithTrees = await Promise.all(
       categories.map(async (category) => {
         const categoryObj = category.toObject();

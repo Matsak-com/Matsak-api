@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { Category } from '../categories/category.schema';
-import { SubCategory } from 'src/sub-categories/sub-category.schema';
+import { SubCategory } from '../sub-categories/sub-category.schema';
 
 export type DetailProductDocument = DetailProduct & Document;
 
@@ -97,9 +97,9 @@ export class DetailProduct {
   })
   category: Types.ObjectId;
 
-  @Prop({ 
+  @Prop({
     type: Types.ObjectId,
-  }) 
+  })
   // SubCategory reference (optional - more specific categorization)
   @Prop({
     type: Types.ObjectId,

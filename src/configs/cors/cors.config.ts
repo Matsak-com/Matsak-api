@@ -3,6 +3,7 @@ import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.int
 // Allow common Vue.js development ports and production configurations
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://localhost:3001',
   'http://localhost:8080',
   'http://localhost:8081',
   'http://localhost:5173', // Vite default port
