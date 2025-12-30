@@ -38,50 +38,36 @@ export class CartService {
 
   // ➕ Ajouter au panier
   async addToCart(
-    dto: AddToCartDto,
-    sessionId?: string,
-    userId?: Types.ObjectId,
-  ) {
-    const quantity = dto.quantity ?? 1;
+  dto: AddToCartDto,
+  sessionId?: string,
+  userId?: Types.ObjectId,
+) {
+  const quantity = dto.quantity ?? 1;
 
-    let cart = await this.findCart(sessionId, userId);
+  console.log('🔍 addToCart - Recherche panier avec:', { sessionId, userId: userId?.toString() });
+  let cart = await this.findCart(sessionId, userId);
 
-    // 🆕 Créer panier s'il n'existe pas
-    if (!cart) {
-      cart = await this.cartRepository.create({
-        doc: {
-          sessionId,
-          userId,
-          items: [
-            {
-              product: dto.productId as any,
-              quantity,
-            },
-          ],
-        },
-      });
-      return cart;
-    }
-
-    // 🔁 Produit déjà présent ?
-    const item = cart.items.find(
-      (i) => i.product.toString() === dto.productId,
-    );
-
-    if (item) {
-      item.quantity += quantity;
-    } else {
-      cart.items.push({
-        product: dto.productId as any,
-        quantity,
-      });
-    }
-
-    return this.cartRepository.update({
-      id: cart._id as Types.ObjectId,
-      update: { items: cart.items },
+  if (!cart) {
+    console.log('✨ Création nouveau panier');
+    cart = await this.cartRepository.create({
+      doc: {
+        sessionId,
+        userId,
+        items: [
+          {
+            product: dto.productId as any,
+            quantity,
+          },
+        ],
+      },
     });
+    console.log('✅ Panier créé:', cart._id, { sessionId: cart.sessionId, userId: cart.userId });
+    return cart;
   }
+
+  // ... reste du code
+}
+   
 
   // 📦 Récupérer panier
   async getCart(sessionId?: string, userId?: Types.ObjectId) {
@@ -90,6 +76,57 @@ export class CartService {
 
     const enrichedItems = await this.enrichCartItems(cart.items);
     return { items: enrichedItems };
+  }
+
+  async mergeSessionCartToUser(sessionId: string, userId: Types.ObjectId) {
+    const sessionCart = await this.cartRepository.findBySessionId(sessionId);
+    
+    // Pas de panier session ? Rien à fusionner
+    if (!sessionCart || sessionCart.items.length === 0) {
+      return null;
+    }
+
+    let userCart = await this.cartRepository.findByUserId(userId);
+
+    // 🆕 Si l'utilisateur n'a pas de panier, on transfert directement
+    if (!userCart) {
+      userCart = await this.cartRepository.create({
+        doc: {
+          userId,
+          items: sessionCart.items,
+        },
+      });
+      
+      // Supprimer le panier de session
+      await this.cartRepository.delete({ id: sessionCart._id as Types.ObjectId });
+      return userCart;
+    }
+
+    // 🔁 Fusionner les items
+    for (const sessionItem of sessionCart.items) {
+      const existingItem = userCart.items.find(
+        (i) => i.product.toString() === sessionItem.product.toString(),
+      );
+
+      if (existingItem) {
+        // Additionner les quantités
+        existingItem.quantity += sessionItem.quantity;
+      } else {
+        // Ajouter le nouvel item
+        userCart.items.push(sessionItem);
+      }
+    }
+
+    // Sauvegarder le panier utilisateur mis à jour
+    await this.cartRepository.update({
+      id: userCart._id as Types.ObjectId,
+      update: { items: userCart.items },
+    });
+
+    // Supprimer le panier de session
+    await this.cartRepository.delete({ id: sessionCart._id as Types.ObjectId });
+
+    return userCart;
   }
 
   // 🔄 Mettre à jour quantité
