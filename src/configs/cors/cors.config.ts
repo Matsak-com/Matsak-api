@@ -33,7 +33,7 @@ export const corsConfig: CorsOptions = {
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-matsak-web'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-matsak-web', 'x-user-id'],
   optionsSuccessStatus: 204,
 };
 

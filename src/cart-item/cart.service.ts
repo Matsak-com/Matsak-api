@@ -44,11 +44,10 @@ export class CartService {
 ) {
   const quantity = dto.quantity ?? 1;
 
-  console.log('🔍 addToCart - Recherche panier avec:', { sessionId, userId: userId?.toString() });
   let cart = await this.findCart(sessionId, userId);
 
+  // 🆕 Création panier
   if (!cart) {
-    console.log('✨ Création nouveau panier');
     cart = await this.cartRepository.create({
       doc: {
         sessionId,
@@ -61,13 +60,31 @@ export class CartService {
         ],
       },
     });
-    console.log('✅ Panier créé:', cart._id, { sessionId: cart.sessionId, userId: cart.userId });
+
     return cart;
   }
 
-  // ... reste du code
+  // 🔁 Panier existe → ajouter ou incrémenter
+  const existingItem = cart.items.find(
+    (item) => item.product.toString() === dto.productId,
+  );
+
+  if (existingItem) {
+    existingItem.quantity += quantity;
+  } else {
+    cart.items.push({
+      product: dto.productId as any,
+      quantity,
+    });
+  }
+
+  await this.cartRepository.update({
+    id: cart._id as Types.ObjectId,
+    update: { items: cart.items },
+  });
+
+  return cart;
 }
-   
 
   // 📦 Récupérer panier
   async getCart(sessionId?: string, userId?: Types.ObjectId) {
