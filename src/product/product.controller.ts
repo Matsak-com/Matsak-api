@@ -50,20 +50,20 @@ export class ProductController {
 
   /**
    * Create a new product with multiple images
-   * 
+   *
    * @param body Product data (form fields)
    * @param productImages Array of image files (max 10, 3MB each)
    * @returns Created product with populated images
-   * 
+   *
    * @remarks
-   * **BREAKING CHANGE (v2.0):** Field name changed from `productImage` (singular) 
+   * **BREAKING CHANGE (v2.0):** Field name changed from `productImage` (singular)
    * to `productImages` (plural). Accepts multiple files as an array.
-   * 
+   *
    * @example
    * ```
    * POST /products
    * Content-Type: multipart/form-data
-   * 
+   *
    * productImages: <file1>
    * productImages: <file2>
    * name: "Product Name"
@@ -88,16 +88,13 @@ export class ProductController {
   ) {
     try {
       const validated = body;
-      
+
       // Backward compatibility: Support both 'productImages' (new) and 'productImage' (old)
       // Note: FilesInterceptor only captures one field name at a time
       // For true backward compatibility, clients should migrate to 'productImages'
       const files = productImages;
-      
-      return await this.productService.createProduct(
-        validated as any,
-        files,
-      );
+
+      return await this.productService.createProduct(validated as any, files);
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;
@@ -169,7 +166,7 @@ export class ProductController {
   findAll() {
     return this.productService.findAll();
   }
-  
+
   @UseGuards(JwtAuthGuard)
   @Get('team/:teamId')
   @CompoundZodValidation({ params: teamIdParamSchema })
@@ -309,5 +306,4 @@ export class ProductController {
         : null,
     };
   }
-
 }

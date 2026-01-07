@@ -130,19 +130,19 @@ export class SearchService implements OnModuleInit {
 
   /**
    * Index a product in Elasticsearch for search
-   * 
+   *
    * @param product Product document to index
-   * 
+   *
    * @remarks
    * **Performance Optimization:** Only image metadata is indexed (not base64 data).
    * This keeps the index lightweight and search results fast.
-   * 
+   *
    * Indexed image fields:
    * - `_id` - Reference to fetch full data from MongoDB
    * - `name` - Filename
    * - `mimeType` - MIME type (e.g., 'image/jpeg')
    * - `altText` - Accessibility text
-   * 
+   *
    * Excluded fields:
    * - `data` - Base64 encoded image (retrieved from MongoDB when needed)
    * - `createdAt`, `updatedAt` - Timestamps (not needed for search)
@@ -162,7 +162,7 @@ export class SearchService implements OnModuleInit {
       // Populate detail et images
       await product.populate('detail');
       await product.populate('images');
-      
+
       const detail = product.detail as any;
       const images = product.images as any[];
 
@@ -174,7 +174,7 @@ export class SearchService implements OnModuleInit {
 
       await this.elasticsearchService.index({
         index: this.index,
-        id: product._id.toString(), 
+        id: product._id.toString(),
         document: {
           basePrice: product.basePrice,
           currency: product.currency,
@@ -182,74 +182,86 @@ export class SearchService implements OnModuleInit {
           team: product.team?.toString(),
           createdAt: (product as any).createdAt,
           updatedAt: (product as any).updatedAt,
-          
+
           // Détails du produit
-          detail: detail ? {
-            _id: detail._id?.toString(),
-            name: detail.name || '',
-            description: detail.description || '',
-            composition: detail.composition || '',
-            form: detail.form || '',
-            indications: detail.indications || '',
-            contraindications: detail.contraindications || '',
-            sideEffects: detail.sideEffects || '',
-            precautions: detail.precautions || '',
-            expirationDate: detail.expirationDate,
-            manufacturer: detail.manufacturer || '',
-            isRepackaged: detail.isRepackaged || false,
-            category: detail.category ? {
-              _id: detail.category._id?.toString(),
-              name: detail.category.name,
-            } : null,
-            subcategory: detail.subcategory ? {
-              _id: detail.subcategory._id?.toString(),
-              name: detail.subcategory.name,
-            } : null,
-          } : null,
-          
+          detail: detail
+            ? {
+                _id: detail._id?.toString(),
+                name: detail.name || '',
+                description: detail.description || '',
+                composition: detail.composition || '',
+                form: detail.form || '',
+                indications: detail.indications || '',
+                contraindications: detail.contraindications || '',
+                sideEffects: detail.sideEffects || '',
+                precautions: detail.precautions || '',
+                expirationDate: detail.expirationDate,
+                manufacturer: detail.manufacturer || '',
+                isRepackaged: detail.isRepackaged || false,
+                category: detail.category
+                  ? {
+                      _id: detail.category._id?.toString(),
+                      name: detail.category.name,
+                    }
+                  : null,
+                subcategory: detail.subcategory
+                  ? {
+                      _id: detail.subcategory._id?.toString(),
+                      name: detail.subcategory.name,
+                    }
+                  : null,
+              }
+            : null,
+
           // Images du produit (array) - Only metadata, not base64 data
           // Base64 data excluded to reduce index size and improve performance
-          images: images && Array.isArray(images) ? images.map(img => ({
-            _id: img._id?.toString(),
-            name: img.name || '',
-            mimeType: img.mimeType || '',
-            altText: img.altText || '',
-            // data field intentionally omitted - retrieve from MongoDB when needed
-          })) : [],
+          images:
+            images && Array.isArray(images)
+              ? images.map((img) => ({
+                  _id: img._id?.toString(),
+                  name: img.name || '',
+                  mimeType: img.mimeType || '',
+                  altText: img.altText || '',
+                  // data field intentionally omitted - retrieve from MongoDB when needed
+                }))
+              : [],
         },
       });
 
       this.logger.log(`Produit indexé : ${product._id}`);
     } catch (error) {
       this.logger.error(`Erreur d'indexation du produit ${product._id}`, error);
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new InternalServerErrorException(
-        `Failed to index product: ${(error as any).message}`
+        `Failed to index product: ${(error as any).message}`,
       );
     }
   }
 
   /**
    * Search for products using Elasticsearch
-   * 
+   *
    * @param keyword Search term
    * @returns Array of product search results with lightweight image metadata only
-   * 
+   *
    * @remarks
    * **Performance Optimization:** Search results include image metadata only (_id, name, mimeType, altText).
    * The base64 'data' field is excluded to keep responses fast and lightweight.
-   * 
+   *
    * To get full product details with image data, use the product detail endpoint:
    * - `ProductService.findOne(id)` - Returns complete product from MongoDB with populated images
-   * 
+   *
    * @example
    * ```typescript
    * // Search returns lightweight results
    * const results = await searchService.searchProducts('aspirin');
    * // results[0].images = [{ _id: '...', name: 'image.jpg', mimeType: 'image/jpeg' }]
-   * 
+   *
    * // Fetch full details including base64 image data
    * const fullProduct = await productService.findOne(results[0]._id);
    * // fullProduct.images = [{ _id: '...', data: 'base64...', name: 'image.jpg', ... }]
@@ -284,10 +296,7 @@ export class SearchService implements OnModuleInit {
               {
                 multi_match: {
                   query: keyword,
-                  fields: [
-                    'detail.name^2',
-                    'detail.description',
-                  ],
+                  fields: ['detail.name^2', 'detail.description'],
                   type: 'phrase_prefix',
                 },
               },
@@ -348,14 +357,17 @@ export class SearchService implements OnModuleInit {
         // Ne pas throw ici car ce n'est pas critique si le produit n'existe pas déjà
         return;
       }
-      
+
       if (error instanceof BadRequestException) {
         throw error;
       }
-      
-      this.logger.error(`Erreur suppression Elasticsearch : ${productId}`, error);
+
+      this.logger.error(
+        `Erreur suppression Elasticsearch : ${productId}`,
+        error,
+      );
       throw new InternalServerErrorException(
-        `Failed to remove product from index: ${(error as any).message}`
+        `Failed to remove product from index: ${(error as any).message}`,
       );
     }
   }
@@ -368,7 +380,7 @@ export class SearchService implements OnModuleInit {
       }
 
       this.logger.log('Starting complete reindexing of products...');
-      
+
       let successCount = 0;
       let errorCount = 0;
 
@@ -376,7 +388,7 @@ export class SearchService implements OnModuleInit {
       for (let i = 0; i < products.length; i += BATCH_SIZE) {
         const batch = products.slice(i, i + BATCH_SIZE);
         const results = await Promise.allSettled(
-          batch.map(product => this.indexProduct(product))
+          batch.map((product) => this.indexProduct(product)),
         );
         results.forEach((result, idx) => {
           if (result.status === 'fulfilled') {
@@ -386,19 +398,19 @@ export class SearchService implements OnModuleInit {
             const product = batch[idx];
             this.logger.error(
               `Échec de l'indexation du produit ${product._id}`,
-              result.reason
+              result.reason,
             );
           }
         });
       }
 
       this.logger.log(
-        `Reindexation terminée ! Succès: ${successCount}, Erreurs: ${errorCount}`
+        `Reindexation terminée ! Succès: ${successCount}, Erreurs: ${errorCount}`,
       );
     } catch (error) {
       this.logger.error('Erreur lors de la réindexation complète', error);
       throw new InternalServerErrorException(
-        `Reindexing failed: ${(error as any).message}`
+        `Reindexing failed: ${(error as any).message}`,
       );
     }
   }
@@ -412,12 +424,11 @@ export class SearchService implements OnModuleInit {
         this.logger.warn(`L'index "${this.index}" n'existe pas encore.`);
         return;
       }
-      
-      this.logger.error('Erreur lors de la suppression de l\'index', error);
+
+      this.logger.error("Erreur lors de la suppression de l'index", error);
       throw new InternalServerErrorException(
-        `Failed to clear index: ${(error as any).message}`
+        `Failed to clear index: ${(error as any).message}`,
       );
     }
   }
 }
-

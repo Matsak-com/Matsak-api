@@ -97,9 +97,9 @@ export class DetailProduct {
   })
   category: Types.ObjectId;
 
-  @Prop({ 
+  @Prop({
     type: Types.ObjectId,
-  }) 
+  })
   // SubCategory reference (optional - more specific categorization)
   @Prop({
     type: Types.ObjectId,

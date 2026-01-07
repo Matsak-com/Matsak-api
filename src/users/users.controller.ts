@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Param,
   Patch,
   Body,
@@ -10,6 +11,8 @@ import {
   UseInterceptors,
   UploadedFile,
   ForbiddenException,
+  Request,
+  Delete,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -27,6 +30,8 @@ import {
   updatePasswordSchema,
   switchTeamSchema,
 } from '../common/schemas/auth.schemas';
+import { CreateAddressDto } from './dto/create-address.dto';
+import { UpdateAddressDto } from './dto/update-address.dto';
 
 @Controller('users')
 export class UserController {
@@ -117,5 +122,103 @@ export class UserController {
         error.status || HttpStatus.BAD_REQUEST,
       );
     }
+  }
+
+  // ========== ROUTES POUR LES ADRESSES ==========
+
+  /**
+   * Ajouter une nouvelle adresse
+   * POST /users/me/addresses
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('me/addresses')
+  async addAddress(@Request() req, @Body() createAddressDto: CreateAddressDto) {
+    const user = await this.usersService.addAddress(
+      req.user.userId,
+      createAddressDto,
+    );
+    return {
+      message: 'Adresse ajoutée avec succès',
+      addresses: user.addresses,
+    };
+  }
+
+  /**
+   * Récupérer toutes les adresses
+   * GET /users/me/addresses
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('me/addresses')
+  async getAddresses(@Request() req) {
+    return this.usersService.getAddresses(req.user.userId);
+  }
+
+  /**
+   * Récupérer une adresse spécifique
+   * GET /users/me/addresses/:addressId
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('me/addresses/:addressId')
+  async getAddress(@Request() req, @Param('addressId') addressId: string) {
+    return this.usersService.getAddress(req.user.userId, addressId);
+  }
+
+  /**
+   * Mettre à jour une adresse
+   * PATCH /users/me/addresses/:addressId
+   */
+  @UseGuards(JwtAuthGuard)
+  @Patch('me/addresses/:addressId')
+  async updateAddress(
+    @Request() req,
+    @Param('addressId') addressId: string,
+    @Body() updateAddressDto: UpdateAddressDto,
+  ) {
+    const user = await this.usersService.updateAddress(
+      req.user.userId,
+      addressId,
+      updateAddressDto,
+    );
+    return {
+      message: 'Adresse mise à jour avec succès',
+      addresses: user.addresses,
+    };
+  }
+
+  /**
+   * Définir une adresse comme par défaut
+   * PATCH /users/me/addresses/:addressId/set-default
+   */
+  @UseGuards(JwtAuthGuard)
+  @Patch('me/addresses/:addressId/set-default')
+  async setDefaultAddress(
+    @Request() req,
+    @Param('addressId') addressId: string,
+  ) {
+    const user = await this.usersService.setDefaultAddress(
+      req.user.userId,
+      addressId,
+    );
+    return {
+      message: 'Adresse définie par défaut',
+      addresses: user.addresses,
+    };
+  }
+
+  /**
+   * Supprimer une adresse
+   * DELETE /users/me/addresses/:addressId
+   */
+  @UseGuards(JwtAuthGuard)
+  @Delete('me/addresses/:addressId')
+  async deleteAddress(@Request() req, @Param('addressId') addressId: string) {
+    const user = await this.usersService.deleteAddress(
+      req.user.userId,
+      addressId,
+    );
+    return {
+      message: 'Adresse supprimée avec succès',
+      addresses: user.addresses,
+    };
   }
 }

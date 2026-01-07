@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
-import { Types, Document } from 'mongoose';
+import { Types, Document, Model } from 'mongoose';
 import { ERRORS } from '../common/errors';
 import * as bcrypt from 'bcrypt';
 
@@ -14,11 +14,14 @@ import { CreateUserDto } from '../auth/dto/create-user.dto';
 import { UpdateUserDto } from '../auth/dto/update-user.dto';
 import { UpdatePasswordDto } from '../auth/dto/update-password.dto';
 import { AwsS3Service } from '../aws/aws-s3.service';
-import { User } from './user.schema';
+import { Address, User, UserDocument } from './user.schema';
 import { UserRepository } from './users.repository';
 import { MemberRepository } from '../members/member.repository';
 import { Member, MemberStatus } from '../members/member.schema';
 import { Team } from '../teams/team.schema';
+import { CreateAddressDto } from './dto/create-address.dto';
+import { UpdateAddressDto } from './dto/update-address.dto';
+import { InjectModel } from '@nestjs/mongoose';
 
 // Type for User with populated current_team
 interface UserWithPopulatedTeam extends Omit<User, 'current_team'> {
@@ -65,6 +68,7 @@ export class UsersService {
     private readonly userRepository: UserRepository,
     private readonly awsS3Service: AwsS3Service,
     private readonly memberRepository: MemberRepository,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
 
   async getUsers(): Promise<any[]> {
@@ -470,5 +474,248 @@ export class UsersService {
         };
       }),
     );
+  }
+
+  /* ========================================================================== */
+  /* 🏠 GESTION DES ADRESSES - VERSION CORRIGÉE                                */
+  /* ========================================================================== */
+
+  /**
+   * Ajouter une nouvelle adresse
+   */
+  async addAddress(
+    userId: string,
+    createAddressDto: CreateAddressDto,
+  ): Promise<User> {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new NotFoundException('Utilisateur non trouvé');
+      }
+
+      // ✅ Initialiser le tableau si undefined ou null
+      if (!user.addresses) {
+        user.addresses = [];
+      }
+
+      // Si c'est la première adresse OU si isDefault est true
+      if (user.addresses.length === 0) {
+        createAddressDto.isDefault = true;
+      } else if (createAddressDto.isDefault) {
+        // Réinitialiser toutes les autres adresses à false
+        user.addresses.forEach((addr) => {
+          addr.isDefault = false;
+        });
+      }
+
+      const newAddress = {
+        ...createAddressDto,
+        _id: new Types.ObjectId(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as Address;
+
+      user.addresses.push(newAddress);
+      const savedUser = await user.save();
+      return savedUser;
+    } catch (error) {
+      console.error('❌ Erreur addAddress:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Récupérer toutes les adresses d'un utilisateur
+   */
+  async getAddresses(userId: string): Promise<Address[]> {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new NotFoundException('Utilisateur non trouvé');
+      }
+
+      // ✅ Initialiser si undefined ou null
+      if (!user.addresses) {
+        user.addresses = [];
+        await user.save();
+        return [];
+      }
+
+      // ✅ Vérifier si c'est un tableau
+      if (!Array.isArray(user.addresses)) {
+        console.error(
+          "❌ addresses n'est pas un tableau:",
+          typeof user.addresses,
+        );
+        return [];
+      }
+
+      // Trier : adresse par défaut en premier, puis par date de création
+      return user.addresses.sort((a, b) => {
+        if (a.isDefault && !b.isDefault) return -1;
+        if (!a.isDefault && b.isDefault) return 1;
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
+    } catch (error) {
+      console.error('❌ Erreur getAddresses:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Récupérer une adresse spécifique
+   */
+  async getAddress(userId: string, addressId: string): Promise<Address> {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new NotFoundException('Utilisateur non trouvé');
+      }
+
+      if (!user.addresses || !Array.isArray(user.addresses)) {
+        throw new NotFoundException('Aucune adresse trouvée');
+      }
+
+      const address = user.addresses.find(
+        (addr) => addr._id?.toString() === addressId,
+      );
+
+      if (!address) {
+        throw new NotFoundException('Adresse non trouvée');
+      }
+      return address;
+    } catch (error) {
+      console.error('❌ Erreur getAddress:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mettre à jour une adresse
+   */
+  async updateAddress(
+    userId: string,
+    addressId: string,
+    updateAddressDto: UpdateAddressDto,
+  ): Promise<User> {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new NotFoundException('Utilisateur non trouvé');
+      }
+
+      if (!user.addresses || !Array.isArray(user.addresses)) {
+        throw new NotFoundException('Aucune adresse trouvée');
+      }
+
+      const addressIndex = user.addresses.findIndex(
+        (addr) => addr._id?.toString() === addressId,
+      );
+
+      if (addressIndex === -1) {
+        throw new NotFoundException('Adresse non trouvée');
+      }
+
+      const currentAddress = user.addresses[addressIndex];
+
+      // Si on change l'adresse en défaut
+      if (updateAddressDto.isDefault && !currentAddress.isDefault) {
+        user.addresses.forEach((addr) => {
+          if (addr._id?.toString() !== addressId) {
+            addr.isDefault = false;
+          }
+        });
+      }
+
+      // Mettre à jour l'adresse
+      user.addresses[addressIndex] = {
+        ...currentAddress,
+        ...updateAddressDto,
+        _id: currentAddress._id,
+        createdAt: currentAddress.createdAt,
+        updatedAt: new Date(),
+      };
+
+      const savedUser = await user.save();
+      return savedUser;
+    } catch (error) {
+      console.error('❌ Erreur updateAddress:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Définir une adresse comme par défaut
+   */
+  async setDefaultAddress(userId: string, addressId: string): Promise<User> {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new NotFoundException('Utilisateur non trouvé');
+      }
+
+      if (!user.addresses || !Array.isArray(user.addresses)) {
+        throw new NotFoundException('Aucune adresse trouvée');
+      }
+
+      const addressExists = user.addresses.some(
+        (addr) => addr._id?.toString() === addressId,
+      );
+
+      if (!addressExists) {
+        throw new NotFoundException('Adresse non trouvée');
+      }
+
+      // ✅ Réinitialiser TOUTES les adresses à false, sauf celle sélectionnée
+      user.addresses.forEach((addr) => {
+        addr.isDefault = addr._id?.toString() === addressId;
+      });
+
+      const savedUser = await user.save();
+      return savedUser;
+    } catch (error) {
+      console.error('❌ Erreur setDefaultAddress:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Supprimer une adresse
+   */
+  async deleteAddress(userId: string, addressId: string): Promise<User> {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new NotFoundException('Utilisateur non trouvé');
+      }
+
+      if (!user.addresses || !Array.isArray(user.addresses)) {
+        throw new NotFoundException('Aucune adresse trouvée');
+      }
+
+      const addressIndex = user.addresses.findIndex(
+        (addr) => addr._id?.toString() === addressId,
+      );
+
+      if (addressIndex === -1) {
+        throw new NotFoundException('Adresse non trouvée');
+      }
+
+      const deletedAddress = user.addresses[addressIndex];
+      user.addresses.splice(addressIndex, 1);
+
+      // ✅ Si l'adresse supprimée était par défaut et qu'il reste des adresses
+      if (deletedAddress.isDefault && user.addresses.length > 0) {
+        user.addresses[0].isDefault = true;
+      }
+
+      const savedUser = await user.save();
+      return savedUser;
+    } catch (error) {
+      console.error('❌ Erreur deleteAddress:', error);
+      throw error;
+    }
   }
 }

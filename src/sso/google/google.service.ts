@@ -30,7 +30,7 @@ export class GoogleService {
         lastName: data.family_name,
         picture: data.picture,
       };
-    } catch (error) {
+    } catch {
       throw new HttpException(
         ERRORS.GOOGLE_FETCH_FAILED,
         HttpStatus.UNAUTHORIZED,

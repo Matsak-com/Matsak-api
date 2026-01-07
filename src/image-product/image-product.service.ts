@@ -272,7 +272,6 @@ export class ImageProductService {
         if (fs.existsSync(filePath)) {
           try {
             fs.unlinkSync(filePath);
-            console.log(`Successfully deleted file: ${filePath}`);
           } catch (fileError) {
             console.warn(
               `Warning: Could not delete file ${filePath}: ${fileError.message}`,
