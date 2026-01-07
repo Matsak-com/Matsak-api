@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { InventoryService } from './inventory.service';
 import { InventoryRepository } from './inventory.repository';
 import { ProductRepository } from '../product/product.repository';
+import { SearchService } from '../elasticsearch/elasticsearch.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { Types } from 'mongoose';
 
@@ -16,6 +17,7 @@ describe('InventoryService', () => {
     lowStockThreshold: 10,
     trackStock: true,
     team: new Types.ObjectId('507f1f77bcf86cd799439012'),
+    populate: jest.fn().mockReturnThis(),
   };
 
   beforeEach(async () => {
@@ -30,6 +32,13 @@ describe('InventoryService', () => {
       findAll: jest.fn(),
     };
 
+    const mockSearchService = {
+      indexProduct: jest.fn(),
+      removeProduct: jest.fn(),
+      searchProducts: jest.fn(),
+      reindexAll: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InventoryService,
@@ -40,6 +49,10 @@ describe('InventoryService', () => {
         {
           provide: ProductRepository,
           useValue: mockProductRepo,
+        },
+        {
+          provide: SearchService,
+          useValue: mockSearchService,
         },
       ],
     }).compile();

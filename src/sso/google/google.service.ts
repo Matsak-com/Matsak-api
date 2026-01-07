@@ -1,5 +1,5 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
-import { ERRORS } from 'src/common/errors';
+import { ERRORS } from '../../common/errors';
 import axios, { AxiosResponse } from 'axios';
 
 interface GoogleUserInfo {

@@ -3,11 +3,11 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt/jwt.strategy';
-import { AwsS3Service } from 'src/aws/aws-s3.service';
-import { UsersModule } from 'src/users/users.module';
+import { AwsS3Service } from '../aws/aws-s3.service';
+import { UsersModule } from '../users/users.module';
 import { GoogleStrategy } from '../sso/google/google.strategy';
 import { FacebookStrategy } from '../sso/facebook/facebook.strategy';
-import { GoogleService } from 'src/sso/google/google.service';
+import { GoogleService } from '../sso/google/google.service';
 @Module({
   imports: [
     JwtModule.register({

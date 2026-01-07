@@ -1,5 +1,5 @@
 import { remove } from 'remove-accents';
-import { ERRORS } from 'src/common/errors';
+import { ERRORS } from '../common/errors';
 
 /**
  * Converts a string to start case.

@@ -16,9 +16,9 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { UpdateUserDto } from 'src/auth/dto/update-user.dto';
-import { UpdatePasswordDto } from 'src/auth/dto/update-password.dto';
-import { SwitchTeamDto } from 'src/auth/dto/switch-team.dto';
+import { UpdateUserDto } from '../auth/dto/update-user.dto';
+import { UpdatePasswordDto } from '../auth/dto/update-password.dto';
+import { SwitchTeamDto } from '../auth/dto/switch-team.dto';
 import { UsersService, SwitchTeamResponse } from './users.service';
 import { CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
 import { CurrentUser } from '../auth/decorator/current-user.decorator';

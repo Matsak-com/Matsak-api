@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { Category } from '../categories/category.schema';
-import { SubCategory } from 'src/sub-categories/sub-category.schema';
+import { SubCategory } from '../sub-categories/sub-category.schema';
 
 export type DetailProductDocument = DetailProduct & Document;
 

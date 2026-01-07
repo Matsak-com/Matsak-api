@@ -1,6 +1,39 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { UsersService } from './users.service';
+import { UserRepository } from './users.repository';
+import { RolesService } from '../roles/roles.service';
+import { AwsS3Service } from '../aws/aws-s3.service';
+import { MemberRepository } from '../members/member.repository';
+
+const mockUsersRepository = {
+  create: jest.fn(),
+  findAll: jest.fn(),
+  findById: jest.fn(),
+  findOne: jest.fn(),
+  update: jest.fn(),
+  delete: jest.fn(),
+};
+
+const mockRolesService = {
+  findOne: jest.fn(),
+  findById: jest.fn(),
+};
+
+const mockAwsS3Service = {
+  uploadFile: jest.fn(),
+  deleteFile: jest.fn(),
+  getFileUrl: jest.fn(),
+};
+
+const mockMemberRepository = {
+  create: jest.fn(),
+  findAll: jest.fn(),
+  findById: jest.fn(),
+  findOne: jest.fn(),
+  update: jest.fn(),
+  delete: jest.fn(),
+};
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -56,6 +89,10 @@ describe('UsersService', () => {
     }).compile();
 
     service = module.get<UsersService>(UsersService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {

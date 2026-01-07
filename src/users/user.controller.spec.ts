@@ -2,8 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UserController } from './users.controller';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { UpdateUserDto } from 'src/auth/dto/update-user.dto';
-import { UpdatePasswordDto } from 'src/auth/dto/update-password.dto';
+import { UpdateUserDto } from '../auth/dto/update-user.dto';
+import { UpdatePasswordDto } from '../auth/dto/update-password.dto';
 
 describe('UserController', () => {
   let controller: UserController;
@@ -51,30 +51,42 @@ describe('UserController', () => {
   describe('getUser', () => {
     it('should return a user by id', () => {
       const userId = 'abc123';
-      expect(controller.getUser({ userId })).toEqual({
-        id: { userId },
+      const mockUser = { userId, role: 'user' };
+      expect(controller.getUser({ userId }, mockUser as any)).toEqual({
+        id: userId,
         name: 'John Doe',
       });
-      expect(usersService.getUser).toHaveBeenCalledWith({ userId });
+      expect(usersService.getUser).toHaveBeenCalledWith(userId);
     });
   });
 
   describe('updateUser', () => {
     it('should update and return the user', async () => {
       const userId = 'abc123';
+      const mockUser = { userId, role: 'user' };
       const updateDto: UpdateUserDto & UpdatePasswordDto = {
         email: 'new@email.com',
         name: 'Updated Name',
         currentPassword: 'oldpassword123',
         newPassword: 'newpassword123',
       };
-      const result = await controller.updateUser({ userId }, updateDto);
+      const result = await controller.updateUser(
+        { userId },
+        mockUser as any,
+        updateDto,
+        undefined,
+      );
       expect(result).toEqual({ id: userId, ...updateDto });
-      expect(usersService.updateUser).toHaveBeenCalledWith(userId, updateDto);
+      expect(usersService.updateUser).toHaveBeenCalledWith(
+        userId,
+        updateDto,
+        undefined,
+      );
     });
 
     it('should throw HttpException on error', async () => {
       const userId = 'abc123';
+      const mockUser = { userId, role: 'user' };
       const updateDto: UpdateUserDto & UpdatePasswordDto = {
         email: 'new@email.com',
         name: 'Updated Name',
@@ -86,7 +98,12 @@ describe('UserController', () => {
       });
 
       await expect(
-        controller.updateUser({ userId }, updateDto),
+        controller.updateUser(
+          { userId },
+          mockUser as any,
+          updateDto,
+          undefined,
+        ),
       ).rejects.toThrow('Update failed');
     });
   });
