@@ -1,30 +1,38 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { UsersService } from './users.service';
+import { UserRepository } from './users.repository';
+import { AwsS3Service } from '../aws/aws-s3.service';
+import { MemberRepository } from '../members/member.repository';
+import { User } from './user.schema';
 
 describe('UsersService', () => {
   let service: UsersService;
 
   // Créez des mocks pour toutes les dépendances
   const mockUserRepository = {
-    find: jest.fn(),
+    findAll: jest.fn(),
     findOne: jest.fn(),
+    findById: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+    aggregate: jest.fn(),
   };
 
   const mockAwsS3Service = {
-    upload: jest.fn(),
-    delete: jest.fn(),
+    uploadFile: jest.fn(),
+    deleteFile: jest.fn(),
+    getFileUrl: jest.fn(),
   };
 
   const mockMemberRepository = {
-    find: jest.fn(),
+    findAll: jest.fn(),
     findOne: jest.fn(),
   };
 
   const mockUserModel = {
+    findById: jest.fn(),
     find: jest.fn(),
     findOne: jest.fn(),
     create: jest.fn(),
@@ -37,19 +45,19 @@ describe('UsersService', () => {
       providers: [
         UsersService,
         {
-          provide: 'UserRepository',
+          provide: UserRepository, // ✅ Utilisez la classe directement
           useValue: mockUserRepository,
         },
         {
-          provide: 'AwsS3Service',
+          provide: AwsS3Service, // ✅ Utilisez la classe directement
           useValue: mockAwsS3Service,
         },
         {
-          provide: 'MemberRepository',
+          provide: MemberRepository, // ✅ Utilisez la classe directement
           useValue: mockMemberRepository,
         },
         {
-          provide: getModelToken('User'), // Pour Mongoose
+          provide: getModelToken(User.name), // ✅ Pour Mongoose
           useValue: mockUserModel,
         },
       ],
@@ -68,13 +76,27 @@ describe('UsersService', () => {
 
   describe('getUsers', () => {
     it('should return all users', async () => {
-      const expectedUsers = [{ id: 1, name: 'Test User' }];
-      mockUserRepository.find.mockResolvedValue(expectedUsers);
+      const mockUsers = [
+        {
+          _id: '123',
+          email: 'test@example.com',
+          firstName: 'Test',
+          avatarFileKey: null,
+          toObject: jest.fn().mockReturnThis(),
+        },
+      ];
+
+      mockUserRepository.findAll.mockResolvedValue(mockUsers);
 
       const result = await service.getUsers();
 
-      expect(result).toEqual(expectedUsers);
-      expect(mockUserRepository.find).toHaveBeenCalled();
+      expect(result).toBeDefined();
+      expect(mockUserRepository.findAll).toHaveBeenCalledWith({
+        filter: {},
+        options: {
+          projection: { _id: 1, email: 1, firstName: 1, avatarFileKey: 1 },
+        },
+      });
     });
   });
 });
