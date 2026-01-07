@@ -173,7 +173,9 @@ describe('ProductService - Pricing', () => {
         }),
       });
       expect(result).toBeDefined();
-      expect(result.discounts.length).toBeGreaterThan(mockProduct.discounts.length);
+      expect(result.discounts.length).toBeGreaterThan(
+        mockProduct.discounts.length,
+      );
     });
 
     it('should throw BadRequestException for percentage > 100', async () => {

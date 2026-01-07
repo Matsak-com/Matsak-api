@@ -30,19 +30,21 @@ import { BullModule } from '@nestjs/bull';
  */
 function getRedisConfig() {
   const redisUrl = process.env.REDIS_URL;
-  
+
   // If REDIS_URL is provided, validate it's a proper Redis URL
   if (redisUrl) {
     const redisUrlPattern = /^redis:\/\/.+/i;
     if (!redisUrlPattern.test(redisUrl)) {
-      console.warn(`⚠️  REDIS_URL is set but doesn't match redis:// format: ${redisUrl}`);
+      console.warn(
+        `⚠️  REDIS_URL is set but doesn't match redis:// format: ${redisUrl}`,
+      );
       console.warn('Falling back to REDIS_HOST/REDIS_PORT configuration');
     } else {
       // Valid Redis URL, return it as string for Bull to parse
       return redisUrl;
     }
   }
-  
+
   // Fallback to host/port configuration
   return {
     host: process.env.REDIS_HOST || 'localhost',
@@ -55,7 +57,9 @@ function getRedisConfig() {
     MongooseModule.forRoot(
       process.env.MONGO_URI || 'mongodb://localhost:27017/matsak',
       {
-        dbName: process.env.MONGO_DB_NAME || (process.env.NODE_ENV === 'production' ? 'matsakprod' : 'matsak'),
+        dbName:
+          process.env.MONGO_DB_NAME ||
+          (process.env.NODE_ENV === 'production' ? 'matsakprod' : 'matsak'),
       },
     ),
     BullModule.forRoot({
