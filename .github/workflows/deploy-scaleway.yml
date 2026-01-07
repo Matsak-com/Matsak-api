@@ -1,0 +1,416 @@
+name: Deploy to Scaleway
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  deployments: write
+
+env:
+  REGISTRY: rg.fr-par.scw.cloud
+  IMAGE_NAME: matsak-api
+  CONTAINER_NAMESPACE: ${{ secrets.SCW_CONTAINER_NAMESPACE }}
+  CONTAINER_NAME: matsak-api-prod
+  SCW_SERVERLESS_NAMESPACE_NAME: prod-matsak
+
+jobs:
+  # NOTE: MongoDB, Redis, and Elasticsearch cannot be deployed as Scaleway Serverless Containers
+  # because they require raw TCP connections, not HTTP/HTTPS.
+  # 
+  # RECOMMENDED SOLUTIONS:
+  # 1. Use Scaleway Managed Databases (recommended for production):
+  #    - https://www.scaleway.com/en/database/
+  # 2. Use external managed services:
+  #    - MongoDB Atlas (https://www.mongodb.com/cloud/atlas)
+  #    - Redis Cloud (https://redis.com/cloud/)
+  #    - Elastic Cloud (https://cloud.elastic.co/)
+  # 3. Deploy on Scaleway Instances with Docker Compose
+  #
+  # For now, this workflow expects you to provide connection strings via GitHub Secrets:
+  # - MONGO_URI (full connection string with credentials)
+  # - REDIS_URL (full Redis connection URL)
+  # - ELASTICSEARCH_NODE (full URL with protocol)
+  
+  validate-database-secrets:
+    name: Validate Database Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required secrets
+        run: |
+          if [ -z "${{ secrets.MONGO_URI }}" ]; then
+            echo "❌ MONGO_URI secret is not set"
+            echo "Please add your MongoDB connection string to GitHub secrets"
+            exit 1
+          fi
+          if [ -z "${{ secrets.REDIS_URL }}" ]; then
+            echo "❌ REDIS_URL secret is not set"
+            echo "Please add your Redis connection URL to GitHub secrets"
+            exit 1
+          fi
+          if [ -z "${{ secrets.ELASTICSEARCH_NODE }}" ]; then
+            echo "❌ ELASTICSEARCH_NODE secret is not set"
+            echo "Please add your Elasticsearch node URL to GitHub secrets"
+            exit 1
+          fi
+  
+  build-and-deploy:
+    name: Build and Deploy to Scaleway
+    runs-on: ubuntu-latest
+    needs: [validate-database-secrets]
+    environment:
+      name: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Scaleway CLI
+        uses: ./.github/actions/setup-scaleway-cli
+        with:
+          access-key: ${{ secrets.SCW_ACCESS_KEY }}
+          secret-key: ${{ secrets.SCW_SECRET_KEY }}
+          organization-id: ${{ secrets.SCW_ORGANIZATION_ID }}
+          project-id: ${{ secrets.SCW_PROJECT_ID }}
+
+      - name: Ensure Container Registry namespace exists
+        id: registry_namespace
+        run: |
+          # Check if namespace exists by name
+          NAMESPACE_ID=$(scw registry namespace list -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAMESPACE }}"'") | .id')
+          
+          if [ -z "$NAMESPACE_ID" ]; then
+            echo "Container Registry namespace not found. Creating..."
+            NAMESPACE_ID=$(scw registry namespace create \
+              name="${{ env.CONTAINER_NAMESPACE }}" \
+              region=fr-par \
+              is-public=false \
+              -o json | jq -r '.id')
+
+            if [ -z "$NAMESPACE_ID" ]; then
+              echo "Failed to create namespace"
+              exit 1
+            fi
+            echo "Created namespace: $NAMESPACE_ID"
+            echo "⚠️  Please add SCW_CONTAINER_NAMESPACE_ID=$NAMESPACE_ID to your GitHub secrets"
+          else
+            echo "Container Registry namespace exists: $NAMESPACE_ID"
+          fi
+          
+          # Export namespace ID for later steps
+          echo "namespace_id=$NAMESPACE_ID" >> $GITHUB_OUTPUT
+          echo "SCW_CONTAINER_NAMESPACE_ID=$NAMESPACE_ID" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Scaleway Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: nologin
+          password: ${{ secrets.SCW_SECRET_KEY }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.CONTAINER_NAMESPACE }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: docker_build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.CONTAINER_NAMESPACE }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.CONTAINER_NAMESPACE }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+          build-args: |
+            NODE_ENV=production
+
+      - name: Get primary image tag
+        id: image_tag
+        run: |
+          # Get the first tag from the list (branch-based tag)
+          FIRST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+          # Extract just the tag part after the last colon
+          IMAGE_TAG="${FIRST_TAG##*:}"
+          echo "Primary image tag: $IMAGE_TAG"
+          echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "full_image=$FIRST_TAG" >> $GITHUB_OUTPUT
+
+      - name: Verify image tags
+        run: |
+          echo "Docker image tags that were built:"
+          echo "${{ steps.meta.outputs.tags }}"
+          echo ""
+          echo "Using primary tag for deployment: ${{ steps.image_tag.outputs.tag }}"
+
+      - name: Setup Scaleway CLI
+        uses: ./.github/actions/setup-scaleway-cli
+        with:
+          access-key: ${{ secrets.SCW_ACCESS_KEY }}
+          secret-key: ${{ secrets.SCW_SECRET_KEY }}
+          organization-id: ${{ secrets.SCW_ORGANIZATION_ID }}
+          project-id: ${{ secrets.SCW_PROJECT_ID }}
+
+      - name: Ensure Serverless Container namespace exists
+        id: serverless_namespace
+        run: |
+          # Check if serverless container namespace exists by name
+          NAMESPACE_ID=$(scw container namespace list -o json | jq -r ".[] | select(.name==\"${{ env.SCW_SERVERLESS_NAMESPACE_NAME }}\") | .id")
+          
+          if [ -z "$NAMESPACE_ID" ]; then
+            echo "Serverless Container namespace not found. Creating..."
+            NAMESPACE_ID=$(scw container namespace create \
+              name="${{ env.SCW_SERVERLESS_NAMESPACE_NAME }}" \
+              region=fr-par \
+              -o json | jq -r '.id')
+            
+            if [ -z "$NAMESPACE_ID" ]; then
+              echo "Failed to create container namespace"
+              exit 1
+            fi
+            echo "Created container namespace: $NAMESPACE_ID"
+          else
+            echo "Using existing container namespace: $NAMESPACE_ID"
+          fi
+          
+          # Export namespace ID for container creation
+          echo "namespace_id=$NAMESPACE_ID" >> $GITHUB_OUTPUT
+
+      - name: Check if container exists
+        id: check_container
+        run: |
+          CONTAINER_ID=$(scw container container list region=fr-par -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAME }}"'") | .id')
+          if [ -n "$CONTAINER_ID" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "container_id=$CONTAINER_ID" >> $GITHUB_OUTPUT
+            echo "Found existing container: $CONTAINER_ID"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "No existing container found, will create new one"
+          fi
+
+      - name: Update existing container
+        if: steps.check_container.outputs.exists == 'true'
+        run: |
+          echo "Updating existing container with new image: ${{ steps.image_tag.outputs.full_image }}"
+          
+          scw container container update ${{ steps.check_container.outputs.container_id }} \
+            region=fr-par \
+            registry-image=${{ steps.image_tag.outputs.full_image }} \
+            port=8080 \
+            min-scale=1 \
+            max-scale=5 \
+            cpu-limit=1000 \
+            memory-limit=2048 \
+            timeout=300s \
+            environment-variables.NODE_ENV=production \
+            environment-variables.MONGO_URI="${{ secrets.MONGO_URI }}" \
+            environment-variables.MONGO_DB_NAME=matsakprod \
+            environment-variables.DB_URI="${{ secrets.MONGO_URI }}" \
+            environment-variables.REDIS_URL="${{ secrets.REDIS_URL }}" \
+            environment-variables.ELASTICSEARCH_NODE="${{ secrets.ELASTICSEARCH_NODE }}" \
+            environment-variables.ELASTICSEARCH_USER="${{ secrets.ELASTICSEARCH_USER }}" \
+            environment-variables.ELASTICSEARCH_PASSWORD="${{ secrets.ELASTICSEARCH_PASSWORD }}" \
+            environment-variables.CORS_ORIGIN="${{ secrets.CORS_ORIGIN }}" \
+            environment-variables.MAIL_HOST="${{ secrets.MAIL_HOST }}" \
+            environment-variables.MAIL_PORT="${{ secrets.MAIL_PORT }}" \
+            environment-variables.MAIL_USER="${{ secrets.MAIL_USER }}" \
+            environment-variables.MAIL_PASSWORD="${{ secrets.MAIL_PASSWORD }}" \
+            environment-variables.MAIL_FROM='${{ secrets.MAIL_FROM }}' \
+            environment-variables.JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            environment-variables.AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
+            environment-variables.AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
+            environment-variables.AWS_REGION="${{ secrets.AWS_REGION }}" \
+            environment-variables.AWS_S3_BUCKET="${{ secrets.AWS_S3_BUCKET }}" \
+            environment-variables.GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
+            environment-variables.GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
+            environment-variables.GOOGLE_CALLBACK_URL="${{ secrets.GOOGLE_CALLBACK_URL }}" \
+            environment-variables.FACEBOOK_APP_ID="${{ secrets.FACEBOOK_APP_ID }}" \
+            environment-variables.FACEBOOK_APP_SECRET="${{ secrets.FACEBOOK_APP_SECRET }}" \
+            environment-variables.FACEBOOK_CALLBACK_URL="${{ secrets.FACEBOOK_CALLBACK_URL }}"
+
+      - name: Create container
+        if: steps.check_container.outputs.exists == 'false'
+        run: |
+          echo "Using image: ${{ steps.image_tag.outputs.full_image }}"
+          
+          scw container container create \
+            name=${{ env.CONTAINER_NAME }} \
+            namespace-id=${{ steps.serverless_namespace.outputs.namespace_id }} \
+            registry-image=${{ steps.image_tag.outputs.full_image }} \
+            region=fr-par \
+            port=8080 \
+            min-scale=1 \
+            max-scale=5 \
+            cpu-limit=1000 \
+            memory-limit=2048 \
+            timeout=300s \
+            environment-variables.NODE_ENV=production \
+            environment-variables.MONGO_URI="${{ secrets.MONGO_URI }}" \
+            environment-variables.MONGO_DB_NAME=matsakprod \
+            environment-variables.DB_URI="${{ secrets.MONGO_URI }}" \
+            environment-variables.REDIS_URL="${{ secrets.REDIS_URL }}" \
+            environment-variables.ELASTICSEARCH_NODE="${{ secrets.ELASTICSEARCH_NODE }}" \
+            environment-variables.ELASTICSEARCH_USER="${{ secrets.ELASTICSEARCH_USER }}" \
+            environment-variables.ELASTICSEARCH_PASSWORD="${{ secrets.ELASTICSEARCH_PASSWORD }}" \
+            environment-variables.CORS_ORIGIN="${{ secrets.CORS_ORIGIN }}" \
+            environment-variables.MAIL_HOST="${{ secrets.MAIL_HOST }}" \
+            environment-variables.MAIL_PORT="${{ secrets.MAIL_PORT }}" \
+            environment-variables.MAIL_USER="${{ secrets.MAIL_USER }}" \
+            environment-variables.MAIL_PASSWORD="${{ secrets.MAIL_PASSWORD }}" \
+            environment-variables.MAIL_FROM='${{ secrets.MAIL_FROM }}' \
+            environment-variables.JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            environment-variables.AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
+            environment-variables.AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
+            environment-variables.AWS_REGION="${{ secrets.AWS_REGION }}" \
+            environment-variables.AWS_S3_BUCKET="${{ secrets.AWS_S3_BUCKET }}" \
+            environment-variables.GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
+            environment-variables.GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
+            environment-variables.GOOGLE_CALLBACK_URL="${{ secrets.GOOGLE_CALLBACK_URL }}" \
+            environment-variables.FACEBOOK_APP_ID="${{ secrets.FACEBOOK_APP_ID }}" \
+            environment-variables.FACEBOOK_APP_SECRET="${{ secrets.FACEBOOK_APP_SECRET }}" \
+            environment-variables.FACEBOOK_CALLBACK_URL="${{ secrets.FACEBOOK_CALLBACK_URL }}"
+
+      - name: Deploy container
+        run: |
+          CONTAINER_ID=$(scw container container list region=fr-par -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAME }}"'") | .id')
+          if [ -z "$CONTAINER_ID" ]; then
+            echo "Error: Container was not created"
+            exit 1
+          fi
+          scw container container deploy $CONTAINER_ID region=fr-par
+          echo "Container deployed: $CONTAINER_ID"
+
+      - name: Wait for deployment
+        run: |
+          CONTAINER_ID=$(scw container container list region=fr-par -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAME }}"'") | .id')
+          echo "Waiting for container to be ready..."
+          for i in {1..30}; do
+            STATUS=$(scw container container get $CONTAINER_ID region=fr-par -o json | jq -r '.status')
+            if [ "$STATUS" = "ready" ]; then
+              echo "Container is ready!"
+              exit 0
+            fi
+            echo "Current status: $STATUS (attempt $i/30)"
+            sleep 10
+          done
+          echo "Timeout waiting for container to be ready"
+          exit 1
+
+      - name: Get container URL
+        run: |
+          CONTAINER_ID=$(scw container container list region=fr-par -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAME }}"'") | .id')
+          if [ -z "$CONTAINER_ID" ]; then
+            echo "❌ Container not found"
+            exit 1
+          fi
+          CONTAINER_URL=$(scw container container get $CONTAINER_ID region=fr-par -o json | jq -r '.domain_name')
+          echo "🚀 Deployment successful!"
+          echo "📍 Container URL: https://$CONTAINER_URL"
+          echo "container_url=https://$CONTAINER_URL" >> $GITHUB_OUTPUT
+
+      - name: Health check
+        run: |
+          CONTAINER_ID=$(scw container container list region=fr-par -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAME }}"'") | .id')
+          if [ -z "$CONTAINER_ID" ]; then
+            echo "❌ Container not found"
+            exit 1
+          fi
+          CONTAINER_URL=$(scw container container get $CONTAINER_ID region=fr-par -o json | jq -r '.domain_name')
+          
+          echo "Performing health check and database connectivity test..."
+          echo "Waiting for application to start (30s)..."
+          sleep 30
+          
+          for i in {1..15}; do
+            echo "Attempt $i/15: Testing health endpoint..."
+            RESPONSE=$(curl -s https://$CONTAINER_URL/api/health 2>&1 || echo "")
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://$CONTAINER_URL/api/health 2>&1 || echo "000")
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ API is responding (HTTP $HTTP_CODE)"
+              echo "Response: $RESPONSE"
+              
+              # Check if database is connected
+              DB_STATUS=$(echo "$RESPONSE" | jq -r '.database.status' 2>/dev/null || echo "unknown")
+              OVERALL_STATUS=$(echo "$RESPONSE" | jq -r '.status' 2>/dev/null || echo "unknown")
+              
+              if [ "$DB_STATUS" = "connected" ] && [ "$OVERALL_STATUS" = "ok" ]; then
+                echo "✅ Database connection verified!"
+                echo "✅ Health check passed!"
+                exit 0
+              else
+                echo "⚠️  API is up but database status: $DB_STATUS (overall: $OVERALL_STATUS)"
+                echo "Checking container logs..."
+                scw container logs $CONTAINER_ID region=fr-par 2>&1 | tail -20 || true
+              fi
+            else
+              echo "Health check attempt $i/15 failed (HTTP $HTTP_CODE), retrying..."
+            fi
+            
+            sleep 10
+          done
+          
+          echo "❌ Health check failed after 15 attempts"
+          echo "Final container logs:"
+          scw container logs $CONTAINER_ID region=fr-par 2>&1 | tail -50 || true
+          exit 1
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          CONTAINER_ID=$(scw container container list region=fr-par -o json | jq -r '.[] | select(.name=="'"${{ env.CONTAINER_NAME }}"'") | .id')
+          
+          if [ "${{ job.status }}" = "success" ]; then
+            CONTAINER_URL=$(scw container container get $CONTAINER_ID region=fr-par -o json | jq -r '.domain_name')
+            echo "✅ Deployment to Scaleway completed successfully"
+            echo ""
+            echo "📦 API Container:"
+            echo "  - URL: https://$CONTAINER_URL"
+            echo ""
+            echo "⚠️  Database services should be configured externally:"
+            echo "  - Use Scaleway Managed Databases or external services"
+            echo "  - MongoDB: Set MONGO_URI secret with your connection string"
+            echo "  - Redis: Set REDIS_URL secret with your Redis connection URL"
+            echo "  - Elasticsearch: Set ELASTICSEARCH_NODE secret with your endpoint"
+          else
+            echo "❌ Deployment to Scaleway failed"
+            if [ -n "$CONTAINER_ID" ]; then
+              echo "Checking container logs for errors..."
+              scw container logs $CONTAINER_ID region=fr-par 2>&1 | tail -50 || true
+            fi
+          fi
+
+  cleanup:
+    name: Cleanup old images
+    runs-on: ubuntu-latest
+    needs: build-and-deploy
+    if: always()
+    steps:
+      - name: Login to Scaleway Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: nologin
+          password: ${{ secrets.SCW_SECRET_KEY }}
+
+      - name: Delete old images
+        run: |
+          echo "Cleaning up old container images..."
+          # Keep last 5 images, delete older ones
+          # This requires manual implementation based on Scaleway's registry API
+          echo "Manual cleanup recommended via Scaleway console"

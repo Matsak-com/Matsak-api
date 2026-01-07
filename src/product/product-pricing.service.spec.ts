@@ -4,6 +4,7 @@ import { ProductRepository } from './product.repository';
 import { DetailProductRepository } from '../detail-product/detail-product.repository';
 import { ImageProductService } from '../image-product/image-product.service';
 import { DetailProductService } from '../detail-product/detail-product.service';
+import { SearchService } from '../elasticsearch/elasticsearch.service';
 import { getModelToken } from '@nestjs/mongoose';
 import { Product } from './product.schema';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
@@ -54,6 +55,13 @@ describe('ProductService - Pricing', () => {
       create: jest.fn(),
     };
 
+    const mockSearchService = {
+      indexProduct: jest.fn(),
+      removeProduct: jest.fn(),
+      searchProducts: jest.fn(),
+      reindexAll: jest.fn(),
+    };
+
     mockProductModel = {
       findById: jest.fn(),
     };
@@ -76,6 +84,10 @@ describe('ProductService - Pricing', () => {
         {
           provide: DetailProductService,
           useValue: mockDetailService,
+        },
+        {
+          provide: SearchService,
+          useValue: mockSearchService,
         },
         {
           provide: getModelToken(Product.name),
@@ -110,7 +122,11 @@ describe('ProductService - Pricing', () => {
       });
       expect(productRepository.update).toHaveBeenCalledWith({
         id: productId,
-        update: { basePrice, currency },
+        update: expect.objectContaining({
+          basePrice,
+          currency,
+          updatedAt: expect.any(Date),
+        }),
       });
       expect(result.basePrice).toBe(basePrice);
       expect(result.currency).toBe(currency);
@@ -144,15 +160,20 @@ describe('ProductService - Pricing', () => {
       };
       productRepository.update.mockResolvedValue(updatedProduct);
 
+      const result = await service.addDiscount(productId, discountData);
+
       expect(productRepository.findById).toHaveBeenCalledWith({
         id: productId,
       });
       expect(productRepository.update).toHaveBeenCalledWith({
         id: productId,
-        update: { $push: { discounts: discountData } },
+        update: expect.objectContaining({
+          $push: { discounts: expect.objectContaining(discountData) },
+          updatedAt: expect.any(Date),
+        }),
       });
-      const calledUpdated = productRepository.update.mock.results[0].value;
-      expect(calledUpdated).toBeDefined();
+      expect(result).toBeDefined();
+      expect(result.discounts.length).toBeGreaterThan(mockProduct.discounts.length);
     });
 
     it('should throw BadRequestException for percentage > 100', async () => {

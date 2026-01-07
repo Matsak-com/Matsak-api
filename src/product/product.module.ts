@@ -7,7 +7,7 @@ import { ProductRepository } from './product.repository';
 import { DetailProductModule } from '../detail-product/detail-product.module';
 import { ImageProductModule } from '../image-product/image-product.module';
 import { MembersModule } from '../members/members.module';
-import { SearchModule } from 'src/elasticsearch/elasticsearch.module';
+import { SearchModule } from '../elasticsearch/elasticsearch.module';
 
 @Module({
   imports: [

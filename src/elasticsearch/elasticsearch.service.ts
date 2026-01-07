@@ -9,13 +9,19 @@ import {
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { ProductDocument } from '../product/product.schema';
 import { ERRORS } from '../common/errors';
+import { ImageProductService } from '../image-product/image-product.service';
+import { TeamsService } from '../teams/teams.service';
 
 @Injectable()
 export class SearchService implements OnModuleInit {
   private readonly index = 'products';
   private readonly logger = new Logger(SearchService.name);
 
-  constructor(private readonly elasticsearchService: ElasticsearchService) {}
+  constructor(
+    private readonly elasticsearchService: ElasticsearchService,
+    private readonly imageProductService: ImageProductService,
+    private readonly teamsService: TeamsService,
+  ) {}
 
   async onModuleInit() {
     await this.createIndexIfNotExists();
@@ -51,6 +57,9 @@ export class SearchService implements OnModuleInit {
               team: { type: 'keyword' },
               createdAt: { type: 'date' },
               updatedAt: { type: 'date' },
+              stockQuantity: { type: 'integer' },
+              lowStockThreshold: { type: 'integer' },
+              trackStock: { type: 'boolean' },
               detail: {
                 properties: {
                   _id: { type: 'keyword' },
@@ -179,9 +188,16 @@ export class SearchService implements OnModuleInit {
           basePrice: product.basePrice,
           currency: product.currency,
           discounts: product.discounts || [],
-          team: product.team?.toString(),
+          team:
+            typeof product.team === 'object' && product.team?._id
+              ? product.team._id.toString()
+              : product.team?.toString(),
           createdAt: (product as any).createdAt,
           updatedAt: (product as any).updatedAt,
+          stockQuantity: product.stockQuantity || 0,
+          lowStockThreshold: product.lowStockThreshold || 0,
+          trackStock:
+            product.trackStock !== undefined ? product.trackStock : true,
 
           // Détails du produit
           detail: detail
@@ -247,24 +263,21 @@ export class SearchService implements OnModuleInit {
    * Search for products using Elasticsearch
    *
    * @param keyword Search term
-   * @returns Array of product search results with lightweight image metadata only
+   * @returns Array of product search results with full image data populated from MongoDB
    *
    * @remarks
-   * **Performance Optimization:** Search results include image metadata only (_id, name, mimeType, altText).
-   * The base64 'data' field is excluded to keep responses fast and lightweight.
+   * **Performance Optimization:** Elasticsearch index stores only image metadata (_id, name, mimeType, altText).
+   * After search, full image data (including base64) is populated from MongoDB for each result.
    *
-   * To get full product details with image data, use the product detail endpoint:
-   * - `ProductService.findOne(id)` - Returns complete product from MongoDB with populated images
+   * This approach provides:
+   * - Fast search queries (lightweight Elasticsearch index)
+   * - Complete image data in results (populated from MongoDB)
    *
    * @example
    * ```typescript
-   * // Search returns lightweight results
+   * // Search returns complete results with full image data
    * const results = await searchService.searchProducts('aspirin');
-   * // results[0].images = [{ _id: '...', name: 'image.jpg', mimeType: 'image/jpeg' }]
-   *
-   * // Fetch full details including base64 image data
-   * const fullProduct = await productService.findOne(results[0]._id);
-   * // fullProduct.images = [{ _id: '...', data: 'base64...', name: 'image.jpg', ... }]
+   * // results[0].images = [{ _id: '...', data: 'base64...', name: 'image.jpg', mimeType: 'image/jpeg' }]
    * ```
    */
   async searchProducts(keyword: string) {
@@ -300,38 +313,69 @@ export class SearchService implements OnModuleInit {
                   type: 'phrase_prefix',
                 },
               },
-              {
-                match: {
-                  'detail.category.name': {
-                    query: keyword,
-                    boost: 1.5,
-                  },
-                },
-              },
-              {
-                match: {
-                  'detail.subcategory.name': {
-                    query: keyword,
-                    boost: 1.2,
-                  },
-                },
-              },
+              // reactivate when category search is needed
+              // {
+              //   match: {
+              //     'detail.category.name': {
+              //       query: keyword,
+              //       boost: 1.5,
+              //     },
+              //   },
+              // },
+              // {
+              //   match: {
+              //     'detail.subcategory.name': {
+              //       query: keyword,
+              //       boost: 1.2,
+              //     },
+              //   },
+              // },
             ],
             minimum_should_match: 1,
           },
         },
       });
-
       const hits = (result as any).hits?.hits || [];
 
-      // Return product information with image metadata only
-      // Note: Image 'data' (base64) is not stored in Elasticsearch for performance
-      // Clients should fetch full image data from MongoDB using the image _id if needed
-      return hits.map((hit: any) => ({
+      // Map search results
+      const products = hits.map((hit: any) => ({
         _id: hit._id,
         score: hit._score,
         ...hit._source,
       }));
+
+      const allImageIds = products.flatMap((p) =>
+        (p.images || []).map((img) => img._id),
+      );
+      // Fetch all images in one query
+      const allImages = await this.imageProductService.findMany(allImageIds);
+      const imageMap = new Map(
+        allImages.map((img) => [img._id.toString(), img]),
+      );
+
+      // Collect all team IDs
+      const teamIds = products
+        .map((p) => p.team)
+        .filter((id) => typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id));
+      // Fetch all teams in one query
+      const allTeams = await this.teamsService.findMany(teamIds);
+      const teamMap = new Map(
+        (allTeams || []).map((team) => [team._id.toString(), team]),
+      );
+
+      // Map results back to products
+      for (const product of products) {
+        if (product.images) {
+          product.images = product.images.map(
+            (img) => imageMap.get(img._id) || img,
+          );
+        }
+        if (product.team && teamMap.has(product.team)) {
+          product.team = teamMap.get(product.team);
+        }
+      }
+
+      return products;
     } catch (error) {
       this.logger.error('Erreur lors de la recherche Elasticsearch', error);
       throw new InternalServerErrorException(

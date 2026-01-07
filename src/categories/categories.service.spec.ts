@@ -1,7 +1,23 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CategoriesService } from './categories.service';
-import { getModelToken } from '@nestjs/mongoose';
-import { Category } from './category.schema';
+import { CategoryRepository } from './categories.repository';
+import { SubCategoryRepository } from '../sub-categories/sub-categories.repository';
+
+const mockCategoryRepository = {
+  create: jest.fn(),
+  findAll: jest.fn(),
+  findById: jest.fn(),
+  update: jest.fn(),
+  delete: jest.fn(),
+};
+
+const mockSubCategoryRepository = {
+  create: jest.fn(),
+  findAll: jest.fn(),
+  findById: jest.fn(),
+  update: jest.fn(),
+  delete: jest.fn(),
+};
 
 describe('CategoriesService', () => {
   let service: CategoriesService;
@@ -11,8 +27,12 @@ describe('CategoriesService', () => {
       providers: [
         CategoriesService,
         {
-          provide: getModelToken(Category.name),
-          useValue: {}, // ici tu peux mocker les méthodes plus tard
+          provide: CategoryRepository,
+          useValue: mockCategoryRepository,
+        },
+        {
+          provide: SubCategoryRepository,
+          useValue: mockSubCategoryRepository,
         },
       ],
     }).compile();

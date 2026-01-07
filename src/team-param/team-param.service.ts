@@ -3,7 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { ERRORS } from 'src/common/errors';
+import { ERRORS } from '../common/errors';
 import { Types } from 'mongoose';
 import { TeamParamRepository } from './team-param.repository';
 import { CreateTeamParamDto } from './dto/create-team-param.dto';

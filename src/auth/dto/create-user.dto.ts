@@ -6,7 +6,7 @@ import {
   IsEnum,
   IsOptional,
 } from 'class-validator';
-import { UserRole } from 'src/users/user.schema';
+import { UserRole } from '../../users/user.schema';
 
 export class CreateUserDto {
   @IsString()

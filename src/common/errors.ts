@@ -46,6 +46,7 @@ export const ERRORS = {
   INSUFFICIENT_STOCK: 'INSUFFICIENT_STOCK',
   STOCK_NOT_TRACKED: 'STOCK_NOT_TRACKED',
   INVENTORY_TRANSACTION_FAILED: 'INVENTORY_TRANSACTION_FAILED',
+  AWS_S3_BUCKET_NOT_CONFIGURED: 'AWS_S3_BUCKET_NOT_CONFIGURED',
 };
 
 export const TOKEN_MAP: Record<string, { status: number; message: string }> = {
@@ -192,5 +193,9 @@ export const TOKEN_MAP: Record<string, { status: number; message: string }> = {
   [ERRORS.INVENTORY_TRANSACTION_FAILED]: {
     status: HttpStatus.INTERNAL_SERVER_ERROR,
     message: 'Inventory transaction failed',
+  },
+  [ERRORS.AWS_S3_BUCKET_NOT_CONFIGURED]: {
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    message: 'AWS S3 bucket name is not configured',
   },
 };

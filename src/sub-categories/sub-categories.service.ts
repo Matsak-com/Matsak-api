@@ -4,7 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { ERRORS } from 'src/common/errors';
+import { ERRORS } from '../common/errors';
 import { SubCategory } from './sub-category.schema';
 import { CreateSubCategoryDto } from './dto/create-sub-category.dto';
 import { UpdateSubCategoryDto } from './dto/update-sub-category.dto';

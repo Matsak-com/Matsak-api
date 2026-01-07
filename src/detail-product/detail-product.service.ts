@@ -3,7 +3,7 @@ import { ERRORS } from '../common/errors';
 import { UpdateDetailProductDto } from './dto/update-detail-product.dto';
 import { DetailProductRepository } from './detail-product.repository';
 import { DetailProduct } from './detail-product.schema';
-import { CreateDetailProductDto } from 'src/common/schemas/product.schemas';
+import { CreateDetailProductDto } from '../common/schemas/product.schemas';
 import { Types } from 'mongoose';
 
 @Injectable()
