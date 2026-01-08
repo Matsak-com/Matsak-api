@@ -29,7 +29,7 @@ export class CreateAddressDto {
 
   @IsOptional()
   @IsString()
-  @Length(0, 200)
+  @Length(1, 200)
   deliveryNotes?: string;
 
   @IsString()
