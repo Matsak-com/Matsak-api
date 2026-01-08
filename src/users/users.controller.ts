@@ -11,7 +11,6 @@ import {
   UseInterceptors,
   UploadedFile,
   ForbiddenException,
-  Request,
   Delete,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -30,6 +29,11 @@ import {
   updatePasswordSchema,
   switchTeamSchema,
 } from '../common/schemas/auth.schemas';
+import {
+  createAddressSchema,
+  updateAddressSchema,
+  addressIdParamSchema,
+} from '../common/schemas/address.schemas';
 import { CreateAddressDto } from './dto/create-address.dto';
 import { UpdateAddressDto } from './dto/update-address.dto';
 
@@ -124,7 +128,7 @@ export class UserController {
     }
   }
 
-  // ========== ROUTES POUR LES ADRESSES ==========
+  // ========== ROUTES POUR LES ADRESSES (AVEC VALIDATION) ==========
 
   /**
    * Ajouter une nouvelle adresse
@@ -132,15 +136,26 @@ export class UserController {
    */
   @UseGuards(JwtAuthGuard)
   @Post('me/addresses')
-  async addAddress(@Request() req, @Body() createAddressDto: CreateAddressDto) {
-    const user = await this.usersService.addAddress(
-      req.user.userId,
-      createAddressDto,
-    );
-    return {
-      message: 'Adresse ajoutée avec succès',
-      addresses: user.addresses,
-    };
+  @CompoundZodValidation({ body: createAddressSchema })
+  async addAddress(
+    @CurrentUser() user: UserPayload,
+    @Body() createAddressDto: CreateAddressDto,
+  ) {
+    try {
+      const updatedUser = await this.usersService.addAddress(
+        user.userId,
+        createAddressDto,
+      );
+      return {
+        message: 'Address added successfully',
+        addresses: updatedUser.addresses,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message,
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   /**
@@ -149,8 +164,15 @@ export class UserController {
    */
   @UseGuards(JwtAuthGuard)
   @Get('me/addresses')
-  async getAddresses(@Request() req) {
-    return this.usersService.getAddresses(req.user.userId);
+  async getAddresses(@CurrentUser() user: UserPayload) {
+    try {
+      return await this.usersService.getAddresses(user.userId);
+    } catch (error) {
+      throw new HttpException(
+        error.message,
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   /**
@@ -159,8 +181,19 @@ export class UserController {
    */
   @UseGuards(JwtAuthGuard)
   @Get('me/addresses/:addressId')
-  async getAddress(@Request() req, @Param('addressId') addressId: string) {
-    return this.usersService.getAddress(req.user.userId, addressId);
+  @CompoundZodValidation({ params: addressIdParamSchema })
+  async getAddress(
+    @CurrentUser() user: UserPayload,
+    @Param('addressId') addressId: string,
+  ) {
+    try {
+      return await this.usersService.getAddress(user.userId, addressId);
+    } catch (error) {
+      throw new HttpException(
+        error.message,
+        error.status || HttpStatus.NOT_FOUND,
+      );
+    }
   }
 
   /**
@@ -169,20 +202,45 @@ export class UserController {
    */
   @UseGuards(JwtAuthGuard)
   @Patch('me/addresses/:addressId')
+  @CompoundZodValidation({
+    params: addressIdParamSchema,
+    body: updateAddressSchema,
+  })
   async updateAddress(
-    @Request() req,
-    @Param('addressId') addressId: string,
+    @CurrentUser() user: UserPayload,
+    @Param() params: { addressId: string }, // ← objet validé par Zod
     @Body() updateAddressDto: UpdateAddressDto,
   ) {
-    const user = await this.usersService.updateAddress(
-      req.user.userId,
-      addressId,
-      updateAddressDto,
-    );
-    return {
-      message: 'Adresse mise à jour avec succès',
-      addresses: user.addresses,
-    };
+    // Vérifie qu'on a bien les infos nécessaires
+    if (!user || !user.userId) {
+      throw new HttpException(
+        'User payload is missing. Make sure you are authenticated.',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    try {
+      const updatedUser = await this.usersService.updateAddress(
+        user.userId,
+        params.addressId, // ← passe juste la string
+        updateAddressDto,
+      );
+
+      return {
+        message: 'Address successfully updated',
+        addresses: updatedUser.addresses,
+      };
+    } catch (error) {
+      console.error('❌ Erreur complète:', error);
+
+      throw new HttpException(
+        {
+          message: error.message || 'Error updating address',
+          details: error.response || error,
+        },
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   /**
@@ -191,18 +249,26 @@ export class UserController {
    */
   @UseGuards(JwtAuthGuard)
   @Patch('me/addresses/:addressId/set-default')
+  @CompoundZodValidation({ params: addressIdParamSchema })
   async setDefaultAddress(
-    @Request() req,
-    @Param('addressId') addressId: string,
+    @CurrentUser() user: UserPayload,
+    @Param() params: { addressId: string },
   ) {
-    const user = await this.usersService.setDefaultAddress(
-      req.user.userId,
-      addressId,
-    );
-    return {
-      message: 'Adresse définie par défaut',
-      addresses: user.addresses,
-    };
+    try {
+      const updatedUser = await this.usersService.setDefaultAddress(
+        user.userId,
+        params.addressId,
+      );
+      return {
+        message: 'Address defaut define',
+        addresses: updatedUser.addresses,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message,
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   /**
@@ -211,14 +277,25 @@ export class UserController {
    */
   @UseGuards(JwtAuthGuard)
   @Delete('me/addresses/:addressId')
-  async deleteAddress(@Request() req, @Param('addressId') addressId: string) {
-    const user = await this.usersService.deleteAddress(
-      req.user.userId,
-      addressId,
-    );
-    return {
-      message: 'Adresse supprimée avec succès',
-      addresses: user.addresses,
-    };
+  @CompoundZodValidation({ params: addressIdParamSchema })
+  async deleteAddress(
+    @CurrentUser() user: UserPayload,
+    @Param() params: { addressId: string },
+  ) {
+    try {
+      const updatedUser = await this.usersService.deleteAddress(
+        user.userId,
+        params.addressId,
+      );
+      return {
+        message: 'address success deleted',
+        addresses: updatedUser.addresses,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message,
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 }

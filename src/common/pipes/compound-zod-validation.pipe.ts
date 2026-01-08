@@ -34,8 +34,24 @@ export class CompoundZodValidationPipe implements PipeTransform {
         return value;
     }
 
-    if (!schema) {
-      return value;
+    if (schema) {
+      try {
+        const parsedValue = schema.parse(value);
+        return parsedValue;
+      } catch (error) {
+        if (error instanceof ZodError) {
+          console.error('❌ Erreur de validation:', error.errors);
+          const errorMessages = error.errors.map((err) => {
+            const path = err.path.join('.');
+            return `${path}: ${err.message}`;
+          });
+          throw new BadRequestException({
+            message: ERRORS.VALIDATION_FAILED,
+            errors: errorMessages,
+          });
+        }
+        throw new BadRequestException(ERRORS.VALIDATION_FAILED);
+      }
     }
 
     try {

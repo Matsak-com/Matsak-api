@@ -21,7 +21,10 @@ import { Member, MemberStatus } from '../members/member.schema';
 import { Team } from '../teams/team.schema';
 import { CreateAddressDto } from './dto/create-address.dto';
 import { UpdateAddressDto } from './dto/update-address.dto';
+import { InjectConnection } from '@nestjs/mongoose';
+import { Connection } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
+import { Logger } from '@nestjs/common';
 
 // Type for User with populated current_team
 interface UserWithPopulatedTeam extends Omit<User, 'current_team'> {
@@ -64,11 +67,18 @@ function isTeamPopulated(currentTeam: unknown): currentTeam is Team & Document {
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private readonly userRepository: UserRepository,
     private readonly awsS3Service: AwsS3Service,
     private readonly memberRepository: MemberRepository,
-    @InjectModel(User.name) private userModel: Model<UserDocument>,
+
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
+
+    @InjectConnection()
+    private readonly connection: Connection,
   ) {}
 
   async getUsers(): Promise<any[]> {
@@ -272,7 +282,7 @@ export class UsersService {
         user.avatarFileKey = uploadResult.fileKey || fileKey;
       } catch (error) {
         throw new HttpException(
-          error.message || "Erreur lors de l'upload de l'avatar",
+          error.message,
           error.status || HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
@@ -297,7 +307,7 @@ export class UsersService {
     delete userObj.password;
 
     return {
-      message: 'Profil mis à jour avec succès',
+      message: 'Profil update successfully',
       user: { ...userObj, avatarUrl },
     };
   }
@@ -476,10 +486,9 @@ export class UsersService {
     );
   }
 
-  /* ========================================================================== */
-  /* 🏠 GESTION DES ADRESSES - VERSION CORRIGÉE                                */
-  /* ========================================================================== */
-
+  /**
+   * Ajouter une nouvelle adresse
+   */
   /**
    * Ajouter une nouvelle adresse
    */
@@ -489,37 +498,39 @@ export class UsersService {
   ): Promise<User> {
     try {
       const user = await this.userModel.findById(userId);
+
       if (!user) {
         throw new NotFoundException('Utilisateur non trouvé');
       }
 
-      // ✅ Initialiser le tableau si undefined ou null
       if (!user.addresses) {
         user.addresses = [];
       }
 
-      // Si c'est la première adresse OU si isDefault est true
+      // Si aucune adresse, la première devient par défaut
       if (user.addresses.length === 0) {
         createAddressDto.isDefault = true;
-      } else if (createAddressDto.isDefault) {
-        // Réinitialiser toutes les autres adresses à false
-        user.addresses.forEach((addr) => {
-          addr.isDefault = false;
-        });
       }
 
-      const newAddress = {
+      // Si cette adresse est par défaut, décocher les autres
+      if (createAddressDto.isDefault) {
+        user.addresses.forEach((addr) => (addr.isDefault = false));
+      }
+
+      user.addresses.push({
         ...createAddressDto,
         _id: new Types.ObjectId(),
+        isDefault: createAddressDto.isDefault ?? false,
         createdAt: new Date(),
         updatedAt: new Date(),
-      } as Address;
+      } as Address);
 
-      user.addresses.push(newAddress);
-      const savedUser = await user.save();
-      return savedUser;
+      return await user.save();
     } catch (error) {
-      console.error('❌ Erreur addAddress:', error);
+      this.logger.error(
+        'Error while adding address',
+        error instanceof Error ? error.stack : JSON.stringify(error),
+      );
       throw error;
     }
   }
@@ -534,23 +545,10 @@ export class UsersService {
         throw new NotFoundException('Utilisateur non trouvé');
       }
 
-      // ✅ Initialiser si undefined ou null
-      if (!user.addresses) {
-        user.addresses = [];
-        await user.save();
+      if (!user.addresses || !Array.isArray(user.addresses)) {
         return [];
       }
 
-      // ✅ Vérifier si c'est un tableau
-      if (!Array.isArray(user.addresses)) {
-        console.error(
-          "❌ addresses n'est pas un tableau:",
-          typeof user.addresses,
-        );
-        return [];
-      }
-
-      // Trier : adresse par défaut en premier, puis par date de création
       return user.addresses.sort((a, b) => {
         if (a.isDefault && !b.isDefault) return -1;
         if (!a.isDefault && b.isDefault) return 1;
@@ -559,7 +557,10 @@ export class UsersService {
         return dateB - dateA;
       });
     } catch (error) {
-      console.error('❌ Erreur getAddresses:', error);
+      this.logger.error(
+        `Error while fetching addresses for user ${userId}`,
+        error instanceof Error ? error.stack : JSON.stringify(error),
+      );
       throw error;
     }
   }
@@ -570,9 +571,7 @@ export class UsersService {
   async getAddress(userId: string, addressId: string): Promise<Address> {
     try {
       const user = await this.userModel.findById(userId);
-      if (!user) {
-        throw new NotFoundException('Utilisateur non trouvé');
-      }
+      if (!user) throw new NotFoundException('Utilisateur non trouvé');
 
       if (!user.addresses || !Array.isArray(user.addresses)) {
         throw new NotFoundException('Aucune adresse trouvée');
@@ -581,13 +580,14 @@ export class UsersService {
       const address = user.addresses.find(
         (addr) => addr._id?.toString() === addressId,
       );
+      if (!address) throw new NotFoundException('Adresse non trouvée');
 
-      if (!address) {
-        throw new NotFoundException('Adresse non trouvée');
-      }
       return address;
     } catch (error) {
-      console.error('❌ Erreur getAddress:', error);
+      this.logger.error(
+        `Error while fetching address ${addressId} for user ${userId}`,
+        error instanceof Error ? error.stack : JSON.stringify(error),
+      );
       throw error;
     }
   }
@@ -602,10 +602,7 @@ export class UsersService {
   ): Promise<User> {
     try {
       const user = await this.userModel.findById(userId);
-      if (!user) {
-        throw new NotFoundException('Utilisateur non trouvé');
-      }
-
+      if (!user) throw new NotFoundException('Utilisateur non trouvé');
       if (!user.addresses || !Array.isArray(user.addresses)) {
         throw new NotFoundException('Aucune adresse trouvée');
       }
@@ -613,10 +610,8 @@ export class UsersService {
       const addressIndex = user.addresses.findIndex(
         (addr) => addr._id?.toString() === addressId,
       );
-
-      if (addressIndex === -1) {
+      if (addressIndex === -1)
         throw new NotFoundException('Adresse non trouvée');
-      }
 
       const currentAddress = user.addresses[addressIndex];
 
@@ -638,10 +633,12 @@ export class UsersService {
         updatedAt: new Date(),
       };
 
-      const savedUser = await user.save();
-      return savedUser;
+      return await user.save();
     } catch (error) {
-      console.error('❌ Erreur updateAddress:', error);
+      this.logger.error(
+        `Error while updating address ${addressId} for user ${userId}`,
+        error instanceof Error ? error.stack : JSON.stringify(error),
+      );
       throw error;
     }
   }
@@ -652,31 +649,25 @@ export class UsersService {
   async setDefaultAddress(userId: string, addressId: string): Promise<User> {
     try {
       const user = await this.userModel.findById(userId);
-      if (!user) {
-        throw new NotFoundException('Utilisateur non trouvé');
+      if (!user || !Array.isArray(user.addresses)) {
+        throw new NotFoundException('Utilisateur ou adresses introuvables');
       }
 
-      if (!user.addresses || !Array.isArray(user.addresses)) {
-        throw new NotFoundException('Aucune adresse trouvée');
-      }
-
-      const addressExists = user.addresses.some(
+      const exists = user.addresses.some(
         (addr) => addr._id?.toString() === addressId,
       );
+      if (!exists) throw new NotFoundException('Adresse non trouvée');
 
-      if (!addressExists) {
-        throw new NotFoundException('Adresse non trouvée');
-      }
-
-      // ✅ Réinitialiser TOUTES les adresses à false, sauf celle sélectionnée
       user.addresses.forEach((addr) => {
         addr.isDefault = addr._id?.toString() === addressId;
       });
 
-      const savedUser = await user.save();
-      return savedUser;
+      return await user.save();
     } catch (error) {
-      console.error('❌ Erreur setDefaultAddress:', error);
+      this.logger.error(
+        `Error while setting default address ${addressId} for user ${userId}`,
+        error instanceof Error ? error.stack : JSON.stringify(error),
+      );
       throw error;
     }
   }
@@ -687,10 +678,7 @@ export class UsersService {
   async deleteAddress(userId: string, addressId: string): Promise<User> {
     try {
       const user = await this.userModel.findById(userId);
-      if (!user) {
-        throw new NotFoundException('Utilisateur non trouvé');
-      }
-
+      if (!user) throw new NotFoundException('Utilisateur non trouvé');
       if (!user.addresses || !Array.isArray(user.addresses)) {
         throw new NotFoundException('Aucune adresse trouvée');
       }
@@ -698,23 +686,23 @@ export class UsersService {
       const addressIndex = user.addresses.findIndex(
         (addr) => addr._id?.toString() === addressId,
       );
-
-      if (addressIndex === -1) {
+      if (addressIndex === -1)
         throw new NotFoundException('Adresse non trouvée');
-      }
 
       const deletedAddress = user.addresses[addressIndex];
       user.addresses.splice(addressIndex, 1);
 
-      // ✅ Si l'adresse supprimée était par défaut et qu'il reste des adresses
+      // Si l'adresse supprimée était par défaut, définir la première adresse comme défaut
       if (deletedAddress.isDefault && user.addresses.length > 0) {
         user.addresses[0].isDefault = true;
       }
 
-      const savedUser = await user.save();
-      return savedUser;
+      return await user.save();
     } catch (error) {
-      console.error('❌ Erreur deleteAddress:', error);
+      this.logger.error(
+        `Error while deleting address ${addressId} for user ${userId}`,
+        error instanceof Error ? error.stack : JSON.stringify(error),
+      );
       throw error;
     }
   }
