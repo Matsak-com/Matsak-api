@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getModelToken } from '@nestjs/mongoose';
+import { getModelToken, getConnectionToken } from '@nestjs/mongoose';
 import { NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { UsersService } from './users.service';
@@ -35,6 +35,10 @@ describe('UsersService', () => {
     findOne: jest.fn(),
   };
 
+  const mockConnection = {
+    startSession: jest.fn(),
+  };
+
   const mockUserModel = {
     findById: jest.fn(),
     find: jest.fn(),
@@ -63,6 +67,10 @@ describe('UsersService', () => {
         {
           provide: getModelToken(User.name),
           useValue: mockUserModel,
+        },
+        {
+          provide: getConnectionToken(),
+          useValue: mockConnection,
         },
       ],
     }).compile();
@@ -132,11 +140,14 @@ describe('UsersService', () => {
           }),
         };
 
-        mockUserRepository.findById.mockResolvedValue(mockUser);
+        mockUserModel.findById.mockResolvedValue(mockUser);
+
+        const result = await service.addAddress(mockUserId, createAddressDto);
 
         expect(mockUser.save).toHaveBeenCalled();
         expect(mockUser.addresses).toHaveLength(1);
         expect(mockUser.addresses[0].isDefault).toBe(true);
+        expect(result).toBeDefined();
       });
 
       it('devrait réinitialiser les autres adresses si isDefault=true', async () => {
@@ -153,10 +164,16 @@ describe('UsersService', () => {
         const mockUser = {
           _id: mockUserId,
           addresses: [existingAddress],
-          save: jest.fn().mockResolvedValue({}),
+          save: jest.fn().mockResolvedValue({
+            _id: mockUserId,
+            addresses: [
+              { ...existingAddress, isDefault: false },
+              { ...createAddressDto, isDefault: true },
+            ],
+          }),
         };
 
-        mockUserRepository.findById.mockResolvedValue(mockUser);
+        mockUserModel.findById.mockResolvedValue(mockUser);
 
         await service.addAddress(mockUserId, {
           ...createAddressDto,
@@ -168,7 +185,7 @@ describe('UsersService', () => {
       });
 
       it('devrait lever une NotFoundException si utilisateur inexistant', async () => {
-        mockUserRepository.findById.mockResolvedValue(null);
+        mockUserModel.findById.mockResolvedValue(null);
 
         await expect(
           service.addAddress(mockUserId, createAddressDto),
@@ -179,10 +196,13 @@ describe('UsersService', () => {
         const mockUser = {
           _id: mockUserId,
           addresses: undefined,
-          save: jest.fn().mockResolvedValue({}),
+          save: jest.fn().mockResolvedValue({
+            _id: mockUserId,
+            addresses: [createAddressDto],
+          }),
         };
 
-        mockUserRepository.findById.mockResolvedValue(mockUser);
+        mockUserModel.findById.mockResolvedValue(mockUser);
 
         await service.addAddress(mockUserId, createAddressDto);
 
@@ -197,6 +217,8 @@ describe('UsersService', () => {
           {
             _id: new Types.ObjectId(),
             firstName: 'John',
+            lastName: 'Doe',
+            phone: '+1234567890',
             addressLine: '123 Main St',
             city: 'Paris',
             isDefault: false,
@@ -205,6 +227,8 @@ describe('UsersService', () => {
           {
             _id: new Types.ObjectId(),
             firstName: 'Jane',
+            lastName: 'Smith',
+            phone: '+9876543210',
             addressLine: '456 Oak Ave',
             city: 'Lyon',
             isDefault: true,
@@ -215,48 +239,44 @@ describe('UsersService', () => {
         const mockUser = {
           _id: mockUserId,
           addresses,
-          save: jest.fn(),
         };
 
-        mockUserRepository.findById.mockResolvedValue(mockUser);
+        mockUserModel.findById.mockResolvedValue(mockUser);
 
         const result = await service.getAddresses(mockUserId);
 
         expect(result).toHaveLength(2);
-        expect(result[0].isDefault).toBe(true);
+        expect(result[0].isDefault).toBe(true); // L'adresse par défaut doit être en premier
       });
 
       it('devrait retourner un tableau vide si aucune adresse', async () => {
         const mockUser = {
           _id: mockUserId,
           addresses: [],
-          save: jest.fn(),
         };
 
-        mockUserRepository.findById.mockResolvedValue(mockUser);
+        mockUserModel.findById.mockResolvedValue(mockUser);
 
         const result = await service.getAddresses(mockUserId);
 
         expect(result).toEqual([]);
       });
 
-      it('devrait initialiser addresses si undefined', async () => {
+      it('devrait retourner un tableau vide si addresses est undefined', async () => {
         const mockUser = {
           _id: mockUserId,
           addresses: undefined,
-          save: jest.fn().mockResolvedValue({}),
         };
 
-        mockUserRepository.findById.mockResolvedValue(mockUser);
+        mockUserModel.findById.mockResolvedValue(mockUser);
 
         const result = await service.getAddresses(mockUserId);
 
         expect(result).toEqual([]);
-        expect(mockUser.save).toHaveBeenCalled();
       });
 
       it('devrait lever une NotFoundException si utilisateur inexistant', async () => {
-        mockUserRepository.findById.mockResolvedValue(null);
+        mockUserModel.findById.mockResolvedValue(null);
 
         await expect(service.getAddresses(mockUserId)).rejects.toThrow(
           NotFoundException,
@@ -270,6 +290,9 @@ describe('UsersService', () => {
         const mockAddress = {
           _id: addressId,
           firstName: 'John',
+          lastName: 'Doe',
+          phone: '+1234567890',
+          addressLine: '123 Main St',
           city: 'Paris',
         };
 
@@ -278,7 +301,7 @@ describe('UsersService', () => {
           addresses: [mockAddress],
         };
 
-        mockUserRepository.findById.mockResolvedValue(mockUser);
+        mockUserModel.findById.mockResolvedValue(mockUser);
 
         const result = await service.getAddress(
           mockUserId,
@@ -294,7 +317,15 @@ describe('UsersService', () => {
           addresses: [],
         };
 
-        mockUserRepository.findById.mockResolvedValue(mockUser);
+        mockUserModel.findById.mockResolvedValue(mockUser);
+
+        await expect(
+          service.getAddress(mockUserId, new Types.ObjectId().toString()),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('devrait lever une NotFoundException si utilisateur inexistant', async () => {
+        mockUserModel.findById.mockResolvedValue(null);
 
         await expect(
           service.getAddress(mockUserId, new Types.ObjectId().toString()),
@@ -313,6 +344,9 @@ describe('UsersService', () => {
         const mockAddress = {
           _id: addressId,
           firstName: 'John',
+          lastName: 'Doe',
+          phone: '+1234567890',
+          addressLine: '123 Main St',
           city: 'Paris',
           isDefault: false,
           createdAt: new Date(),
@@ -321,12 +355,15 @@ describe('UsersService', () => {
         const mockUser = {
           _id: mockUserId,
           addresses: [mockAddress],
-          save: jest.fn().mockResolvedValue({}),
+          save: jest.fn().mockResolvedValue({
+            _id: mockUserId,
+            addresses: [{ ...mockAddress, ...updateDto }],
+          }),
         };
 
-        mockUserRepository.findById.mockResolvedValue(mockUser);
+        mockUserModel.findById.mockResolvedValue(mockUser);
 
-        await service.updateAddress(
+        const result = await service.updateAddress(
           mockUserId,
           addressId.toString(),
           updateDto,
@@ -335,6 +372,7 @@ describe('UsersService', () => {
         expect(mockUser.addresses[0].city).toBe('Marseille');
         expect(mockUser.addresses[0].isDefault).toBe(true);
         expect(mockUser.save).toHaveBeenCalled();
+        expect(result).toBeDefined();
       });
 
       it('devrait réinitialiser les autres adresses si isDefault devient true', async () => {
@@ -345,6 +383,9 @@ describe('UsersService', () => {
           {
             _id: addressId1,
             firstName: 'John',
+            lastName: 'Doe',
+            phone: '+1234567890',
+            addressLine: '123 Main St',
             city: 'Paris',
             isDefault: true,
             createdAt: new Date(),
@@ -352,6 +393,9 @@ describe('UsersService', () => {
           {
             _id: addressId2,
             firstName: 'Jane',
+            lastName: 'Smith',
+            phone: '+9876543210',
+            addressLine: '456 Oak Ave',
             city: 'Lyon',
             isDefault: false,
             createdAt: new Date(),
@@ -361,10 +405,13 @@ describe('UsersService', () => {
         const mockUser = {
           _id: mockUserId,
           addresses,
-          save: jest.fn().mockResolvedValue({}),
+          save: jest.fn().mockResolvedValue({
+            _id: mockUserId,
+            addresses,
+          }),
         };
 
-        mockUserRepository.findById.mockResolvedValue(mockUser);
+        mockUserModel.findById.mockResolvedValue(mockUser);
 
         await service.updateAddress(mockUserId, addressId2.toString(), {
           isDefault: true,
@@ -380,7 +427,19 @@ describe('UsersService', () => {
           addresses: [],
         };
 
-        mockUserRepository.findById.mockResolvedValue(mockUser);
+        mockUserModel.findById.mockResolvedValue(mockUser);
+
+        await expect(
+          service.updateAddress(
+            mockUserId,
+            new Types.ObjectId().toString(),
+            updateDto,
+          ),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('devrait lever une NotFoundException si utilisateur inexistant', async () => {
+        mockUserModel.findById.mockResolvedValue(null);
 
         await expect(
           service.updateAddress(
@@ -405,10 +464,13 @@ describe('UsersService', () => {
         const mockUser = {
           _id: mockUserId,
           addresses,
-          save: jest.fn().mockResolvedValue({}),
+          save: jest.fn().mockResolvedValue({
+            _id: mockUserId,
+            addresses,
+          }),
         };
 
-        mockUserRepository.findById.mockResolvedValue(mockUser);
+        mockUserModel.findById.mockResolvedValue(mockUser);
 
         await service.setDefaultAddress(mockUserId, addressId2.toString());
 
@@ -423,7 +485,18 @@ describe('UsersService', () => {
           addresses: [],
         };
 
-        mockUserRepository.findById.mockResolvedValue(mockUser);
+        mockUserModel.findById.mockResolvedValue(mockUser);
+
+        await expect(
+          service.setDefaultAddress(
+            mockUserId,
+            new Types.ObjectId().toString(),
+          ),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('devrait lever une NotFoundException si utilisateur inexistant', async () => {
+        mockUserModel.findById.mockResolvedValue(null);
 
         await expect(
           service.setDefaultAddress(
@@ -445,15 +518,22 @@ describe('UsersService', () => {
         const mockUser = {
           _id: mockUserId,
           addresses: [...addresses],
-          save: jest.fn().mockResolvedValue({}),
+          save: jest.fn().mockResolvedValue({
+            _id: mockUserId,
+            addresses: [addresses[1]],
+          }),
         };
 
-        mockUserRepository.findById.mockResolvedValue(mockUser);
+        mockUserModel.findById.mockResolvedValue(mockUser);
 
-        await service.deleteAddress(mockUserId, addressToDelete.toString());
+        const result = await service.deleteAddress(
+          mockUserId,
+          addressToDelete.toString(),
+        );
 
         expect(mockUser.addresses).toHaveLength(1);
         expect(mockUser.save).toHaveBeenCalled();
+        expect(result).toBeDefined();
       });
 
       it("devrait définir la première adresse par défaut si on supprime l'adresse par défaut", async () => {
@@ -468,10 +548,13 @@ describe('UsersService', () => {
         const mockUser = {
           _id: mockUserId,
           addresses: [...addresses],
-          save: jest.fn().mockResolvedValue({}),
+          save: jest.fn().mockResolvedValue({
+            _id: mockUserId,
+            addresses: [{ ...addresses[1], isDefault: true }],
+          }),
         };
 
-        mockUserRepository.findById.mockResolvedValue(mockUser);
+        mockUserModel.findById.mockResolvedValue(mockUser);
 
         await service.deleteAddress(mockUserId, addressId1.toString());
 
@@ -485,7 +568,15 @@ describe('UsersService', () => {
           addresses: [],
         };
 
-        mockUserRepository.findById.mockResolvedValue(mockUser);
+        mockUserModel.findById.mockResolvedValue(mockUser);
+
+        await expect(
+          service.deleteAddress(mockUserId, new Types.ObjectId().toString()),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('devrait lever une NotFoundException si utilisateur inexistant', async () => {
+        mockUserModel.findById.mockResolvedValue(null);
 
         await expect(
           service.deleteAddress(mockUserId, new Types.ObjectId().toString()),
