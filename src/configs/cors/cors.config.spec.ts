@@ -6,7 +6,15 @@
  * with different process.env values. ES6 imports are hoisted and cannot be
  * dynamically re-imported in this way.
  */
-import { corsConfig } from './cors.config';
+
+type CorsConfig = typeof import('./cors.config').corsConfig;
+
+const loadCorsConfig = (): CorsConfig => {
+  // Use require so we can re-evaluate env-driven config after jest.resetModules()
+  // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+  const module = require('./cors.config') as { corsConfig: CorsConfig };
+  return module.corsConfig;
+};
 
 describe('CORS Configuration', () => {
   let originalEnv: NodeJS.ProcessEnv;
@@ -30,6 +38,8 @@ describe('CORS Configuration', () => {
 
       const testOrigins = ['https://example.com', 'https://app.example.com'];
 
+      const corsConfig = loadCorsConfig();
+
       testOrigins.forEach((origin) => {
         corsConfig.origin(origin, (err: Error | null, allowed: boolean) => {
           expect(err).toBeNull();
@@ -44,6 +54,8 @@ describe('CORS Configuration', () => {
 
       const testOrigins = ['https://example.com', 'https://app.example.com'];
 
+      const corsConfig = loadCorsConfig();
+
       testOrigins.forEach((origin) => {
         corsConfig.origin(origin, (err: Error | null, allowed: boolean) => {
           expect(err).toBeNull();
@@ -54,6 +66,8 @@ describe('CORS Configuration', () => {
 
     it('should filter out empty strings from environment variable origins', () => {
       process.env.CORS_ORIGIN = 'https://example.com,,https://app.example.com,';
+
+      const corsConfig = loadCorsConfig();
 
       // Should not throw errors and should work correctly
       corsConfig.origin(
@@ -67,6 +81,8 @@ describe('CORS Configuration', () => {
 
     it('should handle missing CORS_ORIGIN environment variable', () => {
       delete process.env.CORS_ORIGIN;
+
+      const corsConfig = loadCorsConfig();
 
       // Should still allow default origins
       corsConfig.origin(
@@ -82,6 +98,8 @@ describe('CORS Configuration', () => {
   describe('Combining environment origins with default origins', () => {
     it('should allow both default and environment-provided origins', () => {
       process.env.CORS_ORIGIN = 'https://production.example.com';
+
+      const corsConfig = loadCorsConfig();
 
       // Test default origin
       corsConfig.origin(
@@ -104,6 +122,8 @@ describe('CORS Configuration', () => {
 
     it('should not duplicate origins if environment variable contains default origins', () => {
       process.env.CORS_ORIGIN = 'http://localhost:3000,https://example.com';
+
+      const corsConfig = loadCorsConfig();
 
       // Should work without issues
       corsConfig.origin(
@@ -131,6 +151,8 @@ describe('CORS Configuration', () => {
         'http://127.0.0.1:3000',
       ];
 
+      const corsConfig = loadCorsConfig();
+
       allowedOrigins.forEach((origin) => {
         corsConfig.origin(origin, (err: Error | null, allowed: boolean) => {
           expect(err).toBeNull();
@@ -146,6 +168,8 @@ describe('CORS Configuration', () => {
         'http://localhost:9999',
       ];
 
+      const corsConfig = loadCorsConfig();
+
       disallowedOrigins.forEach((origin) => {
         corsConfig.origin(origin, (err: Error | null) => {
           expect(err).toBeInstanceOf(Error);
@@ -155,6 +179,8 @@ describe('CORS Configuration', () => {
     });
 
     it('should allow requests without an origin (e.g., Postman, mobile apps)', () => {
+      const corsConfig = loadCorsConfig();
+
       corsConfig.origin(undefined, (err: Error | null, allowed: boolean) => {
         expect(err).toBeNull();
         expect(allowed).toBe(true);
@@ -169,6 +195,8 @@ describe('CORS Configuration', () => {
         'http://localhost:3002', // Different port
       ];
 
+      const corsConfig = loadCorsConfig();
+
       similarButNotExact.forEach((origin) => {
         corsConfig.origin(origin, (err: Error | null) => {
           expect(err).toBeInstanceOf(Error);
@@ -180,6 +208,8 @@ describe('CORS Configuration', () => {
 
   describe('CORS configuration options', () => {
     it('should have correct methods configured', () => {
+      const corsConfig = loadCorsConfig();
+
       expect(corsConfig.methods).toEqual([
         'GET',
         'POST',
@@ -191,10 +221,14 @@ describe('CORS Configuration', () => {
     });
 
     it('should have credentials enabled', () => {
+      const corsConfig = loadCorsConfig();
+
       expect(corsConfig.credentials).toBe(true);
     });
 
     it('should have correct allowed headers', () => {
+      const corsConfig = loadCorsConfig();
+
       expect(corsConfig.allowedHeaders).toEqual([
         'Content-Type',
         'Authorization',
@@ -204,6 +238,8 @@ describe('CORS Configuration', () => {
     });
 
     it('should have correct options success status', () => {
+      const corsConfig = loadCorsConfig();
+
       expect(corsConfig.optionsSuccessStatus).toBe(204);
     });
   });
@@ -219,6 +255,9 @@ describe('CORS Configuration', () => {
         'https://app2.example.com',
         'https://app3.example.com',
       ];
+
+      const corsConfig = loadCorsConfig();
+
       envOrigins.forEach((origin) => {
         corsConfig.origin(origin, (err: Error | null, allowed: boolean) => {
           expect(err).toBeNull();
