@@ -140,7 +140,7 @@ describe('UsersService', () => {
           }),
         };
 
-        mockUserModel.findById.mockResolvedValue(mockUser);
+        mockUserRepository.findById.mockResolvedValue(mockUser);
 
         const result = await service.addAddress(mockUserId, createAddressDto);
 
@@ -173,7 +173,7 @@ describe('UsersService', () => {
           }),
         };
 
-        mockUserModel.findById.mockResolvedValue(mockUser);
+        mockUserRepository.findById.mockResolvedValue(mockUser);
 
         await service.addAddress(mockUserId, {
           ...createAddressDto,
@@ -185,7 +185,7 @@ describe('UsersService', () => {
       });
 
       it('devrait lever une NotFoundException si utilisateur inexistant', async () => {
-        mockUserModel.findById.mockResolvedValue(null);
+        mockUserRepository.findById.mockResolvedValue(null);
 
         await expect(
           service.addAddress(mockUserId, createAddressDto),
@@ -202,7 +202,7 @@ describe('UsersService', () => {
           }),
         };
 
-        mockUserModel.findById.mockResolvedValue(mockUser);
+        mockUserRepository.findById.mockResolvedValue(mockUser);
 
         await service.addAddress(mockUserId, createAddressDto);
 
@@ -241,7 +241,7 @@ describe('UsersService', () => {
           addresses,
         };
 
-        mockUserModel.findById.mockResolvedValue(mockUser);
+        mockUserRepository.findById.mockResolvedValue(mockUser);
 
         const result = await service.getAddresses(mockUserId);
 
@@ -255,7 +255,7 @@ describe('UsersService', () => {
           addresses: [],
         };
 
-        mockUserModel.findById.mockResolvedValue(mockUser);
+        mockUserRepository.findById.mockResolvedValue(mockUser);
 
         const result = await service.getAddresses(mockUserId);
 
@@ -268,7 +268,7 @@ describe('UsersService', () => {
           addresses: undefined,
         };
 
-        mockUserModel.findById.mockResolvedValue(mockUser);
+        mockUserRepository.findById.mockResolvedValue(mockUser);
 
         const result = await service.getAddresses(mockUserId);
 
@@ -276,7 +276,7 @@ describe('UsersService', () => {
       });
 
       it('devrait lever une NotFoundException si utilisateur inexistant', async () => {
-        mockUserModel.findById.mockResolvedValue(null);
+        mockUserRepository.findById.mockResolvedValue(null);
 
         await expect(service.getAddresses(mockUserId)).rejects.toThrow(
           NotFoundException,
@@ -301,7 +301,7 @@ describe('UsersService', () => {
           addresses: [mockAddress],
         };
 
-        mockUserModel.findById.mockResolvedValue(mockUser);
+        mockUserRepository.findById.mockResolvedValue(mockUser);
 
         const result = await service.getAddress(
           mockUserId,
@@ -317,7 +317,7 @@ describe('UsersService', () => {
           addresses: [],
         };
 
-        mockUserModel.findById.mockResolvedValue(mockUser);
+        mockUserRepository.findById.mockResolvedValue(mockUser);
 
         await expect(
           service.getAddress(mockUserId, new Types.ObjectId().toString()),
@@ -325,7 +325,7 @@ describe('UsersService', () => {
       });
 
       it('devrait lever une NotFoundException si utilisateur inexistant', async () => {
-        mockUserModel.findById.mockResolvedValue(null);
+        mockUserRepository.findById.mockResolvedValue(null);
 
         await expect(
           service.getAddress(mockUserId, new Types.ObjectId().toString()),
@@ -361,7 +361,7 @@ describe('UsersService', () => {
           }),
         };
 
-        mockUserModel.findById.mockResolvedValue(mockUser);
+        mockUserRepository.findById.mockResolvedValue(mockUser);
 
         const result = await service.updateAddress(
           mockUserId,
@@ -411,7 +411,7 @@ describe('UsersService', () => {
           }),
         };
 
-        mockUserModel.findById.mockResolvedValue(mockUser);
+        mockUserRepository.findById.mockResolvedValue(mockUser);
 
         await service.updateAddress(mockUserId, addressId2.toString(), {
           isDefault: true,
@@ -427,7 +427,7 @@ describe('UsersService', () => {
           addresses: [],
         };
 
-        mockUserModel.findById.mockResolvedValue(mockUser);
+        mockUserRepository.findById.mockResolvedValue(mockUser);
 
         await expect(
           service.updateAddress(
@@ -439,7 +439,7 @@ describe('UsersService', () => {
       });
 
       it('devrait lever une NotFoundException si utilisateur inexistant', async () => {
-        mockUserModel.findById.mockResolvedValue(null);
+        mockUserRepository.findById.mockResolvedValue(null);
 
         await expect(
           service.updateAddress(
@@ -470,7 +470,7 @@ describe('UsersService', () => {
           }),
         };
 
-        mockUserModel.findById.mockResolvedValue(mockUser);
+        mockUserRepository.findById.mockResolvedValue(mockUser);
 
         await service.setDefaultAddress(mockUserId, addressId2.toString());
 
@@ -485,7 +485,7 @@ describe('UsersService', () => {
           addresses: [],
         };
 
-        mockUserModel.findById.mockResolvedValue(mockUser);
+        mockUserRepository.findById.mockResolvedValue(mockUser);
 
         await expect(
           service.setDefaultAddress(
@@ -496,7 +496,7 @@ describe('UsersService', () => {
       });
 
       it('devrait lever une NotFoundException si utilisateur inexistant', async () => {
-        mockUserModel.findById.mockResolvedValue(null);
+        mockUserRepository.findById.mockResolvedValue(null);
 
         await expect(
           service.setDefaultAddress(
@@ -524,7 +524,7 @@ describe('UsersService', () => {
           }),
         };
 
-        mockUserModel.findById.mockResolvedValue(mockUser);
+        mockUserRepository.findById.mockResolvedValue(mockUser);
 
         const result = await service.deleteAddress(
           mockUserId,
@@ -554,7 +554,7 @@ describe('UsersService', () => {
           }),
         };
 
-        mockUserModel.findById.mockResolvedValue(mockUser);
+        mockUserRepository.findById.mockResolvedValue(mockUser);
 
         await service.deleteAddress(mockUserId, addressId1.toString());
 
@@ -568,7 +568,7 @@ describe('UsersService', () => {
           addresses: [],
         };
 
-        mockUserModel.findById.mockResolvedValue(mockUser);
+        mockUserRepository.findById.mockResolvedValue(mockUser);
 
         await expect(
           service.deleteAddress(mockUserId, new Types.ObjectId().toString()),
@@ -576,7 +576,7 @@ describe('UsersService', () => {
       });
 
       it('devrait lever une NotFoundException si utilisateur inexistant', async () => {
-        mockUserModel.findById.mockResolvedValue(null);
+        mockUserRepository.findById.mockResolvedValue(null);
 
         await expect(
           service.deleteAddress(mockUserId, new Types.ObjectId().toString()),

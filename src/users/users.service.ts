@@ -489,6 +489,8 @@ export class UsersService {
   /**
    * Ajouter une nouvelle adresse
    */
+  // Remplacez les méthodes d'adresse dans UsersService par celles-ci :
+
   /**
    * Ajouter une nouvelle adresse
    */
@@ -497,10 +499,10 @@ export class UsersService {
     createAddressDto: CreateAddressDto,
   ): Promise<User> {
     try {
-      const user = await this.userModel.findById(userId);
+      const user = await this.userRepository.findById({ id: userId });
 
       if (!user) {
-        throw new NotFoundException('Utilisateur non trouvé');
+        throw new NotFoundException('User not found');
       }
 
       if (!user.addresses) {
@@ -540,9 +542,10 @@ export class UsersService {
    */
   async getAddresses(userId: string): Promise<Address[]> {
     try {
-      const user = await this.userModel.findById(userId);
+      const user = await this.userRepository.findById({ id: userId });
+
       if (!user) {
-        throw new NotFoundException('Utilisateur non trouvé');
+        throw new NotFoundException('User not found');
       }
 
       if (!user.addresses || !Array.isArray(user.addresses)) {
@@ -570,17 +573,23 @@ export class UsersService {
    */
   async getAddress(userId: string, addressId: string): Promise<Address> {
     try {
-      const user = await this.userModel.findById(userId);
-      if (!user) throw new NotFoundException('Utilisateur non trouvé');
+      const user = await this.userRepository.findById({ id: userId });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
 
       if (!user.addresses || !Array.isArray(user.addresses)) {
-        throw new NotFoundException('Aucune adresse trouvée');
+        throw new NotFoundException('No addresses found');
       }
 
       const address = user.addresses.find(
         (addr) => addr._id?.toString() === addressId,
       );
-      if (!address) throw new NotFoundException('Adresse non trouvée');
+
+      if (!address) {
+        throw new NotFoundException('No address found');
+      }
 
       return address;
     } catch (error) {
@@ -601,17 +610,23 @@ export class UsersService {
     updateAddressDto: UpdateAddressDto,
   ): Promise<User> {
     try {
-      const user = await this.userModel.findById(userId);
-      if (!user) throw new NotFoundException('Utilisateur non trouvé');
+      const user = await this.userRepository.findById({ id: userId });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
       if (!user.addresses || !Array.isArray(user.addresses)) {
-        throw new NotFoundException('Aucune adresse trouvée');
+        throw new NotFoundException('No addresses found');
       }
 
       const addressIndex = user.addresses.findIndex(
         (addr) => addr._id?.toString() === addressId,
       );
-      if (addressIndex === -1)
-        throw new NotFoundException('Adresse non trouvée');
+
+      if (addressIndex === -1) {
+        throw new NotFoundException('No address found');
+      }
 
       const currentAddress = user.addresses[addressIndex];
 
@@ -648,15 +663,19 @@ export class UsersService {
    */
   async setDefaultAddress(userId: string, addressId: string): Promise<User> {
     try {
-      const user = await this.userModel.findById(userId);
+      const user = await this.userRepository.findById({ id: userId });
+
       if (!user || !Array.isArray(user.addresses)) {
-        throw new NotFoundException('Utilisateur ou adresses introuvables');
+        throw new NotFoundException('User or adresses not found');
       }
 
       const exists = user.addresses.some(
         (addr) => addr._id?.toString() === addressId,
       );
-      if (!exists) throw new NotFoundException('Adresse non trouvée');
+
+      if (!exists) {
+        throw new NotFoundException('No address found to set as default');
+      }
 
       user.addresses.forEach((addr) => {
         addr.isDefault = addr._id?.toString() === addressId;
@@ -677,17 +696,23 @@ export class UsersService {
    */
   async deleteAddress(userId: string, addressId: string): Promise<User> {
     try {
-      const user = await this.userModel.findById(userId);
-      if (!user) throw new NotFoundException('Utilisateur non trouvé');
+      const user = await this.userRepository.findById({ id: userId });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
       if (!user.addresses || !Array.isArray(user.addresses)) {
-        throw new NotFoundException('Aucune adresse trouvée');
+        throw new NotFoundException('No addresses found');
       }
 
       const addressIndex = user.addresses.findIndex(
         (addr) => addr._id?.toString() === addressId,
       );
-      if (addressIndex === -1)
-        throw new NotFoundException('Adresse non trouvée');
+
+      if (addressIndex === -1) {
+        throw new NotFoundException('No address found to delete');
+      }
 
       const deletedAddress = user.addresses[addressIndex];
       user.addresses.splice(addressIndex, 1);
