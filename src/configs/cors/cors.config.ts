@@ -24,17 +24,21 @@ const defaultAllowedOrigins = [
   'https://127.0.0.1:4200',
 ];
 
-const envAllowedOrigins = process.env.CORS_ORIGIN?.split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-
+const rawCorsOrigin = process.env.CORS_ORIGIN;
+const envAllowedOrigins =
+  rawCorsOrigin && rawCorsOrigin.trim() !== ''
+    ? rawCorsOrigin
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean)
+    : [];
 const allowedOrigins = new Set([
   ...defaultAllowedOrigins,
-  ...(envAllowedOrigins ?? []),
+  ...envAllowedOrigins,
 ]);
 
-const isOriginAllowed = (origin?: string | undefined) => {
-  if (!origin) return true; // Allow requests without an origin (e.g., Postman/mobile)
+const isOriginAllowed = (origin?: string) => {
+  if (!origin) return true;
   return allowedOrigins.has(origin);
 };
 

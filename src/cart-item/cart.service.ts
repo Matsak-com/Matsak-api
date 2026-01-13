@@ -38,53 +38,53 @@ export class CartService {
 
   // ➕ Ajouter au panier
   async addToCart(
-  dto: AddToCartDto,
-  sessionId?: string,
-  userId?: Types.ObjectId,
-) {
-  const quantity = dto.quantity ?? 1;
+    dto: AddToCartDto,
+    sessionId?: string,
+    userId?: Types.ObjectId,
+  ) {
+    const quantity = dto.quantity ?? 1;
 
-  let cart = await this.findCart(sessionId, userId);
+    let cart = await this.findCart(sessionId, userId);
 
-  // 🆕 Création panier
-  if (!cart) {
-    cart = await this.cartRepository.create({
-      doc: {
-        sessionId,
-        userId,
-        items: [
-          {
-            product: dto.productId as any,
-            quantity,
-          },
-        ],
-      },
+    // 🆕 Création panier
+    if (!cart) {
+      cart = await this.cartRepository.create({
+        doc: {
+          sessionId,
+          userId,
+          items: [
+            {
+              product: dto.productId as any,
+              quantity,
+            },
+          ],
+        },
+      });
+
+      return cart;
+    }
+
+    // 🔁 Panier existe → ajouter ou incrémenter
+    const existingItem = cart.items.find(
+      (item) => item.product.toString() === dto.productId,
+    );
+
+    if (existingItem) {
+      existingItem.quantity += quantity;
+    } else {
+      cart.items.push({
+        product: dto.productId as any,
+        quantity,
+      });
+    }
+
+    await this.cartRepository.update({
+      id: cart._id as Types.ObjectId,
+      update: { items: cart.items },
     });
 
     return cart;
   }
-
-  // 🔁 Panier existe → ajouter ou incrémenter
-  const existingItem = cart.items.find(
-    (item) => item.product.toString() === dto.productId,
-  );
-
-  if (existingItem) {
-    existingItem.quantity += quantity;
-  } else {
-    cart.items.push({
-      product: dto.productId as any,
-      quantity,
-    });
-  }
-
-  await this.cartRepository.update({
-    id: cart._id as Types.ObjectId,
-    update: { items: cart.items },
-  });
-
-  return cart;
-}
 
   // 📦 Récupérer panier
   async getCart(sessionId?: string, userId?: Types.ObjectId) {
@@ -97,7 +97,7 @@ export class CartService {
 
   async mergeSessionCartToUser(sessionId: string, userId: Types.ObjectId) {
     const sessionCart = await this.cartRepository.findBySessionId(sessionId);
-    
+
     // Pas de panier session ? Rien à fusionner
     if (!sessionCart || sessionCart.items.length === 0) {
       return null;
@@ -113,9 +113,11 @@ export class CartService {
           items: sessionCart.items,
         },
       });
-      
+
       // Supprimer le panier de session
-      await this.cartRepository.delete({ id: sessionCart._id as Types.ObjectId });
+      await this.cartRepository.delete({
+        id: sessionCart._id as Types.ObjectId,
+      });
       return userCart;
     }
 
@@ -156,11 +158,8 @@ export class CartService {
     const cart = await this.findCart(sessionId, userId);
     if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
 
-    const item = cart.items.find(
-      (i) => i.product.toString() === productId,
-    );
-    if (!item)
-      throw new NotFoundException(ERRORS.CART_PRODUCT_NOT_FOUND);
+    const item = cart.items.find((i) => i.product.toString() === productId);
+    if (!item) throw new NotFoundException(ERRORS.CART_PRODUCT_NOT_FOUND);
 
     item.quantity = quantity;
 
@@ -182,9 +181,7 @@ export class CartService {
     const cart = await this.findCart(sessionId, userId);
     if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
 
-    cart.items = cart.items.filter(
-      (i) => i.product.toString() !== productId,
-    );
+    cart.items = cart.items.filter((i) => i.product.toString() !== productId);
 
     return this.cartRepository.update({
       id: cart._id as Types.ObjectId,

@@ -45,18 +45,18 @@ export class CartController {
     // PRIORITÉ 1: userId depuis le header (envoyé par le client depuis localStorage)
     if (userIdFromHeader && Types.ObjectId.isValid(userIdFromHeader)) {
       console.log('✅ Utilisation userId:', userIdFromHeader);
-      return { 
+      return {
         sessionId: undefined,
-        userId: new Types.ObjectId(userIdFromHeader)
+        userId: new Types.ObjectId(userIdFromHeader),
       };
     }
 
     // PRIORITÉ 2: sessionId depuis les cookies
     if (sessionId) {
       console.log('✅ Utilisation sessionId:', sessionId);
-      return { 
-        sessionId, 
-        userId: undefined 
+      return {
+        sessionId,
+        userId: undefined,
       };
     }
 
@@ -67,13 +67,13 @@ export class CartController {
   @Get()
   async get(@Req() req: CartRequest) {
     console.log('📥 GET /cart');
-    
+
     const { sessionId, userId } = this.getCartIdentifiers(req);
-    console.log('🔍 Recherche panier avec:', { 
-      sessionId, 
-      userId: userId?.toString() 
+    console.log('🔍 Recherche panier avec:', {
+      sessionId,
+      userId: userId?.toString(),
     });
-    
+
     const result = await this.cartService.getCart(sessionId, userId);
     console.log('📦 Panier trouvé avec', result.items?.length, 'items');
 
@@ -91,7 +91,7 @@ export class CartController {
   @Post('merge')
   async mergeCart(@Req() req: CartRequest) {
     console.log('📥 POST /cart/merge - Fusion des paniers');
-    
+
     const sessionId = req.cookies?.sessionId;
     const userIdFromHeader = req.headers['x-user-id'];
 
@@ -107,13 +107,25 @@ export class CartController {
     }
 
     const userId = new Types.ObjectId(userIdFromHeader);
-    console.log('🔀 Fusion: sessionId', sessionId, '→ userId', userId.toString());
+    console.log(
+      '🔀 Fusion: sessionId',
+      sessionId,
+      '→ userId',
+      userId.toString(),
+    );
 
     // Effectuer la fusion
-    const mergedCart = await this.cartService.mergeSessionCartToUser(sessionId, userId);
-    
+    const mergedCart = await this.cartService.mergeSessionCartToUser(
+      sessionId,
+      userId,
+    );
+
     if (mergedCart) {
-      console.log('✅ Fusion réussie, panier contient', mergedCart.items.length, 'items');
+      console.log(
+        '✅ Fusion réussie, panier contient',
+        mergedCart.items.length,
+        'items',
+      );
       // Enrichir les items avant de retourner
       const enrichedItems = await this.cartService.getCart(undefined, userId);
       return enrichedItems;
