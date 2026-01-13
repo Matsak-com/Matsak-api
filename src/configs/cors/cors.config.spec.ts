@@ -1,3 +1,11 @@
+/**
+ * Note: This test file uses CommonJS require() instead of ES6 imports.
+ * This is intentional because the cors.config module reads environment variables
+ * at module load time. To test different environment variable scenarios, we need
+ * to reset the module cache using jest.resetModules() and re-require the module
+ * with different process.env values. ES6 imports are hoisted and cannot be
+ * dynamically re-imported in this way.
+ */
 describe('CORS Configuration', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
@@ -160,7 +168,7 @@ describe('CORS Configuration', () => {
       const similarButNotExact = [
         'http://localhost:3000/', // Has trailing slash
         'http://localhost:3000/api', // Has path
-        'http://localhos:3000', // Typo
+        'http://localhost:3002', // Different port
       ];
       
       similarButNotExact.forEach((origin) => {
