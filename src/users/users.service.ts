@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
-import { Types, Document } from 'mongoose';
+import { Types, Document, Model } from 'mongoose';
 import { ERRORS } from '../common/errors';
 import * as bcrypt from 'bcrypt';
 
@@ -14,11 +14,17 @@ import { CreateUserDto } from '../auth/dto/create-user.dto';
 import { UpdateUserDto } from '../auth/dto/update-user.dto';
 import { UpdatePasswordDto } from '../auth/dto/update-password.dto';
 import { AwsS3Service } from '../aws/aws-s3.service';
-import { User } from './user.schema';
+import { Address, User, UserDocument } from './user.schema';
 import { UserRepository } from './users.repository';
 import { MemberRepository } from '../members/member.repository';
 import { Member, MemberStatus } from '../members/member.schema';
 import { Team } from '../teams/team.schema';
+import { CreateAddressDto } from './dto/create-address.dto';
+import { UpdateAddressDto } from './dto/update-address.dto';
+import { InjectConnection } from '@nestjs/mongoose';
+import { Connection } from 'mongoose';
+import { InjectModel } from '@nestjs/mongoose';
+import { Logger } from '@nestjs/common';
 
 // Type for User with populated current_team
 interface UserWithPopulatedTeam extends Omit<User, 'current_team'> {
@@ -61,10 +67,18 @@ function isTeamPopulated(currentTeam: unknown): currentTeam is Team & Document {
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private readonly userRepository: UserRepository,
     private readonly awsS3Service: AwsS3Service,
     private readonly memberRepository: MemberRepository,
+
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
+
+    @InjectConnection()
+    private readonly connection: Connection,
   ) {}
 
   async getUsers(): Promise<any[]> {
@@ -268,7 +282,7 @@ export class UsersService {
         user.avatarFileKey = uploadResult.fileKey || fileKey;
       } catch (error) {
         throw new HttpException(
-          error.message || "Erreur lors de l'upload de l'avatar",
+          error.message,
           error.status || HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
@@ -293,7 +307,7 @@ export class UsersService {
     delete userObj.password;
 
     return {
-      message: 'Profil mis à jour avec succès',
+      message: 'Profil update successfully',
       user: { ...userObj, avatarUrl },
     };
   }
@@ -470,5 +484,251 @@ export class UsersService {
         };
       }),
     );
+  }
+
+  /**
+   * Ajouter une nouvelle adresse
+   */
+  // Remplacez les méthodes d'adresse dans UsersService par celles-ci :
+
+  /**
+   * Ajouter une nouvelle adresse
+   */
+  async addAddress(
+    userId: string,
+    createAddressDto: CreateAddressDto,
+  ): Promise<User> {
+    try {
+      const user = await this.userRepository.findById({ id: userId });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      if (!user.addresses) {
+        user.addresses = [];
+      }
+
+      // Si aucune adresse, la première devient par défaut
+      if (user.addresses.length === 0) {
+        createAddressDto.isDefault = true;
+      }
+
+      // Si cette adresse est par défaut, décocher les autres
+      if (createAddressDto.isDefault) {
+        user.addresses.forEach((addr) => (addr.isDefault = false));
+      }
+
+      user.addresses.push({
+        ...createAddressDto,
+        _id: new Types.ObjectId(),
+        isDefault: createAddressDto.isDefault ?? false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as Address);
+
+      return await user.save();
+    } catch (error) {
+      this.logger.error(
+        'Error while adding address',
+        error instanceof Error ? error.stack : JSON.stringify(error),
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Récupérer toutes les adresses d'un utilisateur
+   */
+  async getAddresses(userId: string): Promise<Address[]> {
+    try {
+      const user = await this.userRepository.findById({ id: userId });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      if (!user.addresses || !Array.isArray(user.addresses)) {
+        return [];
+      }
+
+      return user.addresses.sort((a, b) => {
+        if (a.isDefault && !b.isDefault) return -1;
+        if (!a.isDefault && b.isDefault) return 1;
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
+    } catch (error) {
+      this.logger.error(
+        `Error while fetching addresses for user ${userId}`,
+        error instanceof Error ? error.stack : JSON.stringify(error),
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Récupérer une adresse spécifique
+   */
+  async getAddress(userId: string, addressId: string): Promise<Address> {
+    try {
+      const user = await this.userRepository.findById({ id: userId });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      if (!user.addresses || !Array.isArray(user.addresses)) {
+        throw new NotFoundException('No addresses found');
+      }
+
+      const address = user.addresses.find(
+        (addr) => addr._id?.toString() === addressId,
+      );
+
+      if (!address) {
+        throw new NotFoundException('No address found');
+      }
+
+      return address;
+    } catch (error) {
+      this.logger.error(
+        `Error while fetching address ${addressId} for user ${userId}`,
+        error instanceof Error ? error.stack : JSON.stringify(error),
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Mettre à jour une adresse
+   */
+  async updateAddress(
+    userId: string,
+    addressId: string,
+    updateAddressDto: UpdateAddressDto,
+  ): Promise<User> {
+    try {
+      const user = await this.userRepository.findById({ id: userId });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      if (!user.addresses || !Array.isArray(user.addresses)) {
+        throw new NotFoundException('No addresses found');
+      }
+
+      const addressIndex = user.addresses.findIndex(
+        (addr) => addr._id?.toString() === addressId,
+      );
+
+      if (addressIndex === -1) {
+        throw new NotFoundException('No address found');
+      }
+
+      const currentAddress = user.addresses[addressIndex];
+
+      // Si on change l'adresse en défaut
+      if (updateAddressDto.isDefault && !currentAddress.isDefault) {
+        user.addresses.forEach((addr) => {
+          if (addr._id?.toString() !== addressId) {
+            addr.isDefault = false;
+          }
+        });
+      }
+
+      // Mettre à jour l'adresse
+      user.addresses[addressIndex] = {
+        ...currentAddress,
+        ...updateAddressDto,
+        _id: currentAddress._id,
+        createdAt: currentAddress.createdAt,
+        updatedAt: new Date(),
+      };
+
+      return await user.save();
+    } catch (error) {
+      this.logger.error(
+        `Error while updating address ${addressId} for user ${userId}`,
+        error instanceof Error ? error.stack : JSON.stringify(error),
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Définir une adresse comme par défaut
+   */
+  async setDefaultAddress(userId: string, addressId: string): Promise<User> {
+    try {
+      const user = await this.userRepository.findById({ id: userId });
+
+      if (!user || !Array.isArray(user.addresses)) {
+        throw new NotFoundException('User or adresses not found');
+      }
+
+      const exists = user.addresses.some(
+        (addr) => addr._id?.toString() === addressId,
+      );
+
+      if (!exists) {
+        throw new NotFoundException('No address found to set as default');
+      }
+
+      user.addresses.forEach((addr) => {
+        addr.isDefault = addr._id?.toString() === addressId;
+      });
+
+      return await user.save();
+    } catch (error) {
+      this.logger.error(
+        `Error while setting default address ${addressId} for user ${userId}`,
+        error instanceof Error ? error.stack : JSON.stringify(error),
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Supprimer une adresse
+   */
+  async deleteAddress(userId: string, addressId: string): Promise<User> {
+    try {
+      const user = await this.userRepository.findById({ id: userId });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      if (!user.addresses || !Array.isArray(user.addresses)) {
+        throw new NotFoundException('No addresses found');
+      }
+
+      const addressIndex = user.addresses.findIndex(
+        (addr) => addr._id?.toString() === addressId,
+      );
+
+      if (addressIndex === -1) {
+        throw new NotFoundException('No address found to delete');
+      }
+
+      const deletedAddress = user.addresses[addressIndex];
+      user.addresses.splice(addressIndex, 1);
+
+      // Si l'adresse supprimée était par défaut, définir la première adresse comme défaut
+      if (deletedAddress.isDefault && user.addresses.length > 0) {
+        user.addresses[0].isDefault = true;
+      }
+
+      return await user.save();
+    } catch (error) {
+      this.logger.error(
+        `Error while deleting address ${addressId} for user ${userId}`,
+        error instanceof Error ? error.stack : JSON.stringify(error),
+      );
+      throw error;
+    }
   }
 }
