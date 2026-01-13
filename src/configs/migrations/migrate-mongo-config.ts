@@ -10,7 +10,9 @@ const config = {
     url: process.env.DB_URI ?? 'mongodb://localhost/matsak',
 
     // Use MONGO_DB_NAME from environment, or matsakprod in production, or matsak in development
-    databaseName: process.env.MONGO_DB_NAME || (process.env.NODE_ENV === 'production' ? 'matsakprod' : 'matsak'),
+    databaseName:
+      process.env.MONGO_DB_NAME ||
+      (process.env.NODE_ENV === 'production' ? 'matsakprod' : 'matsak'),
 
     options: {
       useNewUrlParser: true, // removes a deprecation warning when connecting
