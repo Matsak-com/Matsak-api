@@ -23,6 +23,7 @@ import { AddressModule } from './client/address.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { NotificationModule } from './notifications/notification.module';
 import { BullModule } from '@nestjs/bull';
+import { FaqsModule } from './faqs/faqs.module';
 
 /**
  * Parse and validate Redis configuration
@@ -83,6 +84,7 @@ function getRedisConfig() {
     AddressModule,
     InventoryModule,
     NotificationModule,
+    FaqsModule,
   ],
   controllers: [AppController],
   providers: [
