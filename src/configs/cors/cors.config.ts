@@ -1,4 +1,11 @@
-import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
+import {
+  CorsOptions,
+  CustomOrigin,
+} from '@nestjs/common/interfaces/external/cors-options.interface';
+
+type CorsOptionsWithOriginFn = Omit<CorsOptions, 'origin'> & {
+  origin: CustomOrigin;
+};
 
 // Allow common front-end development ports (HTTP and HTTPS)
 const defaultAllowedOrigins = [
@@ -42,7 +49,7 @@ const isOriginAllowed = (origin?: string) => {
   return allowedOrigins.has(origin);
 };
 
-export const corsConfig: CorsOptions = {
+export const corsConfig: CorsOptionsWithOriginFn = {
   origin: (origin, callback) => {
     if (isOriginAllowed(origin)) {
       callback(null, true);
