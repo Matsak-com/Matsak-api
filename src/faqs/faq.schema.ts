@@ -11,10 +11,10 @@ export interface FaqTranslation {
 
 @Schema({ timestamps: true })
 export class Faq {
-  @Prop({ type: Object, required: true })
+  @Prop({ type: Object, required: true, index: true, trim: true })
   question: FaqTranslation;
 
-  @Prop({ type: Object, required: true })
+  @Prop({ type: Object, required: true, index: true, trim: true })
   answer: FaqTranslation;
 
   @Prop({ trim: true })
@@ -26,7 +26,7 @@ export class Faq {
   @Prop({ default: true })
   isPublished: boolean;
 
-  @Prop({ default: 0 })
+  @Prop({ default: Date.now })
   order: number;
 
   @Prop({ required: false })

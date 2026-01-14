@@ -51,6 +51,7 @@ export class CreateFaqDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @MaxLength(120, { each: true })
   tags?: string[];
 
   @IsOptional()

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, FilterQuery } from 'mongoose';
+import { Model } from 'mongoose';
 import { BaseRepository } from '../common/base.repository';
 import { Faq, FaqDocument } from './faq.schema';
 
@@ -11,11 +11,5 @@ export class FaqsRepository extends BaseRepository<FaqDocument> {
     faqModel: Model<FaqDocument>,
   ) {
     super(faqModel);
-  }
-
-  async findMany(
-    filter: FilterQuery<FaqDocument> = {},
-  ): Promise<FaqDocument[]> {
-    return this.findAll({ filter });
   }
 }

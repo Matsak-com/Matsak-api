@@ -13,7 +13,6 @@ export class FaqsService {
   async create(createFaqDto: CreateFaqDto): Promise<Faq> {
     const payload: Partial<Faq> = {
       ...createFaqDto,
-      order: createFaqDto.order ?? Date.now(),
     };
 
     return this.faqsRepository.create({ doc: payload });
