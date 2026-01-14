@@ -92,7 +92,11 @@ describe('ImageProductService', () => {
 
   describe('findMany', () => {
     it('should return multiple image products by array of ids', async () => {
-      const ids = ['507f1f77bcf86cd799439011', '507f1f77bcf86cd799439012', '507f1f77bcf86cd799439013'];
+      const ids = [
+        '507f1f77bcf86cd799439011',
+        '507f1f77bcf86cd799439012',
+        '507f1f77bcf86cd799439013',
+      ];
       const mockMultipleImages = [
         {
           _id: '507f1f77bcf86cd799439011',

@@ -8,56 +8,56 @@ export type CartDocument = HydratedDocument<Cart>;
 @Schema({ timestamps: true })
 export class Cart {
   _id?: Types.ObjectId;
-  @Prop({ 
-    type: String, 
-    sparse: true,  // ← Permet null/undefined
-    index: true    // ← Index pour performance
+  @Prop({
+    type: String,
+    sparse: true, // ← Permet null/undefined
+    index: true, // ← Index pour performance
   })
   sessionId?: string;
 
-  @Prop({ 
-    type: Types.ObjectId, 
+  @Prop({
+    type: Types.ObjectId,
     ref: 'User',
-    sparse: true,  // ← Permet null/undefined
-    index: true    // ← Index pour performance
+    sparse: true, // ← Permet null/undefined
+    index: true, // ← Index pour performance
   })
   userId?: Types.ObjectId;
 
   @Prop({
     type: [
       {
-        product: { 
-          type: Types.ObjectId, 
-          ref: 'Product', 
-          required: true 
+        product: {
+          type: Types.ObjectId,
+          ref: 'Product',
+          required: true,
         },
-        quantity: { 
-          type: Number, 
-          required: true, 
-          min: 1,        // ← Validation : quantité >= 1
-          default: 1 
+        quantity: {
+          type: Number,
+          required: true,
+          min: 1, // ← Validation : quantité >= 1
+          default: 1,
         },
-        _id: false       // ← Désactive l'auto-génération d'_id pour les sous-documents
+        _id: false, // ← Désactive l'auto-génération d'_id pour les sous-documents
       },
     ],
     default: [],
     validate: {
-      validator: function(items: any[]) {
+      validator: function (items: any[]) {
         // Vérifie qu'il n'y a pas de doublons de produits
-        const productIds = items.map(item => item.product.toString());
+        const productIds = items.map((item) => item.product.toString());
         return productIds.length === new Set(productIds).size;
       },
-      message: 'Duplicate products in cart items'
-    }
+      message: 'Duplicate products in cart items',
+    },
   })
   items: {
     product: Types.ObjectId;
     quantity: number;
   }[];
 
-  @Prop({ 
+  @Prop({
     type: Date,
-    index: true  // ← Index pour les requêtes de soft delete
+    index: true, // ← Index pour les requêtes de soft delete
   })
   deleted_at?: Date;
 }
@@ -67,35 +67,35 @@ export const CartSchema = SchemaFactory.createForClass(Cart);
 // ✅ Index composé pour garantir l'unicité
 // Un userId ne peut avoir qu'un seul panier actif
 CartSchema.index(
-  { userId: 1, deleted_at: 1 }, 
-  { 
-    unique: true, 
+  { userId: 1, deleted_at: 1 },
+  {
+    unique: true,
     sparse: true,
-    partialFilterExpression: { 
+    partialFilterExpression: {
       userId: { $exists: true },
-      deleted_at: null 
-    }
-  }
+      deleted_at: null,
+    },
+  },
 );
 
 // Un sessionId ne peut avoir qu'un seul panier actif
 CartSchema.index(
-  { sessionId: 1, deleted_at: 1 }, 
-  { 
-    unique: true, 
+  { sessionId: 1, deleted_at: 1 },
+  {
+    unique: true,
     sparse: true,
-    partialFilterExpression: { 
+    partialFilterExpression: {
       sessionId: { $exists: true },
-      deleted_at: null 
-    }
-  }
+      deleted_at: null,
+    },
+  },
 );
 
 // ✅ Index pour nettoyer les vieux paniers de session
 CartSchema.index(
   { sessionId: 1, updatedAt: 1 },
-  { 
+  {
     sparse: true,
-    expireAfterSeconds: 2592000  
-  }
+    expireAfterSeconds: 2592000,
+  },
 );

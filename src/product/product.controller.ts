@@ -107,7 +107,7 @@ export class ProductController {
     }
   }
 
-    /**
+  /**
    * Update an existing product with new images
    *
    * @param id Product ID
@@ -184,11 +184,10 @@ export class ProductController {
   @CompoundZodValidation({ params: userIdParamSchema })
   async findByUser(@Param() params: { userId: string }) {
     try {
-
       const members = await this.membersService.getTeamMembersByUserId(
         params.userId,
       );
-      
+
       if (!members || members.length === 0) {
         return [];
       }
@@ -210,16 +209,15 @@ export class ProductController {
       }
 
       const results = await this.productService.findBy({
-        filter: { 
-          team: { $in: teamIds.map(id => new Types.ObjectId(id)) },
-          deleted_at: { $exists: false }
+        filter: {
+          team: { $in: teamIds.map((id) => new Types.ObjectId(id)) },
+          deleted_at: { $exists: false },
         },
       });
       return results;
-      
     } catch (error) {
       throw new BadRequestException(
-        `Failed to fetch products: ${error.message}`
+        `Failed to fetch products: ${error.message}`,
       );
     }
   }
