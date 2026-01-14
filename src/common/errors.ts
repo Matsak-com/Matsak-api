@@ -47,6 +47,7 @@ export const ERRORS = {
   STOCK_NOT_TRACKED: 'STOCK_NOT_TRACKED',
   INVENTORY_TRANSACTION_FAILED: 'INVENTORY_TRANSACTION_FAILED',
   AWS_S3_BUCKET_NOT_CONFIGURED: 'AWS_S3_BUCKET_NOT_CONFIGURED',
+  FAQ_NOT_FOUND: 'FAQ_NOT_FOUND',
 };
 
 export const TOKEN_MAP: Record<string, { status: number; message: string }> = {
@@ -197,5 +198,9 @@ export const TOKEN_MAP: Record<string, { status: number; message: string }> = {
   [ERRORS.AWS_S3_BUCKET_NOT_CONFIGURED]: {
     status: HttpStatus.INTERNAL_SERVER_ERROR,
     message: 'AWS S3 bucket name is not configured',
+  },
+  [ERRORS.FAQ_NOT_FOUND]: {
+    status: HttpStatus.NOT_FOUND,
+    message: 'FAQ not found',
   },
 };
