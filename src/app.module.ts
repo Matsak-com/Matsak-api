@@ -24,6 +24,7 @@ import { InventoryModule } from './inventory/inventory.module';
 import { NotificationModule } from './notifications/notification.module';
 import { BullModule } from '@nestjs/bull';
 import { PreferenceModule } from './preference/preference.module';
+import { FaqsModule } from './faqs/faqs.module';
 
 /**
  * Parse and validate Redis configuration
@@ -85,6 +86,7 @@ function getRedisConfig() {
     InventoryModule,
     NotificationModule,
     PreferenceModule,
+    FaqsModule,
   ],
   controllers: [AppController],
   providers: [
