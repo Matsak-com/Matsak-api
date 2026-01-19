@@ -2,98 +2,111 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { PreferencesService } from './preference.service';
+import { Preference } from './preference.schema';
 import { NotFoundException, ConflictException } from '@nestjs/common';
 
-import * as PreferenceSchemas from 'src/common/schemas/preference.schemas';
+/* MOCK ZOD SCHEMAS */
+import {
+  preferenceSettingsSchema,
+  updatePreferenceSettingsSchema,
+  getSettingValueSchema,
+  validateMergedSettings,
+} from 'src/common/schemas/preference.schemas';
+
+jest.mock('src/common/schemas/preference.schemas', () => ({
+  preferenceSettingsSchema: {
+    parse: jest.fn(),
+  },
+  updatePreferenceSettingsSchema: {
+    parse: jest.fn(),
+  },
+  getSettingValueSchema: jest.fn(),
+  validateMergedSettings: jest.fn(),
+}));
+
+/* MOCK DATA */
+type ThemeType =
+  | 'BLUE_THEME'
+  | 'AQUA_THEME'
+  | 'PURPLE_THEME'
+  | 'GREEN_THEME'
+  | 'CYAN_THEME'
+  | 'ORANGE_THEME'
+  | 'DARK_BLUE_THEME'
+  | 'DARK_AQUA_THEME'
+  | 'DARK_PURPLE_THEME'
+  | 'DARK_GREEN_THEME'
+  | 'DARK_CYAN_THEME'
+  | 'DARK_ORANGE_THEME';
+
+const mockDefaultSettings = {
+  theme: 'BLUE_THEME' as ThemeType,
+  sidebarLayout: false,
+  rtlLayout: false,
+  boxedLayout: false,
+  miniSidebar: false,
+  borderCard: false,
+};
 
 const mockUserId = '507f1f77bcf86cd799439011';
 const mockObjectId = new Types.ObjectId(mockUserId);
 
 const mockPreference = {
-  _id: '64a1b2c3d4e5f67890123456',
-  id: '64a1b2c3d4e5f67890123456',
+  _id: new Types.ObjectId(),
   user: mockObjectId,
-  settings: {
-    theme: 'light',
-    sidebarLayout: false,
-    rtlLayout: false,
-    boxedLayout: false,
-    miniSidebar: false,
-    borderCard: false,
-  },
+  settings: mockDefaultSettings,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
 
-// Mock Mongoose Model
-class MockPreferenceModel {
-  static findOne = jest.fn();
-  static findOneAndUpdate = jest.fn();
-  static deleteOne = jest.fn();
-  static create = jest.fn();
+/* MOCK MODEL MONGOOSE */
+type MockModelType = jest.Mock & {
+  findOne: jest.Mock;
+  findOneAndUpdate: jest.Mock;
+  deleteOne: jest.Mock;
+};
 
-  constructor(public data: any) {}
+const createMockModel = (): MockModelType => {
+  const model: any = jest.fn().mockImplementation((data) => ({
+    ...data,
+    save: jest.fn().mockResolvedValue({ ...data, _id: mockPreference._id }),
+  }));
 
-  save() {
-    return Promise.resolve(mockPreference);
-  }
-}
+  model.findOne = jest.fn();
+  model.findOneAndUpdate = jest.fn();
+  model.deleteOne = jest.fn();
 
-// Mock schema validation
-jest.mock('src/common/schemas/preference.schemas', () => ({
-  preferenceSettingsSchema: {
-    parse: jest.fn(
-      (data) =>
-        data || {
-          theme: 'light',
-          sidebarLayout: false,
-          rtlLayout: false,
-          boxedLayout: false,
-          miniSidebar: false,
-          borderCard: false,
-        },
-    ),
-    shape: {
-      theme: true,
-      sidebarLayout: true,
-      rtlLayout: true,
-      boxedLayout: true,
-      miniSidebar: true,
-      borderCard: true,
-    },
-  },
-  updatePreferenceSettingsSchema: {
-    parse: jest.fn((data) => data || {}),
-    shape: {
-      theme: true,
-      sidebarLayout: true,
-      rtlLayout: true,
-      boxedLayout: true,
-      miniSidebar: true,
-      borderCard: true,
-    },
-  },
-  CreatePreferenceDto: class {},
-  UpdatePreferenceDto: class {},
-  UpdateSpecificSettingDto: class {},
-}));
+  return model as MockModelType;
+};
 
+/* TESTS */
 describe('PreferencesService', () => {
   let service: PreferencesService;
+  let mockPreferenceModel: MockModelType;
 
   beforeEach(async () => {
-    jest.clearAllMocks();
+    mockPreferenceModel = createMockModel();
 
-    MockPreferenceModel.findOne.mockReset();
-    MockPreferenceModel.findOneAndUpdate.mockReset();
-    MockPreferenceModel.deleteOne.mockReset();
+    (preferenceSettingsSchema.parse as jest.Mock).mockImplementation(
+      (data) => ({ ...mockDefaultSettings, ...data }),
+    );
+
+    (updatePreferenceSettingsSchema.parse as jest.Mock).mockImplementation(
+      (data) => data || {},
+    );
+
+    (validateMergedSettings as jest.Mock).mockImplementation((data) => data);
+
+    (getSettingValueSchema as jest.Mock).mockImplementation(() => ({
+      parse: jest.fn((v) => v),
+    }));
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PreferencesService,
         {
-          provide: getModelToken('Preference'),
-          useValue: MockPreferenceModel,
+          provide: getModelToken(Preference.name),
+          useValue: mockPreferenceModel,
         },
       ],
     }).compile();
@@ -105,198 +118,214 @@ describe('PreferencesService', () => {
     jest.clearAllMocks();
   });
 
-  describe('basics', () => {
-    it('should be defined', () => {
-      expect(service).toBeDefined();
-    });
-  });
-
+  /* CREATE */
   describe('create', () => {
-    const createDto = {
-      settings: {
-        theme: 'BLUE_THEME' as const,
-        sidebarLayout: true,
-      },
-    };
+    it('should create preferences', async () => {
+      mockPreferenceModel.findOne.mockResolvedValue(null);
 
-    it('should successfully create preferences for new user', async () => {
-      MockPreferenceModel.findOne.mockResolvedValue(null);
+      const instance = {
+        save: jest.fn().mockResolvedValue(mockPreference),
+      };
+      mockPreferenceModel.mockImplementationOnce(() => instance);
 
-      (
-        PreferenceSchemas.preferenceSettingsSchema.parse as jest.Mock
-      ).mockReturnValue(createDto.settings);
-
-      jest
-        .spyOn(MockPreferenceModel.prototype, 'save')
-        .mockResolvedValue(mockPreference);
-
-      const result = await service.create(mockUserId, createDto);
-
-      expect(MockPreferenceModel.findOne).toHaveBeenCalledWith({
-        user: mockObjectId,
+      const result = await service.create(mockUserId, {
+        settings: { theme: 'BLUE_THEME' },
       });
+
+      expect(preferenceSettingsSchema.parse).toHaveBeenCalled();
+      expect(instance.save).toHaveBeenCalled();
       expect(result).toEqual(mockPreference);
     });
 
-    it('should throw ConflictException when preferences already exist', async () => {
-      MockPreferenceModel.findOne.mockResolvedValue(mockPreference);
-      await expect(service.create(mockUserId, createDto)).rejects.toThrow(
-        ConflictException,
-      );
+    it('should throw ConflictException if already exists', async () => {
+      mockPreferenceModel.findOne.mockResolvedValue(mockPreference);
+
+      await expect(
+        service.create(mockUserId, { settings: {} }),
+      ).rejects.toThrow(ConflictException);
     });
 
-    it('should handle duplicate key error (code 11000)', async () => {
-      MockPreferenceModel.findOne.mockResolvedValue(null);
-      (
-        PreferenceSchemas.preferenceSettingsSchema.parse as jest.Mock
-      ).mockReturnValue(createDto.settings);
+    it('should handle duplicate key error', async () => {
+      mockPreferenceModel.findOne.mockResolvedValue(null);
 
-      const error = new Error('Duplicate key');
-      (error as any).code = 11000;
-      jest
-        .spyOn(MockPreferenceModel.prototype, 'save')
-        .mockRejectedValue(error);
+      const instance = {
+        save: jest.fn().mockRejectedValue({ code: 11000 }),
+      };
+      mockPreferenceModel.mockImplementationOnce(() => instance);
 
-      await expect(service.create(mockUserId, createDto)).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(
+        service.create(mockUserId, { settings: {} }),
+      ).rejects.toThrow(ConflictException);
     });
   });
 
+  /* FIND OR CREATE */
   describe('findOrCreate', () => {
-    it('should return existing preferences', async () => {
-      MockPreferenceModel.findOne.mockResolvedValue(mockPreference);
+    it('should return existing preference', async () => {
+      mockPreferenceModel.findOne.mockResolvedValue(mockPreference);
+
       const result = await service.findOrCreate(mockUserId);
       expect(result).toEqual(mockPreference);
     });
 
-    it('should create new preferences with defaults when none exist', async () => {
-      MockPreferenceModel.findOne.mockResolvedValue(null);
-      jest
-        .spyOn(MockPreferenceModel.prototype, 'save')
-        .mockResolvedValue(mockPreference);
-      expect(MockPreferenceModel.prototype.save).toHaveBeenCalled();
+    it('should create preference if none exists', async () => {
+      mockPreferenceModel.findOne.mockResolvedValue(null);
+
+      const instance = {
+        user: mockObjectId,
+        settings: mockDefaultSettings,
+        save: jest.fn().mockResolvedValue(mockPreference),
+      };
+
+      mockPreferenceModel.mockImplementationOnce(() => instance);
+
+      const result = await service.findOrCreate(mockUserId);
+
+      expect(preferenceSettingsSchema.parse).toHaveBeenCalledWith({});
+      expect(instance.save).toHaveBeenCalled();
+
+      expect(result).toBe(instance);
+      expect(result.settings).toEqual(mockDefaultSettings);
     });
   });
 
+  /* FIND ONE */
   describe('findOne', () => {
-    it('should return user preferences when found', async () => {
-      const mockQuery = {
+    it('should return preference', async () => {
+      mockPreferenceModel.findOne.mockReturnValue({
         populate: jest.fn().mockReturnThis(),
         lean: jest.fn().mockReturnThis(),
         exec: jest.fn().mockResolvedValue(mockPreference),
-      };
-      MockPreferenceModel.findOne.mockReturnValue(mockQuery);
+      });
+
       const result = await service.findOne(mockUserId);
       expect(result).toEqual(mockPreference);
     });
 
-    it('should throw NotFoundException when preferences not found', async () => {
-      const mockQuery = {
+    it('should throw NotFoundException', async () => {
+      mockPreferenceModel.findOne.mockReturnValue({
         populate: jest.fn().mockReturnThis(),
         lean: jest.fn().mockReturnThis(),
         exec: jest.fn().mockResolvedValue(null),
-      };
-      MockPreferenceModel.findOne.mockReturnValue(mockQuery);
+      });
+
       await expect(service.findOne(mockUserId)).rejects.toThrow(
         NotFoundException,
       );
     });
   });
 
+  /* UPDATE */
   describe('update', () => {
-    const updateDto = {
-      settings: {
-        theme: 'BLUE_THEME' as const,
-        sidebarLayout: true,
-      },
-    };
+    it('should update preferences', async () => {
+      mockPreferenceModel.findOne.mockReturnValueOnce({
+        lean: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue(mockPreference),
+      });
 
-    it('should update preferences with validation', async () => {
-      (
-        PreferenceSchemas.updatePreferenceSettingsSchema.parse as jest.Mock
-      ).mockReturnValue(updateDto.settings);
-
-      const updatedPreference = {
-        ...mockPreference,
-        settings: { ...mockPreference.settings, ...updateDto.settings },
-      };
-
-      const mockQuery = {
+      mockPreferenceModel.findOneAndUpdate.mockReturnValue({
         populate: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockResolvedValue(updatedPreference),
-      };
-      MockPreferenceModel.findOneAndUpdate.mockReturnValue(mockQuery);
+        exec: jest.fn().mockResolvedValue(mockPreference),
+      });
 
-      const result = await service.update(mockUserId, updateDto);
-      expect(result.settings.theme).toBe('BLUE_THEME');
+      const result = await service.update(mockUserId, {
+        settings: { sidebarLayout: true },
+      });
+
+      expect(updatePreferenceSettingsSchema.parse).toHaveBeenCalled();
+      expect(validateMergedSettings).toHaveBeenCalled();
+      expect(result).toEqual(mockPreference);
+    });
+
+    it('should throw NotFoundException if missing', async () => {
+      mockPreferenceModel.findOne.mockReturnValueOnce({
+        lean: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(
+        service.update(mockUserId, { settings: {} }),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
+  /* UPDATE SPECIFIC SETTING */
   describe('updateSpecificSetting', () => {
-    const updateSettingDto = { value: 'dark' };
+    it('should update one setting', async () => {
+      mockPreferenceModel.findOne.mockReturnValueOnce({
+        lean: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue(mockPreference),
+      });
 
-    it('should update a specific valid setting', async () => {
-      const updatedPreference = {
-        ...mockPreference,
-        settings: { ...mockPreference.settings, theme: 'dark' },
-      };
-      const mockQuery = {
-        exec: jest.fn().mockResolvedValue(updatedPreference),
-      };
-      MockPreferenceModel.findOneAndUpdate.mockReturnValue(mockQuery);
+      mockPreferenceModel.findOneAndUpdate.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockPreference),
+      });
 
-      const result = await service.updateSpecificSetting(
-        mockUserId,
-        'theme',
-        updateSettingDto,
-      );
-      expect(result.settings.theme).toBe('dark');
+      const result = await service.updateSpecificSetting(mockUserId, 'theme', {
+        value: 'BLUE_THEME',
+      });
+
+      expect(getSettingValueSchema).toHaveBeenCalledWith('theme');
+      expect(validateMergedSettings).toHaveBeenCalled();
+      expect(result).toEqual(mockPreference);
+    });
+
+    it('should throw NotFoundException', async () => {
+      mockPreferenceModel.findOne.mockReturnValueOnce({
+        lean: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(
+        service.updateSpecificSetting(mockUserId, 'theme', {
+          value: 'BLUE_THEME',
+        }),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
+  /* REMOVE */
   describe('remove', () => {
-    it('should delete user preferences', async () => {
-      MockPreferenceModel.deleteOne.mockReturnValue({
+    it('should delete preferences', async () => {
+      mockPreferenceModel.deleteOne.mockReturnValue({
         exec: jest.fn().mockResolvedValue({ deletedCount: 1 }),
       });
+
       await service.remove(mockUserId);
-      expect(MockPreferenceModel.deleteOne).toHaveBeenCalledWith({
-        user: mockObjectId,
-      });
+      expect(mockPreferenceModel.deleteOne).toHaveBeenCalled();
     });
 
-    it('should throw NotFoundException when nothing deleted', async () => {
-      MockPreferenceModel.deleteOne.mockReturnValue({
+    it('should throw NotFoundException', async () => {
+      mockPreferenceModel.deleteOne.mockReturnValue({
         exec: jest.fn().mockResolvedValue({ deletedCount: 0 }),
       });
+
       await expect(service.remove(mockUserId)).rejects.toThrow(
         NotFoundException,
       );
     });
   });
 
+  /* RESET */
   describe('resetToDefault', () => {
-    it('should reset settings to default values', async () => {
-      const defaultSettings = {
-        theme: 'light',
-        sidebarLayout: false,
-        rtlLayout: false,
-        boxedLayout: false,
-        miniSidebar: false,
-        borderCard: false,
-      };
-      (
-        PreferenceSchemas.preferenceSettingsSchema.parse as jest.Mock
-      ).mockReturnValue(defaultSettings);
-
-      const resetPreference = { ...mockPreference, settings: defaultSettings };
-      MockPreferenceModel.findOneAndUpdate.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(resetPreference),
+    it('should reset settings', async () => {
+      mockPreferenceModel.findOneAndUpdate.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockPreference),
       });
 
       const result = await service.resetToDefault(mockUserId);
-      expect(result.settings).toEqual(defaultSettings);
+      expect(preferenceSettingsSchema.parse).toHaveBeenCalledWith({});
+      expect(result).toEqual(mockPreference);
+    });
+
+    it('should throw NotFoundException', async () => {
+      mockPreferenceModel.findOneAndUpdate.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(service.resetToDefault(mockUserId)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });
