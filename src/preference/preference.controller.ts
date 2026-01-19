@@ -72,7 +72,6 @@ export class PreferencesController {
     @Param('setting') setting: string,
     @Body() updateSettingDto: UpdateSpecificSettingDto,
   ) {
-
     // Dynamic validation based on the setting
     try {
       const valueSchema = getSettingValueSchema(setting);

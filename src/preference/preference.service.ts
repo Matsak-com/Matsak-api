@@ -18,7 +18,6 @@ import {
 
 @Injectable()
 export class PreferencesService {
-
   constructor(
     @InjectModel(Preference.name)
     private preferenceModel: Model<PreferenceDocument>,
