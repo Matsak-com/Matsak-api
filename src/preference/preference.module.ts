@@ -8,13 +8,13 @@ import { Preference, PreferenceSchema } from './preference.schema';
   imports: [
     MongooseModule.forFeature([
       {
-        name: Preference.name, 
+        name: Preference.name,
         schema: PreferenceSchema,
       },
     ]),
   ],
   controllers: [PreferencesController],
   providers: [PreferencesService],
-  exports: [PreferencesService], 
+  exports: [PreferencesService],
 })
-export class PreferenceModule {} 
+export class PreferenceModule {}

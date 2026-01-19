@@ -85,48 +85,45 @@ export const createPreferenceSchema = z
     settings: data.settings || preferenceSettingsSchema.parse({}),
   }));
 
-// Specific schema for updates
-export const updatePreferenceSettingsSchema = z.object({
-  theme: themeEnum.optional(),
-  sidebarLayout: z.boolean().optional(),
-  rtlLayout: z.boolean().optional(),
-  boxedLayout: z.boolean().optional(),
-  miniSidebar: z.boolean().optional(),
-  borderCard: z.boolean().optional(),
-});
+// Specific schema for updates (without validation - will be validated after merge)
+export const updatePreferenceSettingsSchema = z
+  .object({
+    theme: themeEnum.optional(),
+    sidebarLayout: z.boolean().optional(),
+    rtlLayout: z.boolean().optional(),
+    boxedLayout: z.boolean().optional(),
+    miniSidebar: z.boolean().optional(),
+    borderCard: z.boolean().optional(),
+  })
+  .refine(
+    (settings) => {
+      // At least one field must be provided for update
+      return Object.keys(settings).length > 0;
+    },
+    {
+      message: 'At least one parameter must be provided for update',
+      path: ['settings'],
+    },
+  );
 
 export const updatePreferenceSchema = z.object({
-  settings: updatePreferenceSettingsSchema
-    .refine(
-      (settings) => {
-        // Validation: miniSidebar can only be true if sidebarLayout is false
-        if (
-          settings.miniSidebar !== undefined &&
-          settings.sidebarLayout !== undefined
-        ) {
-          if (settings.miniSidebar && settings.sidebarLayout) {
-            return false;
-          }
-        }
-        return true;
-      },
-      {
-        message:
-          'miniSidebar can only be enabled when sidebarLayout is false',
-        path: ['miniSidebar'],
-      },
-    )
-    .refine(
-      (settings) => {
-        // At least one field must be provided for update
-        return Object.keys(settings).length > 0;
-      },
-      {
-        message: 'At least one parameter must be provided for update',
-        path: ['settings'],
-      },
-    ),
+  settings: updatePreferenceSettingsSchema,
 });
+
+// Helper function to validate merged settings
+// This should be called in your service after merging current + update
+export const validateMergedSettings = (mergedSettings: any) => {
+  try {
+    return preferenceSettingsSchema.parse(mergedSettings);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new BadRequestException(
+        error.errors.map((e) => e.message).join(', '),
+      );
+    }
+    throw error;
+  }
+};
 
 // For updating a specific setting
 export const updateSpecificSettingSchema = z.object({
@@ -136,14 +133,18 @@ export const updateSpecificSettingSchema = z.object({
 // 4. PARAMETER SCHEMAS
 
 export const userIdParamSchema = z.object({
-  userId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId'),
+  userId: z.string().min(1, 'User ID is required'),
 });
 
 // 5. TYPESCRIPT TYPES
 
 export type Theme = z.infer<typeof themeEnum>;
 export type PreferenceSettings = z.infer<typeof preferenceSettingsSchema>;
-export type UpdatePreferenceSettings = z.infer<typeof updatePreferenceSettingsSchema>;
+export type UpdatePreferenceSettings = z.infer<
+  typeof updatePreferenceSettingsSchema
+>;
 export type CreatePreferenceDto = z.infer<typeof createPreferenceSchema>;
 export type UpdatePreferenceDto = z.infer<typeof updatePreferenceSchema>;
-export type UpdateSpecificSettingDto = z.infer<typeof updateSpecificSettingSchema>;
+export type UpdateSpecificSettingDto = z.infer<
+  typeof updateSpecificSettingSchema
+>;

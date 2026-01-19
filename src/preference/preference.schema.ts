@@ -28,7 +28,7 @@ export class Preference {
 
   @Prop({
     type: {
-      // Thème 
+      // Thème
       theme: {
         type: String,
         enum: [

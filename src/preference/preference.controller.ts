@@ -25,6 +25,7 @@ import {
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { ZodError } from 'zod';
+import { ERRORS } from 'src/common/errors';
 
 @Controller('preference')
 @UseGuards(JwtAuthGuard)
@@ -54,7 +55,7 @@ export class PreferencesController {
     return this.preferencesService.findOrCreate(req.user.userId);
   }
 
-  // update
+  // Update
   @Put('my')
   @UsePipes(new ZodValidationPipe(updatePreferenceSchema))
   async updateMyPreferences(
@@ -64,22 +65,15 @@ export class PreferencesController {
     return this.preferencesService.update(req.user.userId, updatePreferenceDto);
   }
 
-  // update a specific setting
+  // Update a specific setting
   @Put('my/:setting')
   async updateSpecificSetting(
     @Request() req,
     @Param('setting') setting: string,
     @Body() updateSettingDto: UpdateSpecificSettingDto,
   ) {
-    // Log 
-    console.log('✅ Update setting:', {
-      setting,
-      userId: req.user.userId,
-      value: updateSettingDto.value,
-      valueType: typeof updateSettingDto.value,
-    });
 
-    // Validation dynamique based on the setting
+    // Dynamic validation based on the setting
     try {
       const valueSchema = getSettingValueSchema(setting);
       const validatedValue = valueSchema.parse(updateSettingDto.value);
@@ -97,21 +91,21 @@ export class PreferencesController {
           return `${path}: ${err.message}`;
         });
         throw new BadRequestException({
-          message: 'VALIDATION_FAILED',
+          message: ERRORS.VALIDATION_FAILED,
           errors: errorMessages,
         });
       }
-      throw new BadRequestException('VALIDATION_FAILED');
+      throw new BadRequestException(ERRORS.VALIDATION_FAILED);
     }
   }
 
-  // reset
+  // Reset
   @Post('my/reset')
   async resetMyPreferences(@Request() req) {
     return this.preferencesService.resetToDefault(req.user.userId);
   }
 
-  //delete
+  // Delete
   @Delete('my')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteMyPreferences(@Request() req) {

@@ -2,8 +2,6 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
-  BadRequestException,
-  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -14,11 +12,12 @@ import {
   UpdateSpecificSettingDto,
   preferenceSettingsSchema,
   updatePreferenceSettingsSchema,
+  validateMergedSettings,
+  getSettingValueSchema,
 } from 'src/common/schemas/preference.schemas';
 
 @Injectable()
 export class PreferencesService {
-  private readonly logger = new Logger(PreferencesService.name);
 
   constructor(
     @InjectModel(Preference.name)
@@ -42,12 +41,12 @@ export class PreferencesService {
         );
       }
 
-      // Zod Validation 
+      // Zod Validation
       const validatedSettings = preferenceSettingsSchema.parse(
         createPreferenceDto.settings || {},
       );
 
-      // create new preference
+      // Create new preference
       const preference = new this.preferenceModel({
         user: new Types.ObjectId(userId),
         settings: validatedSettings,
@@ -71,7 +70,7 @@ export class PreferencesService {
     });
 
     if (!preference) {
-      // default values
+      // Default values
       const defaultSettings = preferenceSettingsSchema.parse({});
       preference = new this.preferenceModel({
         user: new Types.ObjectId(userId),
@@ -100,64 +99,96 @@ export class PreferencesService {
     return preference as Preference;
   }
 
-  // update
+  // Update preferences
   async update(
     userId: string,
     updatePreferenceDto: UpdatePreferenceDto,
   ): Promise<Preference> {
-    // Valid the new settings
-    const validatedSettings = updatePreferenceSettingsSchema.parse(
+    // 1. Validate the update fields
+    const validatedUpdate = updatePreferenceSettingsSchema.parse(
       updatePreferenceDto.settings || {},
     );
 
-    // Object of updates
-    const updateObj: Record<string, any> = {};
-    Object.entries(validatedSettings).forEach(([key, value]) => {
-      updateObj[`settings.${key}`] = value;
-    });
+    // 2. Get current preferences
+    const currentPreference = await this.preferenceModel
+      .findOne({ user: new Types.ObjectId(userId) })
+      .lean()
+      .exec();
 
-    // Update with upsert (create if not exists)
+    if (!currentPreference) {
+      throw new NotFoundException(
+        `Aucune préférence trouvée pour l'utilisateur ${userId}`,
+      );
+    }
+
+    // 3. Merge current settings with updates
+    const mergedSettings = {
+      ...currentPreference.settings,
+      ...validatedUpdate,
+    };
+
+    // 4. Validate merged settings to ensure no constraint violations
+    const validatedMergedSettings = validateMergedSettings(mergedSettings);
+
+    // 5. Update with validated merged settings
     const updated = await this.preferenceModel
       .findOneAndUpdate(
         { user: new Types.ObjectId(userId) },
-        { $set: updateObj },
-        {
-          new: true,
-          upsert: true,
-          runValidators: true,
-          setDefaultsOnInsert: true,
-        },
+        { $set: { settings: validatedMergedSettings } },
+        { new: true, runValidators: true },
       )
       .populate('user', 'name email')
       .exec();
 
+    if (!updated) {
+      throw new NotFoundException('Échec de la mise à jour des préférences');
+    }
+
     return updated;
   }
 
-  // update a specific setting
+  // Update a specific setting
   async updateSpecificSetting(
     userId: string,
     setting: string,
     updateSettingDto: UpdateSpecificSettingDto,
   ): Promise<Preference> {
-    // verify that the setting is valid
-    const validSettings = Object.keys(updatePreferenceSettingsSchema.shape);
-    if (!validSettings.includes(setting)) {
-      throw new BadRequestException(`Paramètre invalide: ${setting}`);
+    // 1. Validate that the setting is valid and get its schema
+    const valueSchema = getSettingValueSchema(setting);
+    const validatedValue = valueSchema.parse(updateSettingDto.value);
+
+    // 2. Get current preferences
+    const currentPreference = await this.preferenceModel
+      .findOne({ user: new Types.ObjectId(userId) })
+      .lean()
+      .exec();
+
+    if (!currentPreference) {
+      throw new NotFoundException(
+        `Aucune préférence trouvée pour l'utilisateur ${userId}`,
+      );
     }
 
+    // 3. Create merged settings with the updated value
+    const mergedSettings = {
+      ...currentPreference.settings,
+      [setting]: validatedValue,
+    };
+
+    // 4. Validate merged settings to ensure no constraint violations
+    const validatedMergedSettings = validateMergedSettings(mergedSettings);
+
+    // 5. Update with validated merged settings
     const updated = await this.preferenceModel
       .findOneAndUpdate(
         { user: new Types.ObjectId(userId) },
-        { $set: { [`settings.${setting}`]: updateSettingDto.value } },
+        { $set: { settings: validatedMergedSettings } },
         { new: true, runValidators: true },
       )
       .exec();
 
     if (!updated) {
-      throw new NotFoundException(
-        `Aucune préférence trouvée pour l'utilisateur ${userId}`,
-      );
+      throw new NotFoundException('Échec de la mise à jour du paramètre');
     }
 
     return updated;
