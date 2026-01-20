@@ -89,6 +89,13 @@ export class Team extends Document {
   @IsNotEmpty()
   name: string;
 
+  // Review aggregates for teams
+  @Prop({ type: Number, default: 0, min: 0 })
+  averageRating: number;
+
+  @Prop({ type: Number, default: 0, min: 0 })
+  reviewCount: number;
+
   @Prop({ required: false })
   deleted_at?: Date;
 }
