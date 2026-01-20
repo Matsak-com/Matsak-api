@@ -23,6 +23,7 @@ import { AddressModule } from './client/address.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { NotificationModule } from './notifications/notification.module';
 import { BullModule } from '@nestjs/bull';
+import { PreferenceModule } from './preference/preference.module';
 import { FaqsModule } from './faqs/faqs.module';
 import { ReviewsModule } from './reviews/reviews.module';
 
@@ -85,6 +86,7 @@ function getRedisConfig() {
     AddressModule,
     InventoryModule,
     NotificationModule,
+    PreferenceModule,
     FaqsModule,
     ReviewsModule,
   ],
