@@ -128,21 +128,39 @@ export class ReviewsService {
     const session = await this.connection.startSession();
     session.startTransaction();
 
+    let sessionEnded = false;
+    const endSessionSafely = async () => {
+      if (!sessionEnded) {
+        session.endSession();
+        sessionEnded = true;
+      }
+    };
+
+    const abortAndEndSession = async () => {
+      try {
+        await session.abortTransaction();
+      } finally {
+        await endSessionSafely();
+      }
+    };
+
     try {
       const review = await this.reviewRepo.findOne({
         filter: { _id: reviewId, deleted_at: { $exists: false } } as any,
       });
 
       if (!review) {
+        await abortAndEndSession();
         throw new NotFoundException('Review not found');
       }
 
       if (review.status === ReviewStatus.APPROVED) {
-        await session.commitTransaction();
+        await endSessionSafely();
         return review;
       }
 
       if (!review.isVerified) {
+        await abortAndEndSession();
         throw new BadRequestException(
           'Only verified purchases can be approved.',
         );
@@ -158,12 +176,15 @@ export class ReviewsService {
       });
 
       await session.commitTransaction();
+      await endSessionSafely();
       return savedReview;
     } catch (error) {
-      await session.abortTransaction();
+      if (!sessionEnded) {
+        await abortAndEndSession();
+      }
       throw error;
     } finally {
-      session.endSession();
+      await endSessionSafely();
     }
   }
 
@@ -207,8 +228,11 @@ export class ReviewsService {
     const oldCount = team.reviewCount ?? 0;
     const oldAverage = team.averageRating ?? 0;
 
-    team.reviewCount = oldCount + 1;
-    team.averageRating = (oldAverage * oldCount + newRating) / team.reviewCount;
+    const updatedCount = oldCount + 1;
+    const updatedAverageRaw =
+      (oldAverage * oldCount + newRating) / updatedCount;
+    team.reviewCount = updatedCount;
+    team.averageRating = Math.round(updatedAverageRaw * 100) / 100;
 
     await team.save({ session });
   }

@@ -9,6 +9,7 @@ import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import { ReviewsService } from './reviews.service';
 import { Review, ReviewSchema, ReviewStatus } from './review.schema';
 import { Team, TeamSchema } from '../teams/team.schema';
+import { User, UserRole, UserSchema } from '../users/user.schema';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { ReviewRepository } from './review.repository';
@@ -20,6 +21,7 @@ describe('ReviewsService', () => {
   let replset: MongoMemoryReplSet;
   let teamModel: Model<Team>;
   let reviewModel: Model<Review>;
+  let userModel: Model<User>;
 
   jest.setTimeout(120000);
 
@@ -33,6 +35,7 @@ describe('ReviewsService', () => {
         MongooseModule.forFeature([
           { name: Team.name, schema: TeamSchema },
           { name: Review.name, schema: ReviewSchema },
+          { name: User.name, schema: UserSchema },
         ]),
       ],
       providers: [ReviewsService, ReviewRepository],
@@ -42,6 +45,7 @@ describe('ReviewsService', () => {
     connection = moduleRef.get(getConnectionToken());
     teamModel = moduleRef.get(getModelToken(Team.name));
     reviewModel = moduleRef.get(getModelToken(Review.name));
+    userModel = moduleRef.get(getModelToken(User.name));
 
     await reviewModel.createIndexes();
   });
@@ -87,10 +91,20 @@ describe('ReviewsService', () => {
     ...overrides,
   });
 
+  const createUser = async (overrides: Partial<User> = {}) =>
+    userModel.create({
+      name: 'John',
+      firstname: 'Doe',
+      email: `user-${Date.now()}@example.com`,
+      password: 'password123',
+      role: UserRole.USER,
+      ...overrides,
+    });
+
   const toIdString = (doc: any): string =>
     doc?._id?.toString?.() ?? doc?.id?.toString?.();
 
-  it('creates a pending review without changing product stats', async () => {
+  it('creates a pending review without changing team stats', async () => {
     const team = await createTeam();
     const dto = createReviewDto(team._id.toString(), { isVerified: true });
 
@@ -102,7 +116,7 @@ describe('ReviewsService', () => {
     expect(reloadedTeam?.averageRating).toBe(0);
   });
 
-  it('creates an approved review and updates product stats', async () => {
+  it('creates an approved review and updates team stats', async () => {
     const team = await createTeam();
     const dto = createReviewDto(team._id.toString(), {
       rating: 5,
@@ -130,7 +144,7 @@ describe('ReviewsService', () => {
     );
   });
 
-  it('approves a pending review and updates product stats once', async () => {
+  it('approves a pending review and updates team stats once', async () => {
     const team = await createTeam();
     const dto = createReviewDto(team._id.toString(), { isVerified: true });
 
@@ -154,7 +168,7 @@ describe('ReviewsService', () => {
     );
   });
 
-  it('prevents duplicate reviews per user/product', async () => {
+  it('prevents duplicate reviews per user/team', async () => {
     const team = await createTeam();
     const userId = new Types.ObjectId().toString();
     const dto = createReviewDto(team._id.toString(), { userId });
@@ -164,5 +178,59 @@ describe('ReviewsService', () => {
     await expect(service.create(dto)).rejects.toBeInstanceOf(ConflictException);
     const count = await reviewModel.countDocuments();
     expect(count).toBe(1);
+  });
+
+  it('returns only approved reviews for a team and populates user data', async () => {
+    const teamA = await createTeam();
+    const teamB = await createTeam();
+    const userA = await createUser({ name: 'Alice', firstname: 'Smith' });
+    const userB = await createUser();
+
+    await reviewModel.create({
+      rating: 5,
+      content: 'Approved review for team A',
+      status: ReviewStatus.APPROVED,
+      isVerified: true,
+      teamId: teamA._id,
+      userId: userA._id,
+    });
+
+    await reviewModel.create({
+      rating: 3,
+      content: 'Pending review for team A',
+      status: ReviewStatus.PENDING,
+      isVerified: true,
+      teamId: teamA._id,
+      userId: userB._id,
+    });
+
+    await reviewModel.create({
+      rating: 4,
+      content: 'Approved review for team B',
+      status: ReviewStatus.APPROVED,
+      isVerified: true,
+      teamId: teamB._id,
+      userId: userB._id,
+    });
+
+    const results = await service.getByTeam(teamA._id.toString());
+
+    expect(results).toHaveLength(1);
+    expect(results[0].status).toBe(ReviewStatus.APPROVED);
+    expect(results[0].teamId.toString()).toBe(teamA._id.toString());
+
+    const populatedUser: any = (results[0] as any).userId;
+    expect(populatedUser).toBeTruthy();
+    expect(populatedUser._id.toString()).toBe(userA._id.toString());
+    expect(populatedUser.name).toBe('Alice');
+    expect(populatedUser.firstname).toBe('Smith');
+  });
+
+  it('returns an empty array when a team has no approved reviews', async () => {
+    const team = await createTeam();
+
+    const results = await service.getByTeam(team._id.toString());
+
+    expect(results).toEqual([]);
   });
 });

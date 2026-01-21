@@ -1,6 +1,6 @@
 import {
-  IsBoolean,
   IsEnum,
+  IsBoolean,
   IsInt,
   IsMongoId,
   IsOptional,
@@ -24,12 +24,9 @@ export class CreateReviewDto {
   @IsMongoId()
   teamId: string;
 
-  @IsMongoId()
-  userId: string;
-
   @IsOptional()
-  @IsEnum(ReviewStatus)
-  status?: ReviewStatus;
+  @IsMongoId()
+  userId?: string;
 
   @IsOptional()
   @IsBoolean()
