@@ -29,6 +29,7 @@ const defaultAllowedOrigins = [
   'https://127.0.0.1:5173',
   'http://127.0.0.1:4200',
   'https://127.0.0.1:4200',
+  'https://firecamp.dev',
 ];
 
 const rawCorsOrigin = process.env.CORS_ORIGIN;

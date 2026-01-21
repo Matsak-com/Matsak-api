@@ -54,6 +54,13 @@ export class Product {
   @Prop({ required: false })
   deleted_at?: Date;
 
+  // Review aggregates for fast reads
+  @Prop({ type: Number, default: 0, min: 0 })
+  averageRating: number;
+
+  @Prop({ type: Number, default: 0, min: 0 })
+  reviewCount: number;
+
   // Stock management fields
   @Prop({ type: Number, default: 0, min: 0 })
   stockQuantity: number;
