@@ -104,51 +104,47 @@ describe('ReviewsService', () => {
   const toIdString = (doc: any): string =>
     doc?._id?.toString?.() ?? doc?.id?.toString?.();
 
-  it('creates a pending review without changing team stats', async () => {
+  it('creates a pending review with default flags without changing team stats', async () => {
     const team = await createTeam();
-    const dto = createReviewDto(team._id.toString(), { isVerified: true });
+    const dto = createReviewDto(team._id.toString());
 
     const review = await service.create(dto);
     const reloadedTeam = await teamModel.findById(team._id).lean();
 
     expect(review.status).toBe(ReviewStatus.PENDING);
+    expect(review.isVerified).toBe(false);
     expect(reloadedTeam?.reviewCount).toBe(0);
     expect(reloadedTeam?.averageRating).toBe(0);
   });
 
-  it('creates an approved review and updates team stats', async () => {
+  it('ignores incoming flags and keeps review pending, leaving team stats unchanged', async () => {
     const team = await createTeam();
-    const dto = createReviewDto(team._id.toString(), {
-      rating: 5,
+    const baseDto = createReviewDto(team._id.toString(), { rating: 5 });
+    const requestPayload: any = {
+      ...baseDto,
       status: ReviewStatus.APPROVED,
       isVerified: true,
-    });
+    };
 
-    const review = await service.create(dto);
+    const review = await service.create(requestPayload);
     const reloadedTeam = await teamModel.findById(team._id).lean();
 
-    expect(review.status).toBe(ReviewStatus.APPROVED);
-    expect(reloadedTeam?.reviewCount).toBe(1);
-    expect(reloadedTeam?.averageRating).toBe(5);
-  });
-
-  it('rejects approving on create when not verified', async () => {
-    const team = await createTeam();
-    const dto = createReviewDto(team._id.toString(), {
-      status: ReviewStatus.APPROVED,
-      isVerified: false,
-    });
-
-    await expect(service.create(dto)).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    expect(review.status).toBe(ReviewStatus.PENDING);
+    expect(review.isVerified).toBe(false);
+    expect(reloadedTeam?.reviewCount).toBe(0);
+    expect(reloadedTeam?.averageRating).toBe(0);
   });
 
   it('approves a pending review and updates team stats once', async () => {
     const team = await createTeam();
-    const dto = createReviewDto(team._id.toString(), { isVerified: true });
+    const dto = createReviewDto(team._id.toString());
 
     const pending = await service.create(dto);
+    // Simulate verification performed elsewhere
+    await reviewModel.updateOne(
+      { _id: (pending as any)._id },
+      { $set: { isVerified: true } },
+    );
     const approved = await service.approve(toIdString(pending as any));
     const reloadedTeam = await teamModel.findById(team._id).lean();
 
@@ -159,7 +155,7 @@ describe('ReviewsService', () => {
 
   it('rejects approval for unverified reviews', async () => {
     const team = await createTeam();
-    const dto = createReviewDto(team._id.toString(), { isVerified: false });
+    const dto = createReviewDto(team._id.toString());
 
     const pending = await service.create(dto);
 

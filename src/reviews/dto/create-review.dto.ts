@@ -25,8 +25,4 @@ export class CreateReviewDto {
   @IsOptional()
   @IsMongoId()
   userId?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isVerified?: boolean;
 }

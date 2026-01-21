@@ -22,8 +22,8 @@ export class ReviewsService {
   ) {}
 
   async create(dto: CreateReviewDto): Promise<Review> {
-    const status = ReviewStatus.PENDING;
-    const isVerified = dto.isVerified ?? false;
+    const isVerified = false;
+    const status: ReviewStatus = ReviewStatus.PENDING;
 
     const createPayload = {
       ...dto,
@@ -33,6 +33,8 @@ export class ReviewsService {
       userId: new Types.ObjectId(dto.userId),
     } as any;
 
+    const shouldUpdateTeamStats = false;
+
     // For pending reviews or when transactions are unsupported, write without a transaction.
     if (!this.supportsTransactions()) {
       try {
@@ -40,10 +42,12 @@ export class ReviewsService {
           doc: createPayload,
         })) as Review;
 
-        await this.updateTeamStats({
-          teamId: createdReview.teamId,
-          newRating: createdReview.rating,
-        });
+        if (shouldUpdateTeamStats) {
+          await this.updateTeamStats({
+            teamId: createdReview.teamId,
+            newRating: createdReview.rating,
+          });
+        }
 
         return createdReview;
       } catch (error: any) {
@@ -63,11 +67,13 @@ export class ReviewsService {
         options: { save: true },
       })) as Review;
 
-      await this.updateTeamStats({
-        session,
-        teamId: createdReview.teamId,
-        newRating: createdReview.rating,
-      });
+      if (shouldUpdateTeamStats) {
+        await this.updateTeamStats({
+          session,
+          teamId: createdReview.teamId,
+          newRating: createdReview.rating,
+        });
+      }
 
       await session.commitTransaction();
       return createdReview;
