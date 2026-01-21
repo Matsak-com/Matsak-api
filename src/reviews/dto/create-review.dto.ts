@@ -1,5 +1,4 @@
 import {
-  IsEnum,
   IsBoolean,
   IsInt,
   IsMongoId,
@@ -9,7 +8,6 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import { ReviewStatus } from '../review.schema';
 
 export class CreateReviewDto {
   @IsInt()

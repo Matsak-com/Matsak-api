@@ -37,17 +37,17 @@ export class ReviewsController {
   @UseGuards(JwtAuthGuard)
   @Post(':id/approve')
   @CompoundZodValidation({ params: reviewIdParamSchema })
-  approve(@Param('id') reviewId: string, @CurrentUser() user: UserPayload) {
+  approve(@Param() params: { id: string }, @CurrentUser() user: UserPayload) {
     if (user.role !== UserRole.ADMIN && user.role !== UserRole.MODERATOR) {
       throw new ForbiddenException('FORBIDDEN_REVIEW_APPROVAL');
     }
 
-    return this.reviewsService.approve(reviewId);
+    return this.reviewsService.approve(params.id);
   }
 
   @Get('team/:teamId')
   @CompoundZodValidation({ params: teamIdParamSchema })
-  getByTeam(@Param('teamId') teamId: string) {
-    return this.reviewsService.getByTeam(teamId);
+  getByTeam(@Param() params: { teamId: string }) {
+    return this.reviewsService.getByTeam(params.teamId);
   }
 }

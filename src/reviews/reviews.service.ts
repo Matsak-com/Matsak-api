@@ -22,12 +22,8 @@ export class ReviewsService {
   ) {}
 
   async create(dto: CreateReviewDto): Promise<Review> {
-    const status = dto.status ?? ReviewStatus.PENDING;
+    const status = ReviewStatus.PENDING;
     const isVerified = dto.isVerified ?? false;
-
-    if (status === ReviewStatus.APPROVED && !isVerified) {
-      throw new BadRequestException('Only verified purchases can be approved.');
-    }
 
     const createPayload = {
       ...dto,
@@ -38,18 +34,16 @@ export class ReviewsService {
     } as any;
 
     // For pending reviews or when transactions are unsupported, write without a transaction.
-    if (status !== ReviewStatus.APPROVED || !this.supportsTransactions()) {
+    if (!this.supportsTransactions()) {
       try {
         const createdReview = (await this.reviewRepo.create({
           doc: createPayload,
         })) as Review;
 
-        if (status === ReviewStatus.APPROVED) {
-          await this.updateTeamStats({
-            teamId: createdReview.teamId,
-            newRating: createdReview.rating,
-          });
-        }
+        await this.updateTeamStats({
+          teamId: createdReview.teamId,
+          newRating: createdReview.rating,
+        });
 
         return createdReview;
       } catch (error: any) {
