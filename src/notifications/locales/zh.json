@@ -51,7 +51,12 @@
     "common": {
       "footer": "© {{year}} Matsak. 保留所有权利。",
       "contactUs": "联系我们",
-      "unsubscribe": "取消订阅"
+      "unsubscribe": "取消订阅",
+      "helpCenter": "帮助中心",
+      "contact": "联系我们",
+      "privacy": "隐私政策",
+      "terms": "服务条款",
+      "autoEmailNotice": "此邮件为自动发送，请勿直接回复。"
     }
   }
 }
