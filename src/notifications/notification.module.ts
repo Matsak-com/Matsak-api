@@ -32,11 +32,21 @@ import { I18nService } from './i18n.service';
       },
       template: {
         dir: join(__dirname, 'templates'),
-        adapter: new HandlebarsAdapter({
-          year: () => new Date().getFullYear(),
-        }),
+        adapter: new HandlebarsAdapter(
+          {
+            year: () => new Date().getFullYear(),
+          },
+        ),
         options: {
           strict: false,
+        },
+      },
+      options: {
+        partials: {
+          dir: join(__dirname, 'templates', 'partials'),
+          options: {
+            strict: false,
+          },
         },
       },
     }),

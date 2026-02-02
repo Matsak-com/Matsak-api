@@ -51,7 +51,12 @@
     "common": {
       "footer": "© {{year}} Matsak. Tous droits réservés.",
       "contactUs": "Nous contacter",
-      "unsubscribe": "Se désabonner"
+      "unsubscribe": "Se désabonner",
+      "helpCenter": "Centre d'aide",
+      "contact": "Contact",
+      "privacy": "Confidentialité",
+      "terms": "Conditions",
+      "autoEmailNotice": "Cet email a été envoyé automatiquement. Merci de ne pas y répondre."
     }
   }
 }
