@@ -8,6 +8,7 @@ import { UsersModule } from '../users/users.module';
 import { GoogleStrategy } from '../sso/google/google.strategy';
 import { FacebookStrategy } from '../sso/facebook/facebook.strategy';
 import { GoogleService } from '../sso/google/google.service';
+import { NotificationModule } from 'src/notifications/notification.module';
 @Module({
   imports: [
     JwtModule.register({
@@ -16,6 +17,7 @@ import { GoogleService } from '../sso/google/google.service';
       signOptions: { expiresIn: '30d' },
     }),
     UsersModule,
+    NotificationModule
   ],
   providers: [
     AuthService,

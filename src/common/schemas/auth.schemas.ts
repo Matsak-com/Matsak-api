@@ -12,6 +12,11 @@ export const createUserSchema = z.object({
   password: z
     .string()
     .min(8, 'Your password must be more than 8 characters long.'),
+  phone: z.string()
+    .optional()
+    .refine(val => !val || /^[+]?[(]?[0-9]{1,4}[)]?[-\s./0-9]*$/.test(val), {
+      message: "Invalid phone number format",
+    }),
   role: UserRoleEnum.default('user'),
   isResettingPassword: z.boolean().optional(),
   resetPasswordToken: z.string().nullable().optional(),

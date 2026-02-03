@@ -48,6 +48,9 @@ export const ERRORS = {
   INVENTORY_TRANSACTION_FAILED: 'INVENTORY_TRANSACTION_FAILED',
   AWS_S3_BUCKET_NOT_CONFIGURED: 'AWS_S3_BUCKET_NOT_CONFIGURED',
   FAQ_NOT_FOUND: 'FAQ_NOT_FOUND',
+  USER_CREATION_FAILED: 'User creation failed',
+  REGISTRATION_FAILED: 'Registration failed',
+  INTERNAL_SERVER_ERROR: 'Internal server error',
 };
 
 export const TOKEN_MAP: Record<string, { status: number; message: string }> = {

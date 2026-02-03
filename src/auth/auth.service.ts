@@ -14,17 +14,19 @@ import { UserPayload } from './jwt/jwt.strategy';
 import { hash } from 'bcrypt';
 import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
 import { UserRole } from '../users/user.schema';
+import { NotificationService } from 'src/notifications/notification.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
+    private notificationService: NotificationService,
   ) {}
 
   async login({ loginDto }: { loginDto: LogUserDto }): Promise<{
     accessToken: string;
-    user: any;
+    user: string;
     role: UserRole;
     current_team?: string | null;
   }> {
@@ -58,51 +60,137 @@ export class AuthService {
         current_team: fullUser?.current_team?.toString() || null,
       };
     } catch (error) {
-      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new HttpException(
+        error.message || ERRORS.INTERNAL_SERVER_ERROR,
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
-  async register({ createUserDto }: { createUserDto: CreateUserDto }) {
+  async register(createUserDto: CreateUserDto): Promise<{
+    accessToken: string;
+    user: string;
+    role: UserRole;
+    current_team?: string | null;
+    message: string;
+  }> {
     try {
+      // Vérifier si l'utilisateur existe déjà
       const existingUser = await this.usersService.findByEmail(
         createUserDto.email,
       );
 
       if (existingUser) {
-        if (existingUser.name === createUserDto.name) {
-          throw new HttpException(
-            ERRORS.USER_ALREADY_EXISTS,
-            HttpStatus.CONFLICT,
-          );
-        }
-        if (existingUser.email === createUserDto.email) {
-          throw new HttpException(
-            ERRORS.EMAIL_ALREADY_EXISTS,
-            HttpStatus.CONFLICT,
-          );
-        }
+        throw new HttpException(
+          ERRORS.USER_ALREADY_EXISTS,
+          HttpStatus.CONFLICT,
+        );
       }
 
-      // On ne hache pas le mot de passe ici
-      const createdUser = await this.usersService.create({
-        ...createUserDto,
-        password: createUserDto.password, // Stockage direct du mot de passe sans hash
+      // Créer l'utilisateur
+      const createdUser = await this.usersService.create(createUserDto);
+      
+      if (!createdUser) {
+        throw new HttpException(
+          ERRORS.USER_CREATION_FAILED,
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      // Récupérer l'utilisateur complet
+      const fullUser = await this.usersService.findOne({ _id: createdUser._id });
+
+      // Générer le token JWT
+      const authResponse = await this.authenticateUser({
+        userId: createdUser._id.toString(),
+        role: createdUser.role,
+        current_team: fullUser?.current_team?.toString() || null,
       });
 
-      return createdUser;
+      // ENVOYER L'EMAIL DE BIENVENUE via NotificationService
+      await this.sendWelcomeEmail(createdUser);
+
+      return {
+        ...authResponse,
+        user: createdUser._id.toString(),
+        role: createdUser.role,
+        current_team: fullUser?.current_team?.toString() || null,
+        message: 'User registered successfully',
+      };
     } catch (error) {
-      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+      if (error.status === HttpStatus.CONFLICT) {
+        throw error;
+      }
+      throw new HttpException(
+        error.message || ERRORS.REGISTRATION_FAILED,
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
+  }
+
+  /**
+   * Envoie l'email de bienvenue
+   */
+  private async sendWelcomeEmail(user: any): Promise<void> {
+    try {
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      // Utiliser le template 'welcome' avec le contexte approprié
+      await this.notificationService.sendEmail({
+        to: user.email,
+        subject: 'Welcome to Our Platform!', 
+        template: 'welcome',
+        context: {
+          // Données pour le template
+          user: {
+            firstName: user.firstname,
+            lastName: user.name,
+            email: user.email,
+            id: user._id.toString(),
+            joinDate: new Date().toISOString(),
+          },
+          platform: {
+            name: process.env.APP_NAME || 'Our Platform',
+            url: process.env.FRONTEND_URL || 'http://localhost:3000',
+            supportEmail: process.env.SUPPORT_EMAIL || 'support@example.com',
+            contactEmail: process.env.CONTACT_EMAIL || 'contact@example.com',
+            logoUrl: `${frontendUrl}/images/logos/matsak-logo.svg`, 
+          },
+          // Variables pour le layout
+          year: new Date().getFullYear(),
+          currentDate: new Date().toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          }),
+        },
+        locale: 'en',
+      });
+
+      console.log(`Welcome email sent to ${user.email}`);
+    } catch (error) {
+      console.error('Failed to send welcome email:', error);
+    }
+  }
+
+  private async authenticateUser({ userId, role, current_team }: UserPayload): Promise<{
+    accessToken: string;
+  }> {
+    const payload = { 
+      userId, 
+      role, 
+      current_team 
+    };
+    const accessToken = await this.jwtService.signAsync(payload);
+    return { accessToken };
   }
 
   private async hashPassword({ password }: { password: string }) {
     const hashedPassword = await hash(password, 10);
     return hashedPassword;
-  }
-
-  private async authenticateUser({ userId, role, current_team }: UserPayload) {
-    const payload = { userId, role, current_team };
-    return { accessToken: await this.jwtService.signAsync(payload) };
   }
 
   async resetUserPasswordRequest({ email }: { email: string }) {
@@ -161,9 +249,6 @@ export class AuthService {
         error: false,
         message: 'Le token est valide et peut être utilisé.',
       };
-      // return this.authenticateUser({
-      //   userId: existingUser.id,
-      // });
     } catch (error) {
       return { error: true, message: error.message };
     }
@@ -206,9 +291,6 @@ export class AuthService {
         error: false,
         message: 'Votre mot de passe a bien été changé.',
       };
-      // return this.authenticateUser({
-      //   userId: existingUser.id,
-      // });
     } catch (error) {
       return { error: true, message: error.message };
     }

@@ -1,11 +1,13 @@
-{{header}}
+{{> header}}
+
 <div class="content">
     <h2>{{t.title}}</h2>
-    <p class="greeting">{{t.greeting}}</p>
+    <p class="greeting">{{t.greeting}} {{user.firstName}}</p>
     <p>{{t.thankYou}}</p>
     <p class="important">{{t.accountCreated}}</p>
     <a href="{{loginUrl}}" class="button">{{t.getStarted}}</a>
     <p>{{t.support}}</p>
     <p class="signature">{{{t.signature}}}</p>
 </div>
-{{footer}}
+
+{{> footer}}

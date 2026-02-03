@@ -2,7 +2,7 @@
   "email": {
     "welcome": {
       "subject": "Welcome to Matsak!",
-      "greeting": "Hello {{name}}",
+      "greeting": "Hello",
       "title": "Welcome to Matsak!",
       "thankYou": "Thank you for joining Matsak. We're excited to have you on board!",
       "accountCreated": "Your account has been successfully created and you can now start exploring our platform.",
@@ -12,7 +12,7 @@
     },
     "resetPassword": {
       "subject": "Reset Your Password",
-      "greeting": "Hello {{name}}",
+      "greeting": "Hello",
       "title": "Password Reset Request",
       "instruction": "We received a request to reset your password. Click the button below to create a new password:",
       "resetButton": "Reset Password",
@@ -40,7 +40,7 @@
     },
     "verifyEmail": {
       "subject": "Verify Your Email Address",
-      "greeting": "Hello {{name}}",
+      "greeting": "Hello",
       "title": "Verify Your Email",
       "instruction": "Please verify your email address by clicking the button below:",
       "verifyButton": "Verify Email",

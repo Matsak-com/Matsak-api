@@ -2,7 +2,7 @@
   "email": {
     "welcome": {
       "subject": "欢迎来到 Matsak！",
-      "greeting": "您好 {{name}}",
+      "greeting": "您好",
       "title": "欢迎来到 Matsak！",
       "thankYou": "感谢您加入 Matsak。我们很高兴您的加入！",
       "accountCreated": "您的账户已成功创建，现在可以开始探索我们的平台。",
@@ -12,7 +12,7 @@
     },
     "resetPassword": {
       "subject": "重置您的密码",
-      "greeting": "您好 {{name}}",
+      "greeting": "您好",
       "title": "密码重置请求",
       "instruction": "我们收到了重置您密码的请求。点击下面的按钮创建新密码：",
       "resetButton": "重置密码",
@@ -40,7 +40,7 @@
     },
     "verifyEmail": {
       "subject": "验证您的邮箱地址",
-      "greeting": "您好 {{name}}",
+      "greeting": "您好",
       "title": "验证您的邮箱",
       "instruction": "请点击下面的按钮验证您的邮箱地址：",
       "verifyButton": "验证邮箱",

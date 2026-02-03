@@ -7,6 +7,8 @@ import {
   Get,
   Request,
   Query,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AuthService } from './auth.service';
@@ -39,13 +41,21 @@ export class AuthController {
   ) {}
 
   @Post('register')
+  @HttpCode(HttpStatus.CREATED)
   @ZodValidation(createUserSchema)
   async register(@Body() createUserDto: CreateUserDto) {
     try {
-      const user = await this.authService.register({ createUserDto });
-      return { message: 'User registered successfully', user };
+      const result = await this.authService.register(createUserDto);
+      return {
+        success: true,
+        message: result.message,
+        accessToken: result.accessToken,
+        user: result.user,
+        role: result.role,
+        current_team: result.current_team,
+      };
     } catch (error) {
-      if (error.status === 409) {
+      if (error.status === HttpStatus.CONFLICT) {
         throw new ConflictException(error.message);
       }
       throw error;
