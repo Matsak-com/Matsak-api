@@ -8,7 +8,9 @@
       "accountCreated": "Your account has been successfully created and you can now start exploring our platform.",
       "getStarted": "Get Started",
       "support": "If you have any questions or need assistance, feel free to reach out to our support team.",
-      "signature": "Best regards,<br>The Matsak Team"
+      "signature": "Best regards,<br>The Matsak Team",
+      "createdAt": "Your account was created on",
+      "date": "Date:"
     },
     "resetPassword": {
       "subject": "Reset Your Password",

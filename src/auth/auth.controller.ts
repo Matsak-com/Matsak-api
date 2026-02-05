@@ -9,6 +9,8 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  Patch,
+  HttpException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AuthService } from './auth.service';
@@ -30,6 +32,7 @@ import {
   resetPasswordSchema,
   googleCallbackSchema,
   tokenQuerySchema,
+  updateLocaleSchema,
 } from '../common/schemas/auth.schemas';
 
 @Controller('auth')
@@ -43,7 +46,11 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ZodValidation(createUserSchema)
-  async register(@Body() createUserDto: CreateUserDto) {
+  async register(@Body() createUserDto: CreateUserDto, @Body() rawBody: any) {
+    console.log('=== DEBUG REGISTER ===');
+    console.log('Raw body received:', rawBody); // Voir la structure exacte
+    console.log('Parsed DTO:', createUserDto);
+    console.log('Locale in DTO:', createUserDto.locale);
     try {
       const result = await this.authService.register(createUserDto);
       return {
@@ -59,6 +66,29 @@ export class AuthController {
         throw new ConflictException(error.message);
       }
       throw error;
+    }
+  }
+
+  @Patch('update-locale')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ZodValidation(updateLocaleSchema)
+  async updateLocale( @Body() body: any, @Request() req: any) {
+    try {
+      const { locale } = body;
+      const userId = req.user.userId;
+      const result = await this.authService.updateUserLocale(userId, locale);
+      
+      return {
+        success: true,
+        message: 'Locale updated successfully',
+        locale: result.locale,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to update locale',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 

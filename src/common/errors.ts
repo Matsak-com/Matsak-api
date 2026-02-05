@@ -48,9 +48,9 @@ export const ERRORS = {
   INVENTORY_TRANSACTION_FAILED: 'INVENTORY_TRANSACTION_FAILED',
   AWS_S3_BUCKET_NOT_CONFIGURED: 'AWS_S3_BUCKET_NOT_CONFIGURED',
   FAQ_NOT_FOUND: 'FAQ_NOT_FOUND',
-  USER_CREATION_FAILED: 'User creation failed',
-  REGISTRATION_FAILED: 'Registration failed',
-  INTERNAL_SERVER_ERROR: 'Internal server error',
+  USER_CREATION_FAILED: 'USER_CREATION_FAILED',
+  REGISTRATION_FAILED: 'REGISTRATION_FAILED',
+  INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
 };
 
 export const TOKEN_MAP: Record<string, { status: number; message: string }> = {
@@ -205,5 +205,21 @@ export const TOKEN_MAP: Record<string, { status: number; message: string }> = {
   [ERRORS.FAQ_NOT_FOUND]: {
     status: HttpStatus.NOT_FOUND,
     message: 'FAQ not found',
+  },
+  [ERRORS.USER_CREATION_FAILED]: {
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    message: 'User creation failed',
+  },
+  [ERRORS.REGISTRATION_FAILED]: {
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    message: 'Registration failed',
+  },
+  [ERRORS.INTERNAL_SERVER_ERROR]: {
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    message: 'Internal server error',
+  },
+  [ERRORS.USER_ALREADY_EXISTS]: {
+    status: HttpStatus.CONFLICT,
+    message: 'User already exists',
   },
 };

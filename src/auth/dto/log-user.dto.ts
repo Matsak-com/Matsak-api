@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, MinLength, IsOptional, IsString } from 'class-validator';
 
 export class LogUserDto {
   @IsEmail(
@@ -7,6 +7,7 @@ export class LogUserDto {
       message: 'You must provide a valid email address.',
     },
   )
+  @IsNotEmpty()
   email: string;
 
   @IsNotEmpty()
@@ -14,6 +15,12 @@ export class LogUserDto {
     message: 'Your password must be more than 8 characters long.',
   })
   password: string;
+
+  @IsString()
+  @IsOptional()
   provider?: string; // Optional field for provider (e.g., 'facebook', 'google')
+
+  @IsString()
+  @IsOptional()
   accessToken?: string; // Optional field for access token (e.g., from Facebook or Google)
 }

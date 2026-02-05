@@ -13,8 +13,11 @@ import { LogUserDto } from './dto/log-user.dto';
 import { UserPayload } from './jwt/jwt.strategy';
 import { hash } from 'bcrypt';
 import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
-import { UserRole } from '../users/user.schema';
+import { User, UserRole } from '../users/user.schema';
 import { NotificationService } from 'src/notifications/notification.service';
+import { I18nService } from 'src/notifications/i18n.service';
+
+type SupportedLocale = 'en' | 'fr' | 'zh' | 'ar';
 
 @Injectable()
 export class AuthService {
@@ -22,12 +25,14 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private notificationService: NotificationService,
+    private i18nService: I18nService,
   ) {}
 
   async login({ loginDto }: { loginDto: LogUserDto }): Promise<{
     accessToken: string;
     user: string;
     role: UserRole;
+    locale?: 'en' | 'fr' | 'zh' | 'ar';
     current_team?: string | null;
   }> {
     try {
@@ -55,8 +60,9 @@ export class AuthService {
 
       return {
         ...authResponse,
-        user: user._id,
+        user: user._id.toString(),
         role: user.role,
+        locale: fullUser?.locale || 'fr',
         current_team: fullUser?.current_team?.toString() || null,
       };
     } catch (error) {
@@ -76,9 +82,10 @@ export class AuthService {
     role: UserRole;
     current_team?: string | null;
     message: string;
+    warnings?: string[];
   }> {
     try {
-      // Vérifier si l'utilisateur existe déjà
+      // Check if user already exists
       const existingUser = await this.usersService.findByEmail(
         createUserDto.email,
       );
@@ -90,7 +97,7 @@ export class AuthService {
         );
       }
 
-      // Créer l'utilisateur
+      // Create user
       const createdUser = await this.usersService.create(createUserDto);
       
       if (!createdUser) {
@@ -100,18 +107,30 @@ export class AuthService {
         );
       }
 
-      // Récupérer l'utilisateur complet
+      // Fetch full user details
       const fullUser = await this.usersService.findOne({ _id: createdUser._id });
 
-      // Générer le token JWT
+      // Generate token JWT
       const authResponse = await this.authenticateUser({
         userId: createdUser._id.toString(),
         role: createdUser.role,
         current_team: fullUser?.current_team?.toString() || null,
       });
 
-      // ENVOYER L'EMAIL DE BIENVENUE via NotificationService
-      await this.sendWelcomeEmail(createdUser);
+      const warnings: string[] = [];
+    
+      // SEND WELCOME EMAIL
+      try {
+        await this.sendWelcomeEmail(createdUser);
+        console.log(`Email de bienvenue envoyé à ${createdUser.email}`);
+      } catch (emailError: any) {
+        console.warn(`Échec de l'email de bienvenue: ${emailError.message}`);
+        warnings.push(`L'email de bienvenue n'a pas pu être envoyé: ${emailError.message}`);
+        
+        this.retryWelcomeEmailLater(createdUser).catch(() => {
+          console.error('La retentative d\'envoi d\'email a également échoué');
+        });
+      }
 
       return {
         ...authResponse,
@@ -119,6 +138,7 @@ export class AuthService {
         role: createdUser.role,
         current_team: fullUser?.current_team?.toString() || null,
         message: 'User registered successfully',
+        ...(warnings.length > 0 && { warnings }),
       };
     } catch (error) {
       if (error.status === HttpStatus.CONFLICT) {
@@ -132,24 +152,58 @@ export class AuthService {
   }
 
   /**
-   * Envoie l'email de bienvenue
+ * Resend email
+ */
+  private async retryWelcomeEmailLater(user: any): Promise<void> {
+    // Wait for 30 seconds
+    await new Promise(resolve => setTimeout(resolve, 30000));
+    
+    try {
+      console.log(`Retentative d'envoi d'email à ${user.email}`);
+      await this.sendWelcomeEmail(user);
+      console.log(`Email de bienvenue envoyé avec succès lors de la retentative`);
+    } catch (retryError) {
+      console.error(`Échec de la retentative d'email: ${retryError.message}`);
+    }
+  }
+
+  /**
+   * Send welcome email to a user with translations
    */
   private async sendWelcomeEmail(user: any): Promise<void> {
     try {
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      // Utiliser le template 'welcome' avec le contexte approprié
+      
+      const locale = this.getUserLocale(user);
+
+      // Obtenir le sujet traduit
+      const translatedSubject = this.getTranslatedWelcomeSubject(locale, user);
+
+      // UTILISEZ INTL DIRECTEMENT (sans import de dayjs.util.ts)
+      const currentDate = new Intl.DateTimeFormat(locale, {
+        weekday: ['fr', 'en'].includes(locale) ? 'long' : undefined,
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }).format(new Date());
+
+      const joinDate = new Intl.DateTimeFormat(locale, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }).format(user.createdAt || new Date());
+
       await this.notificationService.sendEmail({
         to: user.email,
-        subject: 'Welcome to Our Platform!', 
+        subject: translatedSubject,
         template: 'welcome',
         context: {
-          // Données pour le template
           user: {
             firstName: user.firstname,
             lastName: user.name,
             email: user.email,
             id: user._id.toString(),
-            joinDate: new Date().toISOString(),
+            joinDate: joinDate,
           },
           platform: {
             name: process.env.APP_NAME || 'Our Platform',
@@ -158,21 +212,84 @@ export class AuthService {
             contactEmail: process.env.CONTACT_EMAIL || 'contact@example.com',
             logoUrl: `${frontendUrl}/images/logos/matsak-logo.svg`, 
           },
-          // Variables pour le layout
           year: new Date().getFullYear(),
-          currentDate: new Date().toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-          }),
+          currentDate: currentDate,
         },
-        locale: 'en',
+        locale: locale,
       });
 
-      console.log(`Welcome email sent to ${user.email}`);
     } catch (error) {
       console.error('Failed to send welcome email:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get translated welcome subject using i18n service
+   */
+  private getTranslatedWelcomeSubject(locale: SupportedLocale, user: any): string {
+    try {
+      const translations = this.i18nService.getTranslations(
+        'email.welcome',
+        locale,
+        {
+          platformName: process.env.APP_NAME || 'Our Platform',
+          userName: user.firstname || user.name || 'User',
+        }
+      );
+      
+      return translations.subject || 
+             translations.welcomeSubject;
+    } catch (error) {
+      console.warn(`Failed to get i18n translation: ${error.message}`);
+      return this.getFallbackWelcomeSubject(locale);
+    }
+  }
+
+  /**
+   * Fallback welcome subjects if i18n fails
+   */
+  private getFallbackWelcomeSubject(locale: SupportedLocale): string {
+    const fallbackSubjects: Record<SupportedLocale, string> = {
+      fr: 'Bienvenue sur Notre Plateforme !',
+      en: 'Welcome to Our Platform!',
+      zh: '欢迎来到我们的平台！',
+      ar: 'مرحباً بكم في منصتنا!',
+    };
+    
+    return fallbackSubjects[locale] || fallbackSubjects.fr;
+  }
+
+  /**
+   * Determine user locale - toujours retourner une locale supportée
+   */
+  private getUserLocale(user: any): SupportedLocale {
+      if (user.locale && ['en', 'fr', 'zh', 'ar'].includes(user.locale)) {
+      return user.locale as SupportedLocale;
+    }
+    return 'fr';
+  }
+
+  async updateUserLocale(userId: string, locale: 'en' | 'fr' | 'zh' | 'ar'): Promise<User> {
+    try {
+      const updatedUser = await this.usersService.update(
+        { _id: userId },
+        { locale }
+      );
+
+      if (!updatedUser) {
+        throw new HttpException(
+          ERRORS.USER_NOT_FOUND,
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      return updatedUser;
+    } catch (error) {
+      throw new HttpException(
+        error.message || ERRORS.INTERNAL_SERVER_ERROR,
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -213,11 +330,6 @@ export class AuthService {
         isResettingPassword: true,
         resetPasswordToken: createdId,
       });
-      // await this.mailerService.sendRequestedPasswordEmail({
-      //   firstName: existingUser.firstName,
-      //   recipient: existingUser.email,
-      //   token: createdId,
-      // });
 
       return {
         error: false,

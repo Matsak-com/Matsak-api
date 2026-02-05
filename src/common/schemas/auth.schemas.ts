@@ -4,6 +4,9 @@ import { objectIdSchema } from './common.schemas';
 // User Role enum
 export const UserRoleEnum = z.enum(['user', 'admin']);
 
+// Supported locales
+export const LocaleEnum = z.enum(['en', 'fr', 'zh', 'ar']);
+
 // Base user validation schemas
 export const createUserSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -12,16 +15,32 @@ export const createUserSchema = z.object({
   password: z
     .string()
     .min(8, 'Your password must be more than 8 characters long.'),
-  phone: z.string()
+  phone: z
+    .string()
     .optional()
-    .refine(val => !val || /^[+]?[(]?[0-9]{1,4}[)]?[-\s./0-9]*$/.test(val), {
-      message: "Invalid phone number format",
+    .refine((val) => {
+      if (!val) return true; // optional field
+      // Allow only typical phone characters
+      if (!/^[+\d\s().-]+$/.test(val)) return false;
+      // Enforce a reasonable number of digits (e.g., 7 to 15)
+      const digitCount = val.replace(/\D/g, '').length;
+      return digitCount >= 7 && digitCount <= 15;
+    }, {
+      message: 'Invalid phone number format',
     }),
   role: UserRoleEnum.default('user'),
+  locale: LocaleEnum.default('fr'), 
   isResettingPassword: z.boolean().optional(),
   resetPasswordToken: z.string().nullable().optional(),
   avatarFileKey: z.string().nullable().optional(),
   provider: z.string().nullable().optional(),
+});
+
+// Update locale validation schema
+export const updateLocaleSchema = z.object({
+  locale: z.enum(['en', 'fr', 'zh', 'ar'], {
+    errorMap: () => ({ message: 'Locale must be one of: en, fr, zh, ar' }),
+  }),
 });
 
 export const loginUserSchema = z.object({
@@ -48,6 +67,7 @@ export const updateUserSchema = z.object({
   name: z.string().optional(),
   firstname: z.string().optional(),
   email: z.string().email().optional(),
+  locale: LocaleEnum.optional(), // ← Optionnel pour la mise à jour
 });
 
 export const updatePasswordSchema = z.object({
@@ -94,3 +114,4 @@ export type VerifyResetTokenDto = z.infer<typeof verifyResetTokenSchema>;
 export type UserIdParam = z.infer<typeof userIdParamSchema>;
 export type TokenQuery = z.infer<typeof tokenQuerySchema>;
 export type SwitchTeamDto = z.infer<typeof switchTeamSchema>;
+export type UpdateLocaleDto = z.infer<typeof updateLocaleSchema>;

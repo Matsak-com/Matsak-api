@@ -1,29 +1,26 @@
-// email.provider.ts - Version corrigée
 import { Injectable, Logger } from '@nestjs/common';
-import { MailerService } from '@nestjs-modules/mailer';
 import { EmailOptions } from '../interfaces/email-options.interface';
 import { IEmailProvider } from '../interfaces/notification-provider.interface';
-import * as nodemailer from 'nodemailer';
 import { ConfigService } from '@nestjs/config';
 import { I18nService } from '../i18n.service';
+import * as nodemailer from 'nodemailer';
+import * as handlebars from 'handlebars';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as handlebars from 'handlebars';
 
 @Injectable()
 export class EmailProvider implements IEmailProvider {
   private readonly logger = new Logger(EmailProvider.name);
-  private plainTransporter: nodemailer.Transporter;
+  private transporter: nodemailer.Transporter;
   private hbs: typeof handlebars;
   private readonly templateDir: string;
 
   constructor(
-    private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
     private readonly i18nService: I18nService,
   ) {
-    this.plainTransporter = nodemailer.createTransport({
-      host: this.configService.get('MAIL_HOST', 'mailhog'),
+    this.transporter = nodemailer.createTransport({
+      host: this.configService.get('MAIL_HOST', 'localhost'),
       port: parseInt(this.configService.get('MAIL_PORT', '1025')),
       secure: false,
       ignoreTLS: true,
@@ -31,12 +28,8 @@ export class EmailProvider implements IEmailProvider {
 
     this.hbs = handlebars.create();
     this.templateDir = this.findTemplateDirectory();
-    
-    // Configurer Handlebars AVANT de compiler
     this.configureHandlebars();
-    
     this.logger.log(`Template directory: ${this.templateDir}`);
-    this.logger.log(`I18n service available: ${!!this.i18nService}`);
   }
 
   async sendEmail(options: EmailOptions): Promise<void> {
@@ -49,42 +42,41 @@ export class EmailProvider implements IEmailProvider {
         html,
         text,
         attachments,
-        locale = 'en',
+        locale = 'fr',
       } = options;
 
       this.logger.debug(`Sending email to ${to}, template: ${template}, locale: ${locale}`);
+
+      // Préparer le contexte
+      const fullContext = await this.prepareFullContext(
+        template || 'generic',
+        subject,
+        context || {},
+        locale
+      );
 
       const mailOptions: any = {
         to: Array.isArray(to) ? to.join(', ') : to,
         subject,
         from: this.configService.get('MAIL_FROM', 'noreply@localhost'),
+        attachments: attachments || [],
       };
 
-      if (attachments && attachments.length > 0) {
-        mailOptions.attachments = attachments;
-      }
-
       if (template) {
-        // ⭐ Utiliser notre compilation personnalisée avec partials et traductions
-        const emailHtml = await this.compileWithLayoutAndTranslations(
-          template,
-          subject,
-          context || {},
-          locale
-        );
-        
+        // Compiler le template avec le layout
+        const emailHtml = await this.compileEmail(template, fullContext);
         mailOptions.html = emailHtml;
-        await this.plainTransporter.sendMail(mailOptions);
         
-        this.logger.log(`Email '${template}' sent to ${to} with layout and translations`);
+        await this.transporter.sendMail(mailOptions);
+        this.logger.log(`Email '${template}' sent to ${to}`);
         
       } else if (html) {
         mailOptions.html = html;
-        await this.plainTransporter.sendMail(mailOptions);
+        await this.transporter.sendMail(mailOptions);
         
       } else if (text) {
         mailOptions.text = text;
-        await this.plainTransporter.sendMail(mailOptions);
+        await this.transporter.sendMail(mailOptions);
       }
       
     } catch (error) {
@@ -94,144 +86,42 @@ export class EmailProvider implements IEmailProvider {
   }
 
   /**
-   * Compiler avec layout et traductions
+   * Compiler un email avec layout et partials
    */
-  private async compileWithLayoutAndTranslations(
-    templateName: string,
-    subject: string,
-    context: any,
-    locale: string
-  ): Promise<string> {
+  private async compileEmail(templateName: string, context: any): Promise<string> {
     try {
-      // 1. Préparer le contexte AVEC TRADUCTIONS
-      const fullContext = await this.prepareFullContext(
-        templateName,
-        subject,
-        context,
-        locale
-      );
-
-      // 2. Lire et compiler le layout
-      const layoutPath = path.join(this.templateDir, 'layouts', 'default.hbs');
-      if (!fs.existsSync(layoutPath)) {
-        throw new Error(`Layout not found: ${layoutPath}`);
-      }
-      
-      const layoutSource = fs.readFileSync(layoutPath, 'utf8');
-      const compiledLayout = this.hbs.compile(layoutSource);
-
-      // 3. Lire et compiler le contenu du template
+      // 1. Lire le template email (ex: welcome.hbs)
       const templatePath = path.join(this.templateDir, 'emails', `${templateName}.hbs`);
       if (!fs.existsSync(templatePath)) {
         throw new Error(`Template not found: ${templatePath}`);
       }
       
-      const templateSource = fs.readFileSync(templatePath, 'utf8');
-      const compiledTemplate = this.hbs.compile(templateSource);
+      const templateContent = fs.readFileSync(templatePath, 'utf8');
+      this.logger.debug(`Loaded template: ${templateName}`);
       
-      // 4. Compiler le contenu AVEC le contexte complet (pour les partials)
-      const bodyContent = compiledTemplate(fullContext);
-
-      // 5. Appliquer le layout au contenu
-      return compiledLayout({
-        ...fullContext,
-        body: bodyContent,
-      });
-
+      // 2. Lire le layout (default.hbs)
+      const layoutPath = path.join(this.templateDir, 'layouts', 'default.hbs');
+      if (!fs.existsSync(layoutPath)) {
+        throw new Error(`Layout not found: ${layoutPath}`);
+      }
+      
+      const layoutContent = fs.readFileSync(layoutPath, 'utf8');
+      this.logger.debug(`Loaded layout: default`);
+      
+      // 3. Remplacer {{{body}}} dans le layout par le contenu du template
+      const combinedContent = layoutContent.replace('{{{body}}}', templateContent);
+      
+      // 4. Compiler avec Handlebars
+      const compiled = this.hbs.compile(combinedContent);
+      const result = compiled(context);
+      
+      this.logger.debug(`Email compiled successfully, length: ${result.length} chars`);
+      return result;
+      
     } catch (error) {
       this.logger.error(`Failed to compile email: ${error.message}`);
-      this.logger.error('Template:', templateName);
-      this.logger.error('Context:', context);
       throw error;
     }
-  }
-
-  /**
-   * Préparer le contexte COMPLET avec traductions
-   */
-  private async prepareFullContext(
-    templateName: string,
-    subject: string,
-    context: any,
-    locale: string
-  ): Promise<any> {
-    // 1. Données de base
-    const platform = {
-      name: this.configService.get('APP_NAME', 'Matsak'),
-      url: this.configService.get('FRONTEND_URL', 'http://localhost:3000'),
-      supportEmail: this.configService.get('SUPPORT_EMAIL', 'support@matsak.com'),
-      logoUrl: `${this.configService.get('FRONTEND_URL', 'http://localhost:3000')}/images/logos/matsak-logo.svg`,
-      ...context.platform,
-    };
-
-    // 2. URLs
-    const urls = {
-      loginUrl: `${platform.url}/auth/login`,
-      dashboardUrl: `${platform.url}/dashboard`,
-      helpCenterUrl: `${platform.url}/help`,
-      contactUrl: `${platform.url}/contact`,
-      privacyPolicyUrl: `${platform.url}/privacy`,
-      termsUrl: `${platform.url}/terms`,
-      ...context.urls,
-    };
-
-    // 3. ⭐ CHARGER LES TRADUCTIONS depuis votre service i18n
-    let translations = {};
-    let commonTranslations = {};
-    
-    try {
-      this.logger.debug(`Loading translations for template: email.${templateName}, locale: ${locale}`);
-      
-      // Traductions spécifiques au template
-      translations = this.i18nService.getTranslations(
-        `email.${templateName}`,
-        locale as any,
-        { ...context, platform, ...urls }
-      );
-
-      // Traductions communes
-      commonTranslations = this.i18nService.getTranslations(
-        'email.common',
-        locale as any,
-        { 
-          year: new Date().getFullYear(),
-          platformName: platform.name,
-        }
-      );
-      
-      this.logger.debug(`Translations loaded successfully for ${templateName}`);
-      
-    } catch (i18nError) {
-      this.logger.warn(`Could not load i18n translations: ${i18nError.message}`);
-    }
-
-    // 4. Construire le contexte final
-    return {
-      // Métadonnées
-      subject,
-      locale,
-      
-      // Données
-      user: context.user || {},
-      platform,
-      ...urls,
-      
-      // Dates
-      year: new Date().getFullYear(),
-      currentDate: new Date().toLocaleDateString(locale, {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      }),
-      
-      // TRADUCTIONS 
-      t: translations,
-      common: commonTranslations,
-      
-      // Pour que les partials aient accès au contexte
-      ...context,
-    };
   }
 
   /**
@@ -239,26 +129,11 @@ export class EmailProvider implements IEmailProvider {
    */
   private configureHandlebars(): void {
     try {
-      this.logger.debug('Configuring Handlebars...');
-      
       // Enregistrer les partials
-      this.registerPartials();
+      this.registerPartial('header', 'partials/header.hbs');
+      this.registerPartial('footer', 'partials/footer.hbs');
       
-      // Ajouter des helpers si nécessaire
-      this.hbs.registerHelper('if_eq', function(a, b, opts) {
-        if (a === b) {
-          return opts.fn(this);
-        } else {
-          return opts.inverse(this);
-        }
-      });
-      
-      // Helper pour formater la date
-      this.hbs.registerHelper('formatDate', function(date) {
-        return new Date(date).toLocaleDateString('fr-FR');
-      });
-      
-      this.logger.debug('Handlebars configured');
+      this.logger.debug('Handlebars configured with partials');
       
     } catch (error) {
       this.logger.error(`Failed to configure Handlebars: ${error.message}`);
@@ -266,46 +141,103 @@ export class EmailProvider implements IEmailProvider {
   }
 
   /**
-   * Enregistrer tous les partials
+   * Enregistrer un partial
    */
-  private registerPartials(): void {
+  private registerPartial(name: string, relativePath: string): void {
     try {
-      const partialsDir = path.join(this.templateDir, 'partials');
+      const partialPath = path.join(this.templateDir, relativePath);
       
-      if (!fs.existsSync(partialsDir)) {
-        this.logger.warn(`Partials directory not found: ${partialsDir}`);
+      if (!fs.existsSync(partialPath)) {
+        this.logger.warn(`Partial not found: ${partialPath}`);
         return;
       }
-
-      const partialFiles = fs.readdirSync(partialsDir);
       
-      partialFiles.forEach(file => {
-        if (file.endsWith('.hbs')) {
-          const partialName = path.basename(file, '.hbs');
-          const partialPath = path.join(partialsDir, file);
-          
-          try {
-            const partialSource = fs.readFileSync(partialPath, 'utf8');
-            this.hbs.registerPartial(partialName, partialSource);
-            this.logger.debug(`Registered partial: ${partialName}`);
-            
-            // Afficher un extrait pour debug
-            const preview = partialSource.substring(0, 100).replace(/\n/g, ' ');
-            this.logger.debug(`Preview: ${preview}...`);
-            
-          } catch (readError) {
-            this.logger.warn(`Could not read partial ${file}: ${readError.message}`);
-          }
-        }
-      });
-      
-      this.logger.log(`Registered ${partialFiles.length} partial(s) from ${partialsDir}`);
+      const partialSource = fs.readFileSync(partialPath, 'utf8');
+      this.hbs.registerPartial(name, partialSource);
+      this.logger.debug(`Registered partial: ${name}`);
       
     } catch (error) {
-      this.logger.error(`Failed to register partials: ${error.message}`);
+      this.logger.warn(`Could not register partial ${name}: ${error.message}`);
     }
   }
 
+  /**
+   * Préparer le contexte pour les templates
+   */
+  private async prepareFullContext(
+    templateName: string,
+    subject: string,
+    context: any,
+    locale: string
+  ): Promise<any> {
+    // Données de la plateforme
+    const platform = {
+      name: this.configService.get('APP_NAME', 'Matsak'),
+      url: this.configService.get('FRONTEND_URL', 'http://localhost:3000'),
+      supportEmail: this.configService.get('SUPPORT_EMAIL', 'support@matsak.com'),
+      contactEmail: this.configService.get('CONTACT_EMAIL', 'contact@matsak.com'),
+      logoUrl: `${this.configService.get('FRONTEND_URL', 'http://localhost:3000')}/images/logos/matsak-logo.svg`,
+    };
+
+    // URLs importantes
+    const urls = {
+      loginUrl: `${platform.url}/auth/login`,
+      dashboardUrl: `${platform.url}/dashboard`,
+      helpCenterUrl: `${platform.url}/help`,
+      contactUrl: `${platform.url}/contact`,
+      privacyPolicyUrl: `${platform.url}/privacy`,
+      termsUrl: `${platform.url}/terms`,
+    };
+
+    // Contexte de base
+    const baseContext = {
+      subject,
+      locale,
+      user: context.user || {},
+      platform,
+      ...urls,
+      year: new Date().getFullYear(),
+      currentDate: new Date().toLocaleDateString(locale, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }),
+      ...context,
+    };
+
+    // Charger les traductions
+    try {
+      const translations = this.i18nService.getTranslations(
+        `email.${templateName}`,
+        locale as any,
+        baseContext
+      );
+
+      const commonTranslations = this.i18nService.getTranslations(
+        'email.common',
+        locale as any,
+        { 
+          year: baseContext.year,
+          platformName: platform.name,
+        }
+      );
+
+      return {
+        ...baseContext,
+        t: translations,
+        common: commonTranslations,
+      };
+      
+    } catch (i18nError) {
+      this.logger.warn(`Could not load i18n translations: ${i18nError.message}`);
+      return baseContext;
+    }
+  }
+
+  /**
+   * Trouver le répertoire des templates
+   */
   private findTemplateDirectory(): string {
     const cwd = process.cwd();
     const possiblePaths = [
@@ -322,13 +254,7 @@ export class EmailProvider implements IEmailProvider {
     }
 
     const defaultPath = possiblePaths[0];
-    this.logger.warn(`Creating template directory: ${defaultPath}`);
-    
-    fs.mkdirSync(defaultPath, { recursive: true });
-    fs.mkdirSync(path.join(defaultPath, 'emails'), { recursive: true });
-    fs.mkdirSync(path.join(defaultPath, 'layouts'), { recursive: true });
-    fs.mkdirSync(path.join(defaultPath, 'partials'), { recursive: true });
-    
+    this.logger.warn(`Template directory not found, using: ${defaultPath}`);
     return defaultPath;
   }
 }

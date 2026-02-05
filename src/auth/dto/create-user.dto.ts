@@ -5,6 +5,7 @@ import {
   MinLength,
   IsEnum,
   IsOptional,
+  IsIn,
 } from 'class-validator';
 import { UserRole } from '../../users/user.schema';
 
@@ -43,4 +44,11 @@ export class CreateUserDto {
   resetPasswordToken?: string | null;
   avatarFileKey?: string | null;
   provider?: string | null;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['en', 'fr', 'zh', 'ar'], {
+    message: 'Locale must be one of: en, fr, zh, ar'
+  })
+  locale?: 'en' | 'fr' | 'zh' | 'ar';
 }

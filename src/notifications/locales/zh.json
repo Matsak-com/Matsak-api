@@ -8,7 +8,9 @@
       "accountCreated": "您的账户已成功创建，现在可以开始探索我们的平台。",
       "getStarted": "开始使用",
       "support": "如果您有任何问题或需要帮助，请随时联系我们的支持团队。",
-      "signature": "此致敬礼，<br>Matsak 团队"
+      "signature": "此致敬礼，<br>Matsak 团队",
+      "createdAt": "您的账户创建于",
+      "date": "日期："
     },
     "resetPassword": {
       "subject": "重置您的密码",
