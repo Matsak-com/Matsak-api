@@ -99,7 +99,7 @@ export class AuthService {
 
       // Create user
       const createdUser = await this.usersService.create(createUserDto);
-      
+
       if (!createdUser) {
         throw new HttpException(
           ERRORS.USER_CREATION_FAILED,
@@ -108,7 +108,9 @@ export class AuthService {
       }
 
       // Fetch full user details
-      const fullUser = await this.usersService.findOne({ _id: createdUser._id });
+      const fullUser = await this.usersService.findOne({
+        _id: createdUser._id,
+      });
 
       // Generate token JWT
       const authResponse = await this.authenticateUser({
@@ -118,17 +120,19 @@ export class AuthService {
       });
 
       const warnings: string[] = [];
-    
+
       // SEND WELCOME EMAIL
       try {
         await this.sendWelcomeEmail(createdUser);
         console.log(`Email de bienvenue envoyé à ${createdUser.email}`);
       } catch (emailError: any) {
         console.warn(`Échec de l'email de bienvenue: ${emailError.message}`);
-        warnings.push(`L'email de bienvenue n'a pas pu être envoyé: ${emailError.message}`);
-        
+        warnings.push(
+          `L'email de bienvenue n'a pas pu être envoyé: ${emailError.message}`,
+        );
+
         this.retryWelcomeEmailLater(createdUser).catch(() => {
-          console.error('La retentative d\'envoi d\'email a également échoué');
+          console.error("La retentative d'envoi d'email a également échoué");
         });
       }
 
@@ -152,16 +156,18 @@ export class AuthService {
   }
 
   /**
- * Resend email
- */
+   * Resend email
+   */
   private async retryWelcomeEmailLater(user: any): Promise<void> {
     // Wait for 30 seconds
-    await new Promise(resolve => setTimeout(resolve, 30000));
-    
+    await new Promise((resolve) => setTimeout(resolve, 30000));
+
     try {
       console.log(`Retentative d'envoi d'email à ${user.email}`);
       await this.sendWelcomeEmail(user);
-      console.log(`Email de bienvenue envoyé avec succès lors de la retentative`);
+      console.log(
+        `Email de bienvenue envoyé avec succès lors de la retentative`,
+      );
     } catch (retryError) {
       console.error(`Échec de la retentative d'email: ${retryError.message}`);
     }
@@ -173,7 +179,7 @@ export class AuthService {
   private async sendWelcomeEmail(user: any): Promise<void> {
     try {
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      
+
       const locale = this.getUserLocale(user);
 
       // Obtenir le sujet traduit
@@ -210,14 +216,13 @@ export class AuthService {
             url: process.env.FRONTEND_URL || 'http://localhost:3000',
             supportEmail: process.env.SUPPORT_EMAIL || 'support@example.com',
             contactEmail: process.env.CONTACT_EMAIL || 'contact@example.com',
-            logoUrl: `${frontendUrl}/images/logos/matsak-logo.svg`, 
+            logoUrl: `${frontendUrl}/images/logos/matsak-logo.svg`,
           },
           year: new Date().getFullYear(),
           currentDate: currentDate,
         },
         locale: locale,
       });
-
     } catch (error) {
       console.error('Failed to send welcome email:', error);
       throw error;
@@ -227,7 +232,10 @@ export class AuthService {
   /**
    * Get translated welcome subject using i18n service
    */
-  private getTranslatedWelcomeSubject(locale: SupportedLocale, user: any): string {
+  private getTranslatedWelcomeSubject(
+    locale: SupportedLocale,
+    user: any,
+  ): string {
     try {
       const translations = this.i18nService.getTranslations(
         'email.welcome',
@@ -235,11 +243,10 @@ export class AuthService {
         {
           platformName: process.env.APP_NAME || 'Our Platform',
           userName: user.firstname || user.name || 'User',
-        }
+        },
       );
-      
-      return translations.subject || 
-             translations.welcomeSubject;
+
+      return translations.subject || translations.welcomeSubject;
     } catch (error) {
       console.warn(`Failed to get i18n translation: ${error.message}`);
       return this.getFallbackWelcomeSubject(locale);
@@ -256,7 +263,7 @@ export class AuthService {
       zh: '欢迎来到我们的平台！',
       ar: 'مرحباً بكم في منصتنا!',
     };
-    
+
     return fallbackSubjects[locale] || fallbackSubjects.fr;
   }
 
@@ -264,24 +271,24 @@ export class AuthService {
    * Determine user locale - toujours retourner une locale supportée
    */
   private getUserLocale(user: any): SupportedLocale {
-      if (user.locale && ['en', 'fr', 'zh', 'ar'].includes(user.locale)) {
+    if (user.locale && ['en', 'fr', 'zh', 'ar'].includes(user.locale)) {
       return user.locale as SupportedLocale;
     }
     return 'fr';
   }
 
-  async updateUserLocale(userId: string, locale: 'en' | 'fr' | 'zh' | 'ar'): Promise<User> {
+  async updateUserLocale(
+    userId: string,
+    locale: 'en' | 'fr' | 'zh' | 'ar',
+  ): Promise<User> {
     try {
       const updatedUser = await this.usersService.update(
         { _id: userId },
-        { locale }
+        { locale },
       );
 
       if (!updatedUser) {
-        throw new HttpException(
-          ERRORS.USER_NOT_FOUND,
-          HttpStatus.NOT_FOUND,
-        );
+        throw new HttpException(ERRORS.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       return updatedUser;
@@ -293,13 +300,17 @@ export class AuthService {
     }
   }
 
-  private async authenticateUser({ userId, role, current_team }: UserPayload): Promise<{
+  private async authenticateUser({
+    userId,
+    role,
+    current_team,
+  }: UserPayload): Promise<{
     accessToken: string;
   }> {
-    const payload = { 
-      userId, 
-      role, 
-      current_team 
+    const payload = {
+      userId,
+      role,
+      current_team,
     };
     const accessToken = await this.jwtService.signAsync(payload);
     return { accessToken };

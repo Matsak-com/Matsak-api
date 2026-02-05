@@ -48,7 +48,7 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   @IsIn(['en', 'fr', 'zh', 'ar'], {
-    message: 'Locale must be one of: en, fr, zh, ar'
+    message: 'Locale must be one of: en, fr, zh, ar',
   })
   locale?: 'en' | 'fr' | 'zh' | 'ar';
 }

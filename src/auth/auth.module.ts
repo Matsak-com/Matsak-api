@@ -17,7 +17,7 @@ import { NotificationModule } from 'src/notifications/notification.module';
       signOptions: { expiresIn: '30d' },
     }),
     UsersModule,
-    NotificationModule
+    NotificationModule,
   ],
   providers: [
     AuthService,

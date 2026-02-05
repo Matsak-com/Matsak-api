@@ -64,9 +64,6 @@ import { I18nService } from './i18n.service';
     SmsProvider,
     I18nService,
   ],
-  exports: [
-    NotificationService,
-    I18nService, 
-  ],
+  exports: [NotificationService, I18nService],
 })
 export class NotificationModule {}

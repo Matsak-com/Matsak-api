@@ -73,12 +73,12 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ZodValidation(updateLocaleSchema)
-  async updateLocale( @Body() body: any, @Request() req: any) {
+  async updateLocale(@Body() body: any, @Request() req: any) {
     try {
       const { locale } = body;
       const userId = req.user.userId;
       const result = await this.authService.updateUserLocale(userId, locale);
-      
+
       return {
         success: true,
         message: 'Locale updated successfully',

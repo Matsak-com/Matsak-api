@@ -133,11 +133,7 @@ describe('ProductService', () => {
       expect(productRepo.findById).toHaveBeenCalledWith({
         id: createdId.toString(),
         options: {
-          populate: [
-            { path: 'detail' },
-            { path: 'images' },
-            { path: 'team' },
-          ],
+          populate: [{ path: 'detail' }, { path: 'images' }, { path: 'team' }],
         },
       });
       expect(searchService.indexProduct).toHaveBeenCalledWith(populatedProduct);

@@ -18,18 +18,21 @@ export const createUserSchema = z.object({
   phone: z
     .string()
     .optional()
-    .refine((val) => {
-      if (!val) return true; // optional field
-      // Allow only typical phone characters
-      if (!/^[+\d\s().-]+$/.test(val)) return false;
-      // Enforce a reasonable number of digits (e.g., 7 to 15)
-      const digitCount = val.replace(/\D/g, '').length;
-      return digitCount >= 7 && digitCount <= 15;
-    }, {
-      message: 'Invalid phone number format',
-    }),
+    .refine(
+      (val) => {
+        if (!val) return true; // optional field
+        // Allow only typical phone characters
+        if (!/^[+\d\s().-]+$/.test(val)) return false;
+        // Enforce a reasonable number of digits (e.g., 7 to 15)
+        const digitCount = val.replace(/\D/g, '').length;
+        return digitCount >= 7 && digitCount <= 15;
+      },
+      {
+        message: 'Invalid phone number format',
+      },
+    ),
   role: UserRoleEnum.default('user'),
-  locale: LocaleEnum.default('fr'), 
+  locale: LocaleEnum.default('fr'),
   isResettingPassword: z.boolean().optional(),
   resetPasswordToken: z.string().nullable().optional(),
   avatarFileKey: z.string().nullable().optional(),
