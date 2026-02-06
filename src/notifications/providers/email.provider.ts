@@ -60,7 +60,7 @@ export class EmailProvider implements IEmailProvider {
       const mailOptions: any = {
         to: Array.isArray(to) ? to.join(', ') : to,
         subject,
-        from: this.configService.get('MAIL_FROM', 'noreply@localhost'),
+        from: this.configService.get('MAIL_FROM', 'noreply@matsak-mg.com'),
         attachments: attachments || [],
       };
 
@@ -184,11 +184,11 @@ export class EmailProvider implements IEmailProvider {
       url: this.configService.get('FRONTEND_URL', 'http://localhost:3000'),
       supportEmail: this.configService.get(
         'SUPPORT_EMAIL',
-        'support@matsak.com',
+        'support@matsak-mg.com',
       ),
       contactEmail: this.configService.get(
         'CONTACT_EMAIL',
-        'contact@matsak.com',
+        'contact@matsak-mg.com',
       ),
       logoUrl: `${this.configService.get('FRONTEND_URL', 'http://localhost:3000')}/images/logos/matsak-logo.svg`,
     };

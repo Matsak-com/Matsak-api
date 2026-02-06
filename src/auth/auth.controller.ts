@@ -47,10 +47,6 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   @ZodValidation(createUserSchema)
   async register(@Body() createUserDto: CreateUserDto, @Body() rawBody: any) {
-    console.log('=== DEBUG REGISTER ===');
-    console.log('Raw body received:', rawBody); // Voir la structure exacte
-    console.log('Parsed DTO:', createUserDto);
-    console.log('Locale in DTO:', createUserDto.locale);
     try {
       const result = await this.authService.register(createUserDto);
       return {

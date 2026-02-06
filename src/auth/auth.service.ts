@@ -124,7 +124,6 @@ export class AuthService {
       // SEND WELCOME EMAIL
       try {
         await this.sendWelcomeEmail(createdUser);
-        console.log(`Email de bienvenue envoyé à ${createdUser.email}`);
       } catch (emailError: any) {
         console.warn(`Échec de l'email de bienvenue: ${emailError.message}`);
         warnings.push(
@@ -163,11 +162,7 @@ export class AuthService {
     await new Promise((resolve) => setTimeout(resolve, 30000));
 
     try {
-      console.log(`Retentative d'envoi d'email à ${user.email}`);
       await this.sendWelcomeEmail(user);
-      console.log(
-        `Email de bienvenue envoyé avec succès lors de la retentative`,
-      );
     } catch (retryError) {
       console.error(`Échec de la retentative d'email: ${retryError.message}`);
     }
@@ -214,8 +209,8 @@ export class AuthService {
           platform: {
             name: process.env.APP_NAME || 'Our Platform',
             url: process.env.FRONTEND_URL || 'http://localhost:3000',
-            supportEmail: process.env.SUPPORT_EMAIL || 'support@example.com',
-            contactEmail: process.env.CONTACT_EMAIL || 'contact@example.com',
+            supportEmail: process.env.SUPPORT_EMAIL || 'support@matsak-mg.com',
+            contactEmail: process.env.CONTACT_EMAIL || 'contact@matsak-mg.com',
             logoUrl: `${frontendUrl}/images/logos/matsak-logo.svg`,
           },
           year: new Date().getFullYear(),
