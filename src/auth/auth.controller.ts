@@ -46,7 +46,7 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ZodValidation(createUserSchema)
-  async register(@Body() createUserDto: CreateUserDto, @Body() rawBody: any) {
+  async register(@Body() createUserDto: CreateUserDto) {
     try {
       const result = await this.authService.register(createUserDto);
       return {
