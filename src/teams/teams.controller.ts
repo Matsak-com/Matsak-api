@@ -13,6 +13,7 @@ import {
   FileTypeValidator,
   MaxFileSizeValidator,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
@@ -25,6 +26,7 @@ import {
   teamIdParamSchema,
 } from '../common/schemas/team.schemas';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RequestWithUser } from '../auth/jwt/jwt.strategy';
 
 @Controller('teams')
 export class TeamsController {
@@ -57,8 +59,14 @@ export class TeamsController {
 
   @UseGuards(JwtAuthGuard)
   @Get('user/:userId')
-  async findByUser(@Param() params: { userId: string }) {
-    return this.teamsService.findByUser(params.userId);
+  async findByUser(
+    @Param() params: { userId: string },
+    @Request() req: RequestWithUser,
+  ) {
+    return this.teamsService.findByUser({
+      userId: params.userId,
+      role: req.user.role,
+    });
   }
 
   @Get(':id')

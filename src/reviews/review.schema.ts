@@ -44,4 +44,13 @@ export class Review {
 }
 
 export const ReviewSchema = SchemaFactory.createForClass(Review);
-ReviewSchema.index({ userId: 1, teamId: 1 }, { unique: true });
+ReviewSchema.index(
+  { userId: 1, teamId: 1, status: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: { $in: [ReviewStatus.PENDING, ReviewStatus.APPROVED] },
+      deleted_at: { $exists: false },
+    },
+  },
+);

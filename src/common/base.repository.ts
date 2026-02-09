@@ -14,6 +14,7 @@ type QueryOptionsExtended<T> = {
   limit?: number;
   skip?: number;
   lean?: boolean;
+  session?: any;
 };
 
 export class BaseRepository<T extends { deleted_at?: Date }> {
@@ -32,10 +33,6 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
   }
 
   withNotDeleted(filter?: FilterQuery<T>) {
-    // Use $exists:false so we match documents where `deleted_at` is not set
-    // (some repositories use `{ deleted_at: { $exists: false } }`). This
-    // ensures consistency across the codebase and avoids missing results
-    // when the field is absent.
     return {
       ...(filter ?? {}),
       deleted_at: { $exists: false },
@@ -145,6 +142,7 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
     if (options.limit !== undefined) query.limit(options.limit);
     if (options.skip !== undefined) query.skip(options.skip);
     if (options.lean) query.lean();
+    if (options.session) query.session(options.session);
   }
 
   private applyUpdateQueryOptions(

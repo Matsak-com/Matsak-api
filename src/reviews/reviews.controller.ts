@@ -5,7 +5,10 @@ import {
   ForbiddenException,
   Get,
   Param,
+  Patch,
   Post,
+  Query,
+  Delete,
   UseGuards,
 } from '@nestjs/common';
 import { ReviewsService } from './reviews.service';
@@ -14,11 +17,14 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
   teamIdParamSchema,
   reviewIdParamSchema,
+  reviewQuerySchema,
+  reviewStatusBodySchema,
 } from '../common/schemas/reviews.schemas';
 import { CompoundZodValidation } from 'src/common/decorators/zod-validation.decorator';
 import { CurrentUser } from '../auth/decorator/current-user.decorator';
 import { UserPayload } from '../auth/jwt/jwt.strategy';
 import { UserRole } from '../users/user.schema';
+import { ReviewStatus } from './review.schema';
 
 @Controller('reviews')
 export class ReviewsController {
@@ -38,16 +44,63 @@ export class ReviewsController {
   @Post(':id/approve')
   @CompoundZodValidation({ params: reviewIdParamSchema })
   approve(@Param() params: { id: string }, @CurrentUser() user: UserPayload) {
-    if (user.role !== UserRole.ADMIN && user.role !== UserRole.MODERATOR) {
+    if (
+      user.role !== UserRole.ADMIN &&
+      user.role !== UserRole.SUPERADMIN &&
+      user.role !== UserRole.MODERATOR
+    ) {
       throw new ForbiddenException('FORBIDDEN_REVIEW_APPROVAL');
     }
 
     return this.reviewsService.approve(params.id);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id')
+  @CompoundZodValidation({
+    params: reviewIdParamSchema,
+    body: reviewStatusBodySchema,
+  })
+  reject(
+    @Param() params: { id: string },
+    @Body() body: { status: ReviewStatus },
+    @CurrentUser() user: UserPayload,
+  ) {
+    if (
+      user.role !== UserRole.ADMIN &&
+      user.role !== UserRole.SUPERADMIN &&
+      user.role !== UserRole.MODERATOR
+    ) {
+      throw new ForbiddenException('FORBIDDEN_REVIEW_REJECT');
+    }
+
+    return this.reviewsService.reject(params.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  @CompoundZodValidation({ params: reviewIdParamSchema })
+  delete(@Param() params: { id: string }, @CurrentUser() user: UserPayload) {
+    if (
+      user.role !== UserRole.ADMIN &&
+      user.role !== UserRole.SUPERADMIN &&
+      user.role !== UserRole.MODERATOR
+    ) {
+      throw new ForbiddenException('FORBIDDEN_REVIEW_DELETE');
+    }
+
+    return this.reviewsService.delete(params.id);
+  }
+
   @Get('team/:teamId')
   @CompoundZodValidation({ params: teamIdParamSchema })
   getByTeam(@Param() params: { teamId: string }) {
     return this.reviewsService.getByTeam(params.teamId);
+  }
+
+  @Get()
+  @CompoundZodValidation({ query: reviewQuerySchema })
+  getAll(@Query() query: { status?: ReviewStatus }) {
+    return this.reviewsService.getAll({ status: query.status });
   }
 }

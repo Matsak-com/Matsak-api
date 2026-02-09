@@ -176,6 +176,67 @@ describe('ReviewsService', () => {
     expect(count).toBe(1);
   });
 
+  it('blocks new review when an approved one exists', async () => {
+    const team = await createTeam();
+    const userId = new Types.ObjectId().toString();
+
+    await reviewModel.create({
+      rating: 4,
+      content: 'Existing approved',
+      status: ReviewStatus.APPROVED,
+      isVerified: true,
+      teamId: team._id,
+      userId,
+    });
+
+    const dto = createReviewDto(team._id.toString(), { userId, rating: 5 });
+
+    await expect(service.create(dto)).rejects.toBeInstanceOf(ConflictException);
+    const count = await reviewModel.countDocuments({ teamId: team._id, userId });
+    expect(count).toBe(1);
+  });
+
+  it('allows a new review when the previous one was rejected', async () => {
+    const team = await createTeam();
+    const userId = new Types.ObjectId().toString();
+
+    await reviewModel.create({
+      rating: 2,
+      content: 'Old rejected review',
+      status: ReviewStatus.REJECTED,
+      isVerified: false,
+      teamId: team._id,
+      userId,
+    });
+
+    const dto = createReviewDto(team._id.toString(), { userId, rating: 5 });
+    const review = await service.create(dto);
+
+    expect(review.status).toBe(ReviewStatus.PENDING);
+    expect(review.rating).toBe(5);
+  });
+
+  it('allows a new review when the previous one was soft-deleted', async () => {
+    const team = await createTeam();
+    const userId = new Types.ObjectId().toString();
+
+    await reviewModel.create({
+      rating: 3,
+      content: 'Soft deleted review',
+      status: ReviewStatus.PENDING,
+      isVerified: false,
+      teamId: team._id,
+      userId,
+      deleted_at: new Date(),
+    });
+
+    const dto = createReviewDto(team._id.toString(), { userId, rating: 4 });
+    const review = await service.create(dto);
+
+    expect(review.status).toBe(ReviewStatus.PENDING);
+    expect(review.rating).toBe(4);
+  });
+
   it('returns only approved reviews for a team and populates user data', async () => {
     const teamA = await createTeam();
     const teamB = await createTeam();
@@ -228,5 +289,145 @@ describe('ReviewsService', () => {
     const results = await service.getByTeam(team._id.toString());
 
     expect(results).toEqual([]);
+  });
+
+  it('rejects a pending review to set status REJECTED', async () => {
+    const team = await createTeam();
+    const dto = createReviewDto(team._id.toString());
+
+    const pending = await service.create(dto);
+
+    const rejected = await service.reject(toIdString(pending));
+
+    expect(rejected.status).toBe(ReviewStatus.REJECTED);
+  });
+
+  it('throws when trying to reject an approved review', async () => {
+    const team = await createTeam();
+    const dto = createReviewDto(team._id.toString());
+
+    const pending = await service.create(dto);
+    await reviewModel.updateOne(
+      { _id: (pending as any)._id },
+      { $set: { isVerified: true } },
+    );
+    await service.approve(toIdString(pending));
+
+    await expect(service.reject(toIdString(pending))).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
+  it('soft deletes a review and excludes it from listings', async () => {
+    const team = await createTeam();
+    const user = await createUser({ name: 'SoftDelete', firstname: 'User' });
+
+    const created = await reviewModel.create({
+      rating: 4,
+      content: 'To be deleted',
+      status: ReviewStatus.PENDING,
+      isVerified: false,
+      teamId: team._id,
+      userId: user._id,
+    });
+
+    const deleted = await service.delete(created._id.toString());
+
+    expect(deleted.deleted_at).toBeInstanceOf(Date);
+
+    const results = await service.getAll({});
+    expect(results).toHaveLength(0);
+  });
+
+  it('returns all non-deleted reviews when no status filter is provided', async () => {
+    const team = await createTeam();
+    const userApproved = await createUser({
+      name: 'NoFilterA',
+      firstname: 'User',
+    });
+    const userPending = await createUser({
+      name: 'NoFilterB',
+      firstname: 'User',
+    });
+    const userDeleted = await createUser({
+      name: 'NoFilterC',
+      firstname: 'User',
+    });
+
+    const approved = await reviewModel.create({
+      rating: 5,
+      content: 'Approved review',
+      status: ReviewStatus.APPROVED,
+      isVerified: true,
+      teamId: team._id,
+      userId: userApproved._id,
+    });
+
+    const pending = await reviewModel.create({
+      rating: 3,
+      content: 'Pending review',
+      status: ReviewStatus.PENDING,
+      isVerified: false,
+      teamId: team._id,
+      userId: userPending._id,
+    });
+
+    const deleted = await reviewModel.create({
+      rating: 1,
+      content: 'Deleted review',
+      status: ReviewStatus.PENDING,
+      isVerified: false,
+      teamId: team._id,
+      userId: userDeleted._id,
+      deleted_at: new Date(),
+    });
+
+    const results = await service.getAll({});
+
+    const ids = results.map((r: any) => r._id.toString());
+    expect(results).toHaveLength(2);
+    expect(ids).toEqual(
+      expect.arrayContaining([approved._id.toString(), pending._id.toString()]),
+    );
+    expect(ids).not.toContain(deleted._id.toString());
+  });
+
+  it('filters reviews by status when provided', async () => {
+    const team = await createTeam();
+    const approvedUser = await createUser({
+      name: 'FilterA',
+      firstname: 'User',
+    });
+    const pendingUser = await createUser({
+      name: 'FilterB',
+      firstname: 'User',
+    });
+
+    await reviewModel.create({
+      rating: 5,
+      content: 'Approved review',
+      status: ReviewStatus.APPROVED,
+      isVerified: true,
+      teamId: team._id,
+      userId: approvedUser._id,
+    });
+
+    const pending = await reviewModel.create({
+      rating: 4,
+      content: 'Pending review',
+      status: ReviewStatus.PENDING,
+      isVerified: false,
+      teamId: team._id,
+      userId: pendingUser._id,
+    });
+
+    const results = await service.getAll({ status: ReviewStatus.PENDING });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].status).toBe(ReviewStatus.PENDING);
+    expect((results[0] as any).userId._id.toString()).toBe(
+      pendingUser._id.toString(),
+    );
+    expect((results[0] as any)._id.toString()).toBe(pending._id.toString());
   });
 });
