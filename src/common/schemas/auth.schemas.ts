@@ -1,9 +1,6 @@
 import { z } from 'zod';
 import { objectIdSchema } from './common.schemas';
 
-// User Role enum
-export const UserRoleEnum = z.enum(['user', 'admin']);
-
 // Supported locales
 export const LocaleEnum = z.enum(['en', 'fr', 'zh', 'ar']);
 
@@ -31,7 +28,6 @@ export const createUserSchema = z.object({
         message: 'Invalid phone number format',
       },
     ),
-  role: UserRoleEnum.default('user'),
   locale: LocaleEnum.default('fr'),
   isResettingPassword: z.boolean().optional(),
   resetPasswordToken: z.string().nullable().optional(),
