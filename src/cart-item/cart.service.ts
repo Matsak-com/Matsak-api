@@ -92,20 +92,21 @@ export class CartService {
     if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
 
     const enrichedItems = await this.enrichCartItems(cart.items);
-    return { items: enrichedItems };
+    return { 
+      _id: cart._id,
+      items: enrichedItems 
+    };
   }
 
   async mergeSessionCartToUser(sessionId: string, userId: Types.ObjectId) {
     const sessionCart = await this.cartRepository.findBySessionId(sessionId);
 
-    // Pas de panier session ? Rien à fusionner
     if (!sessionCart || sessionCart.items.length === 0) {
       return null;
     }
 
     let userCart = await this.cartRepository.findByUserId(userId);
 
-    // 🆕 Si l'utilisateur n'a pas de panier, on transfert directement
     if (!userCart) {
       userCart = await this.cartRepository.create({
         doc: {
@@ -114,35 +115,29 @@ export class CartService {
         },
       });
 
-      // Supprimer le panier de session
       await this.cartRepository.delete({
         id: sessionCart._id as Types.ObjectId,
       });
       return userCart;
     }
 
-    // 🔁 Fusionner les items
     for (const sessionItem of sessionCart.items) {
       const existingItem = userCart.items.find(
         (i) => i.product.toString() === sessionItem.product.toString(),
       );
 
       if (existingItem) {
-        // Additionner les quantités
         existingItem.quantity += sessionItem.quantity;
       } else {
-        // Ajouter le nouvel item
         userCart.items.push(sessionItem);
       }
     }
 
-    // Sauvegarder le panier utilisateur mis à jour
     await this.cartRepository.update({
       id: userCart._id as Types.ObjectId,
       update: { items: userCart.items },
     });
 
-    // Supprimer le panier de session
     await this.cartRepository.delete({ id: sessionCart._id as Types.ObjectId });
 
     return userCart;
@@ -169,7 +164,10 @@ export class CartService {
     });
 
     const enrichedItems = await this.enrichCartItems(cart.items);
-    return { items: enrichedItems };
+    return { 
+      _id: cart._id,
+      items: enrichedItems 
+    };
   }
 
   // ❌ Supprimer produit
@@ -189,7 +187,7 @@ export class CartService {
     });
   }
 
-  // 🧹 Vider panier
+  // 🧹 Vider panier (clear items only)
   async clearCart(sessionId?: string, userId?: Types.ObjectId) {
     const cart = await this.findCart(sessionId, userId);
     if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
@@ -197,6 +195,39 @@ export class CartService {
     return this.cartRepository.update({
       id: cart._id as Types.ObjectId,
       update: { items: [] },
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // ✅ NOUVELLE MÉTHODE : Soft Delete du panier après paiement
+  // ══════════════════════════════════════════════════════════════════
+  async softDeleteCart(cartId: string): Promise<void> {
+    const cart = await this.cartRepository.findById({
+      id: new Types.ObjectId(cartId),
+    });
+
+    if (!cart) {
+      throw new NotFoundException(`Panier ${cartId} introuvable`);
+    }
+
+    // Vider les items ET marquer comme supprimé
+    await this.cartRepository.update({
+      id: cart._id as Types.ObjectId,
+      update: {            
+        deleted_at: new Date(), // Soft delete
+      },
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // ✅ MÉTHODE ALTERNATIVE : Soft Delete par ObjectId direct
+  // ══════════════════════════════════════════════════════════════════
+  async softDeleteCartById(cartId: Types.ObjectId): Promise<void> {
+    await this.cartRepository.update({
+      id: cartId,
+      update: {
+        deleted_at: new Date(),
+      },
     });
   }
 }

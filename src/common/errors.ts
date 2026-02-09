@@ -48,6 +48,11 @@ export const ERRORS = {
   INVENTORY_TRANSACTION_FAILED: 'INVENTORY_TRANSACTION_FAILED',
   AWS_S3_BUCKET_NOT_CONFIGURED: 'AWS_S3_BUCKET_NOT_CONFIGURED',
   FAQ_NOT_FOUND: 'FAQ_NOT_FOUND',
+  CART_EMPTY: 'Cart is empty',
+  INVALID_AMOUNT: 'Invalid amount',
+  PAYMENT_ALREADY_IN_PROGRESS: 'A payment is already in progress for this cart',
+  PAYMENT_DUPLICATE: 'Duplicate payment',
+  PAYMENT_NOT_FOUND: 'Payment not found',
 };
 
 export const TOKEN_MAP: Record<string, { status: number; message: string }> = {

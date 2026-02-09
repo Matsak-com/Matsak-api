@@ -26,6 +26,8 @@ import { BullModule } from '@nestjs/bull';
 import { PreferenceModule } from './preference/preference.module';
 import { FaqsModule } from './faqs/faqs.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { PaymentModule } from './payment/payment.module';
+import { InvoiceModule } from './invoice/invoice.module';
 
 /**
  * Parse and validate Redis configuration
@@ -89,6 +91,8 @@ function getRedisConfig() {
     PreferenceModule,
     FaqsModule,
     ReviewsModule,
+    PaymentModule,
+    InvoiceModule,
   ],
   controllers: [AppController],
   providers: [
