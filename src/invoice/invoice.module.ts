@@ -8,9 +8,7 @@ import { ProductModule } from '../product/product.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: Invoice.name, schema: InvoiceSchema },
-    ]),
+    MongooseModule.forFeature([{ name: Invoice.name, schema: InvoiceSchema }]),
     ProductModule, // Import pour accéder au ProductService
   ],
   controllers: [InvoiceController],

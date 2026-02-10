@@ -4,11 +4,11 @@ import { HydratedDocument, Types } from 'mongoose';
 export type PaymentDocument = HydratedDocument<Payment>;
 
 export enum PaymentStatus {
-  PENDING = 'PENDING',       // POST envoyé à Mvola, on attend
-  WAITING = 'WAITING',       // USSD envoyé au client, on attend confirmation
-  SUCCESS = 'SUCCESS',       // Callback reçu → payé
-  FAILED = 'FAILED',         // Échec ou timeout
-  EXPIRED = 'EXPIRED',       // QR / session expirée
+  PENDING = 'PENDING', // POST envoyé à Mvola, on attend
+  WAITING = 'WAITING', // USSD envoyé au client, on attend confirmation
+  SUCCESS = 'SUCCESS', // Callback reçu → payé
+  FAILED = 'FAILED', // Échec ou timeout
+  EXPIRED = 'EXPIRED', // QR / session expirée
 }
 
 export enum PaymentMethod {
@@ -46,7 +46,13 @@ export class Payment {
   @Prop({ type: String, required: true, default: 'Ar' })
   currency: string;
 
-  @Prop({ type: String, required: true, enum: PaymentStatus, default: PaymentStatus.PENDING, index: true })
+  @Prop({
+    type: String,
+    required: true,
+    enum: PaymentStatus,
+    default: PaymentStatus.PENDING,
+    index: true,
+  })
   status: PaymentStatus;
 
   // ── Mvola-specific fields ──────────────────────────────────────

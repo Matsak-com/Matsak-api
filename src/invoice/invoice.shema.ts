@@ -8,7 +8,13 @@ export class Invoice {
   // ══════════════════════════════════════════════════════════════
   // RÉFÉRENCES - Tout vient de Payment et Cart
   // ══════════════════════════════════════════════════════════════
-  @Prop({ type: Types.ObjectId, ref: 'Payment', required: true, unique: true, index: true })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Payment',
+    required: true,
+    unique: true,
+    index: true,
+  })
   payment: Types.ObjectId;
 
   // ══════════════════════════════════════════════════════════════

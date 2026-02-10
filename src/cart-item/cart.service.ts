@@ -92,9 +92,9 @@ export class CartService {
     if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
 
     const enrichedItems = await this.enrichCartItems(cart.items);
-    return { 
+    return {
       _id: cart._id,
-      items: enrichedItems 
+      items: enrichedItems,
     };
   }
 
@@ -164,9 +164,9 @@ export class CartService {
     });
 
     const enrichedItems = await this.enrichCartItems(cart.items);
-    return { 
+    return {
       _id: cart._id,
-      items: enrichedItems 
+      items: enrichedItems,
     };
   }
 
@@ -213,7 +213,7 @@ export class CartService {
     // Vider les items ET marquer comme supprimé
     await this.cartRepository.update({
       id: cart._id as Types.ObjectId,
-      update: {            
+      update: {
         deleted_at: new Date(), // Soft delete
       },
     });

@@ -20,9 +20,9 @@ export class InvoiceRepository extends BaseRepository<InvoiceDocument> {
     const today = new Date();
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, '0');
-    
+
     const prefix = `INV-${year}${month}`;
-    
+
     // Find last invoice with this prefix
     const lastInvoice = await this.model
       .findOne({ invoiceNumber: new RegExp(`^${prefix}`) })
@@ -36,7 +36,7 @@ export class InvoiceRepository extends BaseRepository<InvoiceDocument> {
     // Extract number and increment
     const lastNumber = parseInt(lastInvoice.invoiceNumber.split('-')[2], 10);
     const nextNumber = String(lastNumber + 1).padStart(4, '0');
-    
+
     return `${prefix}-${nextNumber}`;
   }
 
@@ -45,18 +45,18 @@ export class InvoiceRepository extends BaseRepository<InvoiceDocument> {
    */
   async findByCustomer(customerId: string) {
     return this.findAll({
-      filter: { 
+      filter: {
         customer: customerId,
-        deleted_at: { $exists: false }
+        deleted_at: { $exists: false },
       },
       options: {
         sort: { invoiceDate: -1 },
         populate: [
           { path: 'customer', select: 'name email' },
           { path: 'team', select: 'name' },
-          { path: 'payment' }
-        ]
-      }
+          { path: 'payment' },
+        ],
+      },
     });
   }
 
@@ -65,17 +65,17 @@ export class InvoiceRepository extends BaseRepository<InvoiceDocument> {
    */
   async findByTeam(teamId: string) {
     return this.findAll({
-      filter: { 
+      filter: {
         team: teamId,
-        deleted_at: { $exists: false }
+        deleted_at: { $exists: false },
       },
       options: {
         sort: { invoiceDate: -1 },
         populate: [
           { path: 'customer', select: 'name email' },
-          { path: 'payment' }
-        ]
-      }
+          { path: 'payment' },
+        ],
+      },
     });
   }
 }

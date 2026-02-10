@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InvoiceRepository } from './invoice.repository';
 import { Invoice } from './invoice.shema';
 import { Types } from 'mongoose';
@@ -16,9 +11,7 @@ interface CreateInvoiceFromPaymentDto {
 export class InvoiceService {
   private readonly logger = new Logger(InvoiceService.name);
 
-  constructor(
-    private readonly invoiceRepo: InvoiceRepository,
-  ) {}
+  constructor(private readonly invoiceRepo: InvoiceRepository) {}
 
   /**
    * Créer une facture ultra-minimaliste après paiement réussi
@@ -46,7 +39,10 @@ export class InvoiceService {
 
       return invoice;
     } catch (error) {
-      this.logger.error('Erreur lors de la création de facture', error.stack || error.message);
+      this.logger.error(
+        'Erreur lors de la création de facture',
+        error.stack || error.message,
+      );
       throw error;
     }
   }
@@ -59,21 +55,21 @@ export class InvoiceService {
       id,
       options: {
         populate: [
-          { 
+          {
             path: 'payment',
             populate: [
               {
                 path: 'userId',
-                select: 'name email addresses'
+                select: 'name email addresses',
               },
               {
                 path: 'cartId',
                 populate: {
                   path: 'items.product',
-                  populate: { path: 'detail' }
-                }
-              }
-            ]
+                  populate: { path: 'detail' },
+                },
+              },
+            ],
           },
         ],
       },
@@ -123,11 +119,13 @@ export class InvoiceService {
       },
 
       // Données du client
-      customer: user ? {
-        name: user.name,
-        email: user.email,
-        defaultShippingAddress: defaultAddress || null,
-      } : null,
+      customer: user
+        ? {
+            name: user.name,
+            email: user.email,
+            defaultShippingAddress: defaultAddress || null,
+          }
+        : null,
     };
   }
 
@@ -139,21 +137,21 @@ export class InvoiceService {
       filter: { invoiceNumber },
       options: {
         populate: [
-          { 
+          {
             path: 'payment',
             populate: [
               {
                 path: 'userId',
-                select: 'name email addresses'
+                select: 'name email addresses',
               },
               {
                 path: 'cartId',
                 populate: {
                   path: 'items.product',
-                  populate: { path: 'detail' }
-                }
-              }
-            ]
+                  populate: { path: 'detail' },
+                },
+              },
+            ],
           },
         ],
       },
@@ -214,30 +212,30 @@ export class InvoiceService {
    */
   async findByCustomer(customerId: string): Promise<any[]> {
     const invoices = await this.invoiceRepo.findAll({
-      filter: { 
-        deleted_at: { $exists: false }
+      filter: {
+        deleted_at: { $exists: false },
       },
       options: {
         sort: { invoiceDate: -1 },
         populate: [
-          { 
+          {
             path: 'payment',
             populate: [
               {
                 path: 'userId',
-                select: 'name email addresses'
+                select: 'name email addresses',
               },
               {
                 path: 'cartId',
                 populate: {
                   path: 'items.product',
-                  populate: { path: 'detail' }
-                }
-              }
-            ]
+                  populate: { path: 'detail' },
+                },
+              },
+            ],
           },
         ],
-      }
+      },
     });
 
     // Filtrer par customerId et formater
@@ -246,7 +244,7 @@ export class InvoiceService {
         const payment = invoice.payment as any;
         return payment?.userId?._id?.toString() === customerId;
       })
-      .map(invoice => this.formatInvoiceResponse(invoice));
+      .map((invoice) => this.formatInvoiceResponse(invoice));
   }
 
   /**
@@ -305,11 +303,13 @@ export class InvoiceService {
         items: cart?.items || [],
       },
 
-      customer: user ? {
-        name: user.name,
-        email: user.email,
-        defaultShippingAddress: defaultAddress || null,
-      } : null,
+      customer: user
+        ? {
+            name: user.name,
+            email: user.email,
+            defaultShippingAddress: defaultAddress || null,
+          }
+        : null,
     };
   }
 }

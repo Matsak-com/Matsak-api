@@ -1,4 +1,4 @@
-import {z} from 'zod';
+import { z } from 'zod';
 
 export const teamIdParamSchema = z.object({
   teamId: z.string().min(1, 'Team ID is required'),

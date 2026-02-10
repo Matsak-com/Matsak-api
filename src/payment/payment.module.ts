@@ -18,32 +18,26 @@ import { InventoryModule } from '../inventory/inventory.module';
 @Module({
   imports: [
     // ✅ Schémas Mongoose pour ce module uniquement
-    MongooseModule.forFeature([
-      { name: Payment.name, schema: PaymentSchema },
-    ]),
-    
+    MongooseModule.forFeature([{ name: Payment.name, schema: PaymentSchema }]),
+
     // ✅ Configuration HTTP
     HttpModule.register({
       timeout: 10000,
       maxRedirects: 3,
     }),
-    
+
     // ✅ Modules externes - ils fournissent leurs propres services
     ConfigModule,
-    CartModule,      // Fournit CartService, CartRepository
-    ProductModule,   // Fournit ProductService, ProductRepository
-    InvoiceModule,   // Fournit InvoiceService
+    CartModule, // Fournit CartService, CartRepository
+    ProductModule, // Fournit ProductService, ProductRepository
+    InvoiceModule, // Fournit InvoiceService
     InventoryModule, // Fournit InventoryService, InventoryRepository
   ],
-  
+
   controllers: [PaymentController],
-  
-  providers: [
-    PaymentRepository,
-    MvolaApiService,
-    PaymentService,
-  ],
-  
+
+  providers: [PaymentRepository, MvolaApiService, PaymentService],
+
   exports: [PaymentService, PaymentRepository],
 })
 export class PaymentModule {}

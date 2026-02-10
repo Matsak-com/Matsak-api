@@ -1,4 +1,12 @@
-import { Controller, Post, Get, Body, Param, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Param,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { PaymentService, InitPaymentInput } from './payment.service';
 import { mockMvolaStore } from './Mvola/mvola-api.service';
 

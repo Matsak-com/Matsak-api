@@ -57,7 +57,7 @@ export class PaymentService implements OnModuleInit {
     try {
       // Step 1: Vérifier que le panier existe et n'est pas supprimé
       const cart = await this.cartRepo.findById({
-        id: new Types.ObjectId(cartId), 
+        id: new Types.ObjectId(cartId),
         options: { populate: [{ path: 'items.product' }] },
       });
 
@@ -203,26 +203,26 @@ export class PaymentService implements OnModuleInit {
     });
 
     // ✅ CRÉER LA FACTURE ET SOFT DELETE DU PANIER SI LE PAIEMENT EST RÉUSSI
-if (newStatus === PaymentStatus.SUCCESS) {
-  try {
-    // 1️⃣ Déduire le stock AVANT la création de facture
-    await this.deductStockFromCart(
-      payment.cartId, 
-      payment.userId?.toString()
-    );
-    
-    // 2️⃣ Créer la facture
-    await this.createInvoiceForPayment(payment._id.toString());
-    
-    // 3️⃣ Soft delete du panier APRÈS
-    await this.cartService.softDeleteCartById(payment.cartId);
-  } catch (error) {
-    this.logger.error(
-      `Échec du traitement post-paiement pour ${payment._id}`,
-      error,
-    );
-  }
-}
+    if (newStatus === PaymentStatus.SUCCESS) {
+      try {
+        // 1️⃣ Déduire le stock AVANT la création de facture
+        await this.deductStockFromCart(
+          payment.cartId,
+          payment.userId?.toString(),
+        );
+
+        // 2️⃣ Créer la facture
+        await this.createInvoiceForPayment(payment._id.toString());
+
+        // 3️⃣ Soft delete du panier APRÈS
+        await this.cartService.softDeleteCartById(payment.cartId);
+      } catch (error) {
+        this.logger.error(
+          `Échec du traitement post-paiement pour ${payment._id}`,
+          error,
+        );
+      }
+    }
   }
 
   // ── 3. Polling — vérifier le statut (fallback si callback pas reçu) ─
@@ -235,9 +235,11 @@ if (newStatus === PaymentStatus.SUCCESS) {
 
     // Déjà terminé → retourner directement
     if (
-      [PaymentStatus.SUCCESS, PaymentStatus.FAILED, PaymentStatus.EXPIRED].includes(
-        payment.status,
-      )
+      [
+        PaymentStatus.SUCCESS,
+        PaymentStatus.FAILED,
+        PaymentStatus.EXPIRED,
+      ].includes(payment.status)
     ) {
       return payment;
     }
@@ -278,12 +280,12 @@ if (newStatus === PaymentStatus.SUCCESS) {
           // 1️⃣ Déduire le stock AVANT la création de facture
           await this.deductStockFromCart(
             payment.cartId,
-            payment.userId?.toString()
+            payment.userId?.toString(),
           );
-          
+
           // 2️⃣ Créer la facture
           await this.createInvoiceForPayment(paymentId);
-          
+
           // 3️⃣ Soft delete du panier APRÈS
           await this.cartService.softDeleteCartById(payment.cartId);
         } catch (error) {
@@ -326,12 +328,10 @@ if (newStatus === PaymentStatus.SUCCESS) {
   // ✅ MÉTHODE PRIVÉE : Créer une facture pour un paiement réussi
   // ══════════════════════════════════════════════════════════════════
   private async createInvoiceForPayment(paymentId: string): Promise<void> {
-
     try {
-      const invoice = await this.invoiceService.createInvoiceFromPayment({
+      void (await this.invoiceService.createInvoiceFromPayment({
         paymentId,
-      });
-
+      }));
     } catch (error) {
       this.logger.error(
         `Erreur détaillée lors de la création de facture pour le paiement ${paymentId}:`,
@@ -358,7 +358,8 @@ if (newStatus === PaymentStatus.SUCCESS) {
     }
 
     // Vérifier si une facture existe déjà
-    const existingInvoice = await this.invoiceService.findByPaymentId(paymentId);
+    const existingInvoice =
+      await this.invoiceService.findByPaymentId(paymentId);
     if (existingInvoice) {
       throw new BadRequestException(
         `Une facture existe déjà pour ce paiement: ${existingInvoice.invoiceNumber}`,
@@ -371,7 +372,10 @@ if (newStatus === PaymentStatus.SUCCESS) {
   // ══════════════════════════════════════════════════════════════════
   // ✅ MÉTHODE PRIVÉE : Déduire le stock pour tous les produits du panier
   // ══════════════════════════════════════════════════════════════════
-  private async deductStockFromCart(cartId: Types.ObjectId, userId?: string): Promise<void> {
+  private async deductStockFromCart(
+    cartId: Types.ObjectId,
+    userId?: string,
+  ): Promise<void> {
     try {
       // 1️⃣ Récupérer le panier avec les items populés
       const cart = await this.cartRepo.findById({
@@ -380,14 +384,16 @@ if (newStatus === PaymentStatus.SUCCESS) {
       });
 
       if (!cart || !cart.items || cart.items.length === 0) {
-        this.logger.warn(`Panier ${cartId} vide ou introuvable, aucune déduction de stock`);
+        this.logger.warn(
+          `Panier ${cartId} vide ou introuvable, aucune déduction de stock`,
+        );
         return;
       }
 
       // 2️⃣ Parcourir chaque item et déduire le stock
       for (const item of cart.items) {
         const product = item.product as any;
-  
+
         try {
           // Déduire le stock via InventoryService
           await this.inventoryService.stockOut(
@@ -399,14 +405,13 @@ if (newStatus === PaymentStatus.SUCCESS) {
             },
             userId, // L'utilisateur qui a effectué l'achat
           );
-
         } catch (stockError) {
           // Ne pas bloquer le processus si un produit a un stock insuffisant
           // On log juste l'erreur
           this.logger.error(
             `❌ Échec de déduction de stock pour produit ${product._id}: ${stockError.message}`,
           );
-          
+
           // Si c'est critique, vous pouvez throw pour annuler le paiement
           // throw stockError;
         }

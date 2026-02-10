@@ -1,7 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-  InjectModel,
-} from '@nestjs/mongoose';
+import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, PopulateOptions, UpdateQuery } from 'mongoose';
 import { Payment, PaymentDocument } from './payment.schema';
 

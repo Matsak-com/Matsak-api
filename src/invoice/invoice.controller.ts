@@ -28,10 +28,7 @@ export class InvoiceController {
 
   @UseGuards(JwtAuthGuard)
   @Put(':id/status')
-  updateStatus(
-    @Param('id') id: string,
-    @Body() body: { status: string },
-  ) {
+  updateStatus(@Param('id') id: string, @Body() body: { status: string }) {
     return this.invoiceService.updateStatus(id, body.status as any);
   }
 
