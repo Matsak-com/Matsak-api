@@ -373,7 +373,7 @@ export class PaymentService implements OnModuleInit {
   // ══════════════════════════════════════════════════════════════════
   // ✅ MÉTHODE PRIVÉE : Déduire le stock pour tous les produits du panier
   // ══════════════════════════════════════════════════════════════════
-  private async deductStockFromCart(
+    private async deductStockFromCart(
     cartId: Types.ObjectId,
     userId?: string,
   ): Promise<void> {
@@ -394,6 +394,14 @@ export class PaymentService implements OnModuleInit {
       // 2️⃣ Parcourir chaque item et déduire le stock
       for (const item of cart.items) {
         const product = item.product as any;
+
+        // ✅ AJOUTER CETTE VÉRIFICATION
+        if (!product.trackStock) {
+          this.logger.log(
+            `Produit ${product._id} n'a pas de suivi de stock, skip`,
+          );
+          continue; // Passer au produit suivant
+        }
 
         try {
           // Déduire le stock via InventoryService
