@@ -44,7 +44,7 @@ describe('MvolaApiService', () => {
           MVOLA_MODE: 'real',
         };
         return config[key] || defaultValue;
-      }),
+      })as any,
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -132,9 +132,7 @@ describe('MvolaApiService', () => {
         toJSON: () => ({}),
       };
 
-      httpService.post.mockReturnValue(
-        throwError(() => axiosError) as any,
-      );
+      httpService.post.mockReturnValue(throwError(() => axiosError) as any);
 
       await expect(service['getAccessToken']()).rejects.toThrow(
         "Impossible d'obtenir le token Mvola",
@@ -237,9 +235,7 @@ describe('MvolaApiService', () => {
         toJSON: () => ({}),
       };
 
-      httpService.post.mockReturnValueOnce(
-        throwError(() => axiosError) as any,
-      );
+      httpService.post.mockReturnValueOnce(throwError(() => axiosError) as any);
 
       await expect(service.initMerchantPay(initParams)).rejects.toThrow(
         "Erreur lors de l'initiation du paiement Mvola",
@@ -329,7 +325,7 @@ describe('MvolaApiService', () => {
           MVOLA_MODE: 'mock',
         };
         return config[key] || defaultValue;
-      });
+      }) as any;  
 
       const module: TestingModule = await Test.createTestingModule({
         providers: [
