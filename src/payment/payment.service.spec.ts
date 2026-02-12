@@ -345,6 +345,7 @@ describe('PaymentService', () => {
       paymentRepo.findById.mockResolvedValueOnce(waitingPayment as any);
       mvolaApiService.getTransactionStatus.mockResolvedValue({
         status: 'COMPLETED',
+        serverCorrelationId: 'server-correlation-id',
       });
       paymentRepo.update.mockResolvedValue({
         ...waitingPayment,

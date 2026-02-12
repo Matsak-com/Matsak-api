@@ -46,7 +46,8 @@ export class PaymentService implements OnModuleInit {
     );
   }
   onModuleInit() {
-    throw new Error('Method not implemented.');
+    this.logger.log('PaymentService initialisé');
+    // Ajoutez ici toute logique d'initialisation si nécessaire
   }
 
   // ── 1. Initier un paiement Mvola ───────────────────────────────────
