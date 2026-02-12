@@ -395,12 +395,12 @@ export class PaymentService implements OnModuleInit {
       for (const item of cart.items) {
         const product = item.product as any;
 
-        // ✅ AJOUTER CETTE VÉRIFICATION
-        if (!product.trackStock) {
+        // ✅ VÉRIFICATION STRICTE
+        if (!product || !product.trackStock || product.trackStock === false) {
           this.logger.log(
-            `Produit ${product._id} n'a pas de suivi de stock, skip`,
+            `Produit ${product?._id} n'a pas de suivi de stock (trackStock=${product?.trackStock}), skip`,
           );
-          continue; // Passer au produit suivant
+          continue;
         }
 
         try {
