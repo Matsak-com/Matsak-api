@@ -373,64 +373,44 @@ export class PaymentService implements OnModuleInit {
   // ══════════════════════════════════════════════════════════════════
   // ✅ MÉTHODE PRIVÉE : Déduire le stock pour tous les produits du panier
   // ══════════════════════════════════════════════════════════════════
-    private async deductStockFromCart(
-    cartId: Types.ObjectId,
-    userId?: string,
-  ): Promise<void> {
+  private async deductStockFromCart(
+  cartId: Types.ObjectId,
+  userId?: string,
+): Promise<void> {
+  const cart = await this.cartRepo.findById({
+    id: cartId,
+    options: { populate: [{ path: 'items.product' }] },
+  });
+
+  if (!cart || !cart.items?.length) {
+    return;
+  }
+
+  for (const item of cart.items) {
+    const product: any = item.product;
+
+    // ✅ IMPORTANT : ignorer les produits sans gestion de stock
+    if (!product?.trackStock) {
+      continue;
+    }
+
     try {
-      // 1️⃣ Récupérer le panier avec les items populés
-      const cart = await this.cartRepo.findById({
-        id: cartId,
-        options: { populate: [{ path: 'items.product' }] },
-      });
-
-      if (!cart || !cart.items || cart.items.length === 0) {
-        this.logger.warn(
-          `Panier ${cartId} vide ou introuvable, aucune déduction de stock`,
-        );
-        return;
-      }
-
-      // 2️⃣ Parcourir chaque item et déduire le stock
-      for (const item of cart.items) {
-        const product = item.product as any;
-
-        // ✅ VÉRIFICATION STRICTE
-        if (!product || !product.trackStock || product.trackStock === false) {
-          this.logger.log(
-            `Produit ${product?._id} n'a pas de suivi de stock (trackStock=${product?.trackStock}), skip`,
-          );
-          continue;
-        }
-
-        try {
-          // Déduire le stock via InventoryService
-          await this.inventoryService.stockOut(
-            {
-              productId: product._id.toString(),
-              quantity: item.quantity,
-              reason: 'Vente - Paiement réussi',
-              reference: `CART-${cartId}`,
-            },
-            userId, // L'utilisateur qui a effectué l'achat
-          );
-        } catch (stockError) {
-          // Ne pas bloquer le processus si un produit a un stock insuffisant
-          // On log juste l'erreur
-          this.logger.error(
-            `❌ Échec de déduction de stock pour produit ${product._id}: ${stockError.message}`,
-          );
-
-          // Si c'est critique, vous pouvez throw pour annuler le paiement
-          // throw stockError;
-        }
-      }
+      await this.inventoryService.stockOut(
+        {
+          productId: product._id.toString(),
+          quantity: item.quantity,
+          reason: 'Vente - Paiement réussi',
+          reference: `CART-${cart._id}`,
+        },
+        userId,
+      );
     } catch (error) {
       this.logger.error(
-        `Erreur lors de la déduction de stock pour le panier ${cartId}:`,
-        error.stack || error.message,
+        `❌ Échec de déduction de stock pour produit ${product._id}: ${error.message}`,
       );
-      throw error;
+      // continuer avec les autres produits
     }
   }
+}
+
 }
