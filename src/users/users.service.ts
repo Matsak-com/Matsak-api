@@ -14,7 +14,7 @@ import { CreateUserDto } from '../auth/dto/create-user.dto';
 import { UpdateUserDto } from '../auth/dto/update-user.dto';
 import { UpdatePasswordDto } from '../auth/dto/update-password.dto';
 import { AwsS3Service } from '../aws/aws-s3.service';
-import { Address, User, UserDocument } from './user.schema';
+import { Address, User, UserDocument, UserRole } from './user.schema';
 import { UserRepository } from './users.repository';
 import { MemberRepository } from '../members/member.repository';
 import { Member, MemberStatus } from '../members/member.schema';
@@ -196,6 +196,7 @@ export class UsersService {
       doc: {
         ...createUserDto,
         password: hashedPassword,
+        role: 'user' as UserRole,
       },
     });
   }
