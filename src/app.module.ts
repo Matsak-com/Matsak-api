@@ -28,6 +28,7 @@ import { FaqsModule } from './faqs/faqs.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { PaymentModule } from './payment/payment.module';
 import { InvoiceModule } from './invoice/invoice.module';
+import { CookieConsentController } from './cookie-consent/cookie-consent.controller';
 
 /**
  * Parse and validate Redis configuration
@@ -94,7 +95,7 @@ function getRedisConfig() {
     PaymentModule,
     InvoiceModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, CookieConsentController],
   providers: [
     AppService,
     {

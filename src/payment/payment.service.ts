@@ -374,43 +374,42 @@ export class PaymentService implements OnModuleInit {
   // ✅ MÉTHODE PRIVÉE : Déduire le stock pour tous les produits du panier
   // ══════════════════════════════════════════════════════════════════
   private async deductStockFromCart(
-  cartId: Types.ObjectId,
-  userId?: string,
-): Promise<void> {
-  const cart = await this.cartRepo.findById({
-    id: cartId,
-    options: { populate: [{ path: 'items.product' }] },
-  });
+    cartId: Types.ObjectId,
+    userId?: string,
+  ): Promise<void> {
+    const cart = await this.cartRepo.findById({
+      id: cartId,
+      options: { populate: [{ path: 'items.product' }] },
+    });
 
-  if (!cart || !cart.items?.length) {
-    return;
-  }
-
-  for (const item of cart.items) {
-    const product: any = item.product;
-
-    // ✅ IMPORTANT : ignorer les produits sans gestion de stock
-    if (!product?.trackStock) {
-      continue;
+    if (!cart || !cart.items?.length) {
+      return;
     }
 
-    try {
-      await this.inventoryService.stockOut(
-        {
-          productId: product._id.toString(),
-          quantity: item.quantity,
-          reason: 'Vente - Paiement réussi',
-          reference: `CART-${cart._id}`,
-        },
-        userId,
-      );
-    } catch (error) {
-      this.logger.error(
-        `❌ Échec de déduction de stock pour produit ${product._id}: ${error.message}`,
-      );
-      // continuer avec les autres produits
+    for (const item of cart.items) {
+      const product: any = item.product;
+
+      // ✅ IMPORTANT : ignorer les produits sans gestion de stock
+      if (!product?.trackStock) {
+        continue;
+      }
+
+      try {
+        await this.inventoryService.stockOut(
+          {
+            productId: product._id.toString(),
+            quantity: item.quantity,
+            reason: 'Vente - Paiement réussi',
+            reference: `CART-${cart._id}`,
+          },
+          userId,
+        );
+      } catch (error) {
+        this.logger.error(
+          `❌ Échec de déduction de stock pour produit ${product._id}: ${error.message}`,
+        );
+        // continuer avec les autres produits
+      }
     }
   }
-}
-
 }
