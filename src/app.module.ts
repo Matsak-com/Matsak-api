@@ -1,5 +1,5 @@
 import { MiddlewareConsumer, Module } from '@nestjs/common';
-import { APP_FILTER } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -26,6 +26,10 @@ import { BullModule } from '@nestjs/bull';
 import { PreferenceModule } from './preference/preference.module';
 import { FaqsModule } from './faqs/faqs.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ContactModule } from './contact/contact.module';
+import Redis from 'ioredis';
+import { ThrottlerStorageRedisService } from './throttler/throttler.storage';
 
 /**
  * Parse and validate Redis configuration
@@ -55,6 +59,11 @@ function getRedisConfig() {
   };
 }
 
+const redis = new Redis({
+  host: 'redis',
+  port: 6379,
+});
+
 @Module({
   imports: [
     MongooseModule.forRoot(
@@ -68,6 +77,15 @@ function getRedisConfig() {
     BullModule.forRoot({
       redis: getRedisConfig(),
     }),
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: 3600, // 1 heure en secondes
+          limit: 3, // 3 requêtes par heure par IP
+        },
+      ],
+      storage: new ThrottlerStorageRedisService(redis),
+    }),
     UsersModule,
     AuthModule,
     ConfigModule.forRoot(),
@@ -75,7 +93,6 @@ function getRedisConfig() {
     MembersModule,
     RolesModule,
     CategoriesModule,
-    ConfigModule.forRoot(),
     SubCategoriesModule,
     DetailProductModule,
     ImageProductModule,
@@ -89,6 +106,7 @@ function getRedisConfig() {
     PreferenceModule,
     FaqsModule,
     ReviewsModule,
+    ContactModule,
   ],
   controllers: [AppController],
   providers: [
@@ -96,6 +114,10 @@ function getRedisConfig() {
     {
       provide: APP_FILTER,
       useClass: GlobalExceptionFilter,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
     },
   ],
 })
