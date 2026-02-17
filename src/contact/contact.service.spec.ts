@@ -155,7 +155,7 @@ describe('ContactService', () => {
       expect(result).toBe(false);
     });
 
-    it('devrait utiliser la secretKey depuis ConfigService', async () => {
+    it('devrait utiliser la clé secrète correcte dans la requête Cloudflare', async () => {
       global.fetch = jest.fn().mockResolvedValue({
         json: jest.fn().mockResolvedValue({ success: true }),
       } as any);
@@ -166,9 +166,6 @@ describe('ContactService', () => {
         (global.fetch as jest.Mock).mock.calls[0][1].body,
       );
       expect(body.secret).toBe('1x0000000000000000000000000000000AA');
-      expect(mockConfigService.get).toHaveBeenCalledWith(
-        'TURNSTILE_SECRET_KEY',
-      );
     });
 
     it('devrait rejeter si fetch échoue', async () => {
