@@ -2,17 +2,19 @@
   "email": {
     "welcome": {
       "subject": "Bienvenue sur Matsak !",
-      "greeting": "Bonjour {{name}}",
+      "greeting": "Bonjour",
       "title": "Bienvenue sur Matsak !",
       "thankYou": "Merci de nous avoir rejoint. Nous sommes ravis de vous accueillir !",
       "accountCreated": "Votre compte a été créé avec succès et vous pouvez maintenant commencer à explorer notre plateforme.",
       "getStarted": "Commencer",
       "support": "Si vous avez des questions ou besoin d'assistance, n'hésitez pas à contacter notre équipe de support.",
-      "signature": "Cordialement,<br>L'équipe Matsak"
+      "signature": "Cordialement,<br>L'équipe Matsak",
+      "createdAt": "Votre compte a été créé le",
+      "date": "Date :"
     },
     "resetPassword": {
       "subject": "Réinitialiser votre mot de passe",
-      "greeting": "Bonjour {{name}}",
+      "greeting": "Bonjour",
       "title": "Demande de réinitialisation de mot de passe",
       "instruction": "Nous avons reçu une demande de réinitialisation de votre mot de passe. Cliquez sur le bouton ci-dessous pour créer un nouveau mot de passe :",
       "resetButton": "Réinitialiser le mot de passe",
@@ -40,7 +42,7 @@
     },
     "verifyEmail": {
       "subject": "Vérifiez votre adresse email",
-      "greeting": "Bonjour {{name}}",
+      "greeting": "Bonjour",
       "title": "Vérifiez votre email",
       "instruction": "Veuillez vérifier votre adresse email en cliquant sur le bouton ci-dessous :",
       "verifyButton": "Vérifier l'email",
@@ -51,7 +53,12 @@
     "common": {
       "footer": "© {{year}} Matsak. Tous droits réservés.",
       "contactUs": "Nous contacter",
-      "unsubscribe": "Se désabonner"
+      "unsubscribe": "Se désabonner",
+      "helpCenter": "Centre d'aide",
+      "contact": "Contact",
+      "privacy": "Confidentialité",
+      "terms": "Conditions",
+      "autoEmailNotice": "Cet email a été envoyé automatiquement. Merci de ne pas y répondre."
     }
   }
 }
