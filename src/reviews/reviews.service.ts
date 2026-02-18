@@ -23,11 +23,14 @@ export class ReviewsService {
   async create(dto: CreateReviewDto): Promise<Review> {
     const userObjectId = new Types.ObjectId(dto.userId);
     const teamObjectId = new Types.ObjectId(dto.teamId);
+    const userIdMatcher = { $in: [userObjectId, dto.userId] } as any;
+    const teamIdMatcher = { $in: [teamObjectId, dto.teamId] } as any;
 
     const lastReview = await this.reviewRepo.findOne({
       filter: {
-        userId: userObjectId,
-        teamId: teamObjectId,
+        userId: userIdMatcher,
+        teamId: teamIdMatcher,
+        deleted_at: null,
         status: { $in: [ReviewStatus.PENDING, ReviewStatus.APPROVED] },
       } as any,
       options: {
@@ -114,7 +117,7 @@ export class ReviewsService {
   async approve(reviewId: string): Promise<Review> {
     if (!this.supportsTransactions()) {
       const review = await this.reviewRepo.findOne({
-        filter: { _id: reviewId, deleted_at: { $exists: false } } as any,
+        filter: { _id: reviewId } as any,
       });
 
       if (!review) {
@@ -169,7 +172,7 @@ export class ReviewsService {
 
     try {
       const review = await this.reviewRepo.findOne({
-        filter: { _id: reviewId, deleted_at: { $exists: false } } as any,
+        filter: { _id: reviewId } as any,
       });
 
       if (!review) {
@@ -213,7 +216,7 @@ export class ReviewsService {
 
   async reject(reviewId: string): Promise<Review> {
     const review = await this.reviewRepo.findOne({
-      filter: { _id: reviewId, deleted_at: { $exists: false } } as any,
+      filter: { _id: reviewId } as any,
     });
 
     if (!review) {
@@ -233,7 +236,7 @@ export class ReviewsService {
   }
 
   async getAll({ status }: { status?: ReviewStatus }): Promise<Review[]> {
-    const filter: Record<string, unknown> = { deleted_at: { $exists: false } };
+    const filter: Record<string, unknown> = {};
 
     if (status) {
       filter.status = status;
@@ -252,7 +255,7 @@ export class ReviewsService {
     return (await this.reviewRepo.findAll({
       filter: {
         teamId: new Types.ObjectId(teamId),
-        deleted_at: { $exists: false },
+        status: ReviewStatus.APPROVED,
       } as any,
       options: {
         sort: { createdAt: -1 },
@@ -263,7 +266,7 @@ export class ReviewsService {
 
   async delete(reviewId: string): Promise<Review> {
     const review = await this.reviewRepo.findOne({
-      filter: { _id: reviewId, deleted_at: { $exists: false } } as any,
+      filter: { _id: reviewId } as any,
     });
 
     if (!review) {

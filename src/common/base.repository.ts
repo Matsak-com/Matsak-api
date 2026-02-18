@@ -34,9 +34,20 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
   }
 
   withNotDeleted(filter?: FilterQuery<T>) {
+    const notDeleted = {
+      $or: [{ deleted_at: { $exists: false } }, { deleted_at: null }],
+    } as FilterQuery<T>;
+
+    if (filter && Object.prototype.hasOwnProperty.call(filter, 'deleted_at')) {
+      return filter as FilterQuery<T>;
+    }
+
+    if (!filter || Object.keys(filter).length === 0) {
+      return notDeleted as FilterQuery<T>;
+    }
+
     return {
-      ...(filter ?? {}),
-      deleted_at: { $exists: false },
+      $and: [filter as FilterQuery<T>, notDeleted],
     } as FilterQuery<T>;
   }
 

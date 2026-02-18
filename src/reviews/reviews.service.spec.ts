@@ -27,7 +27,11 @@ describe('ReviewsService', () => {
   jest.setTimeout(120000);
 
   beforeAll(async () => {
-    replset = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
+    replset = await MongoMemoryReplSet.create({
+      replSet: { count: 1 },
+      // Allow extra startup time for binary download/startup in CI
+      instanceOpts: [{ launchTimeout: 60000 }],
+    });
     const uri = replset.getUri();
 
     moduleRef = await Test.createTestingModule({
