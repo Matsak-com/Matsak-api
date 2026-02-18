@@ -5,6 +5,7 @@ import {
   PopulateOptions,
   ProjectionType,
   Types,
+  ClientSession,
 } from 'mongoose';
 
 type QueryOptionsExtended<T> = {
@@ -14,7 +15,7 @@ type QueryOptionsExtended<T> = {
   limit?: number;
   skip?: number;
   lean?: boolean;
-  session?: any;
+  session?: ClientSession;
 };
 
 export class BaseRepository<T extends { deleted_at?: Date }> {
@@ -153,6 +154,7 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
     // We also skip sort, limit, skip as they don't make sense for findOneAndUpdate
     if (options.populate) query.populate(options.populate);
     if (options.lean) query.lean();
+    if (options.session) query.session(options.session);
   }
 
   /**

@@ -13,6 +13,7 @@ import { User, UserRole, UserSchema } from '../users/user.schema';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { ReviewRepository } from './review.repository';
+import { TeamRepository } from '../teams/team.repository';
 
 describe('ReviewsService', () => {
   let moduleRef: TestingModule;
@@ -38,7 +39,7 @@ describe('ReviewsService', () => {
           { name: User.name, schema: UserSchema },
         ]),
       ],
-      providers: [ReviewsService, ReviewRepository],
+      providers: [ReviewsService, ReviewRepository, TeamRepository],
     }).compile();
 
     service = moduleRef.get(ReviewsService);
@@ -192,7 +193,10 @@ describe('ReviewsService', () => {
     const dto = createReviewDto(team._id.toString(), { userId, rating: 5 });
 
     await expect(service.create(dto)).rejects.toBeInstanceOf(ConflictException);
-    const count = await reviewModel.countDocuments({ teamId: team._id, userId });
+    const count = await reviewModel.countDocuments({
+      teamId: team._id,
+      userId,
+    });
     expect(count).toBe(1);
   });
 

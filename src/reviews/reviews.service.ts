@@ -8,7 +8,6 @@ import { InjectConnection } from '@nestjs/mongoose';
 import { ClientSession, Connection, Types } from 'mongoose';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { Review, ReviewStatus } from './review.schema';
-import { Team } from '../teams/team.schema';
 import { ReviewRepository } from './review.repository';
 import { TeamRepository } from '../teams/team.repository';
 
@@ -22,14 +21,13 @@ export class ReviewsService {
   ) {}
 
   async create(dto: CreateReviewDto): Promise<Review> {
+    const userObjectId = new Types.ObjectId(dto.userId);
+    const teamObjectId = new Types.ObjectId(dto.teamId);
+
     const lastReview = await this.reviewRepo.findOne({
       filter: {
-        $expr: {
-          $and: [
-            { $eq: [{ $toString: '$userId' }, dto.userId] },
-            { $eq: [{ $toString: '$teamId' }, dto.teamId] },
-          ],
-        },
+        userId: userObjectId,
+        teamId: teamObjectId,
         status: { $in: [ReviewStatus.PENDING, ReviewStatus.APPROVED] },
       } as any,
       options: {
@@ -54,8 +52,8 @@ export class ReviewsService {
       ...dto,
       status,
       isVerified,
-      teamId: new Types.ObjectId(dto.teamId),
-      userId: new Types.ObjectId(dto.userId),
+      teamId: teamObjectId,
+      userId: userObjectId,
     } as any;
 
     const shouldUpdateTeamStats = false;
@@ -76,7 +74,6 @@ export class ReviewsService {
 
         return createdReview;
       } catch (error: any) {
-        console.log(error)
         if (error?.code === 11000) {
           throw new ConflictException('ALREADY_REVIEWED_TEAM');
         }
@@ -104,7 +101,6 @@ export class ReviewsService {
       await session.commitTransaction();
       return createdReview;
     } catch (error: any) {
-      console.error('Error creating review:', error);
       await session.abortTransaction();
       if (error?.code === 11000) {
         throw new ConflictException('ALREADY_REVIEWED_TEAM');

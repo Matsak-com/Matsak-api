@@ -61,11 +61,7 @@ export class ReviewsController {
     params: reviewIdParamSchema,
     body: reviewStatusBodySchema,
   })
-  reject(
-    @Param() params: { id: string },
-    @Body() body: { status: ReviewStatus },
-    @CurrentUser() user: UserPayload,
-  ) {
+  reject(@Param() params: { id: string }, @CurrentUser() user: UserPayload) {
     if (
       user.role !== UserRole.ADMIN &&
       user.role !== UserRole.SUPERADMIN &&
