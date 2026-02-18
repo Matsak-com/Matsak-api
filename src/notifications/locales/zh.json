@@ -2,17 +2,19 @@
   "email": {
     "welcome": {
       "subject": "欢迎来到 Matsak！",
-      "greeting": "您好 {{name}}",
+      "greeting": "您好",
       "title": "欢迎来到 Matsak！",
       "thankYou": "感谢您加入 Matsak。我们很高兴您的加入！",
       "accountCreated": "您的账户已成功创建，现在可以开始探索我们的平台。",
       "getStarted": "开始使用",
       "support": "如果您有任何问题或需要帮助，请随时联系我们的支持团队。",
-      "signature": "此致敬礼，<br>Matsak 团队"
+      "signature": "此致敬礼，<br>Matsak 团队",
+      "createdAt": "您的账户创建于",
+      "date": "日期："
     },
     "resetPassword": {
       "subject": "重置您的密码",
-      "greeting": "您好 {{name}}",
+      "greeting": "您好",
       "title": "密码重置请求",
       "instruction": "我们收到了重置您密码的请求。点击下面的按钮创建新密码：",
       "resetButton": "重置密码",
@@ -40,7 +42,7 @@
     },
     "verifyEmail": {
       "subject": "验证您的邮箱地址",
-      "greeting": "您好 {{name}}",
+      "greeting": "您好",
       "title": "验证您的邮箱",
       "instruction": "请点击下面的按钮验证您的邮箱地址：",
       "verifyButton": "验证邮箱",
@@ -51,7 +53,12 @@
     "common": {
       "footer": "© {{year}} Matsak. 保留所有权利。",
       "contactUs": "联系我们",
-      "unsubscribe": "取消订阅"
+      "unsubscribe": "取消订阅",
+      "helpCenter": "帮助中心",
+      "contact": "联系我们",
+      "privacy": "隐私政策",
+      "terms": "服务条款",
+      "autoEmailNotice": "此邮件为自动发送，请勿直接回复。"
     }
   }
 }

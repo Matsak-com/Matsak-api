@@ -125,6 +125,9 @@ export class User extends Document {
   @Prop({ type: Types.ObjectId, ref: 'Team', required: false, default: null })
   current_team?: Types.ObjectId | null;
 
+  @Prop({ type: String, enum: ['en', 'fr', 'zh', 'ar'], default: 'fr' })
+  locale?: 'en' | 'fr' | 'zh' | 'ar';
+
   // ✅ Tableau d'adresses
   @Prop({ type: [AddressSchema], default: [] })
   addresses: Address[];
