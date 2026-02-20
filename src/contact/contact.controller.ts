@@ -7,14 +7,16 @@ import {
   Ip,
   BadRequestException,
   ForbiddenException,
+  UseGuards,
 } from '@nestjs/common';
 import { ContactDto } from './dto/contact.dto';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { ContactService } from './contact.service';
-import { Throttle } from '@nestjs/throttler';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
 @Controller('contact')
+@UseGuards(ThrottlerGuard)
 export class ContactController {
   constructor(private readonly contactService: ContactService) {}
 

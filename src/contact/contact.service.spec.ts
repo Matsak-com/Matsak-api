@@ -7,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 describe('ContactService', () => {
   let service: ContactService;
   let mockQueue: { add: jest.Mock };
-  let mockConfigService: { get: jest.Mock };
+  let originalFetch: typeof global.fetch;
 
   const mockContactDto: ContactDto = {
     firstName: 'Jean',
@@ -22,12 +22,10 @@ describe('ContactService', () => {
   };
 
   beforeEach(async () => {
+    originalFetch = global.fetch;
+
     mockQueue = {
       add: jest.fn(),
-    };
-
-    mockConfigService = {
-      get: jest.fn().mockReturnValue('1x0000000000000000000000000000000AA'),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -39,7 +37,14 @@ describe('ContactService', () => {
         },
         {
           provide: ConfigService,
-          useValue: mockConfigService,
+          useValue: {
+            get: jest.fn((key: string) => {
+              if (key === 'TURNSTILE_SECRET_KEY') {
+                return 'test-secret-key';
+              }
+              return undefined;
+            }),
+          },
         },
       ],
     }).compile();
@@ -48,10 +53,14 @@ describe('ContactService', () => {
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    global.fetch = originalFetch;
+    jest.clearAllMocks();
   });
 
-  // TESTS queueContactEmail
+  afterAll(() => {
+    global.fetch = originalFetch;
+  });
+
   describe('queueContactEmail', () => {
     it('devrait ajouter un job à la queue avec les bonnes données', async () => {
       const mockTimestamp = 1700000000000;
@@ -59,10 +68,20 @@ describe('ContactService', () => {
 
       await service.queueContactEmail(mockContactDto, '192.168.1.100');
 
+      const expectedPayload = {
+        firstName: 'Jean',
+        lastName: 'Dupont',
+        email: 'jean.dupont@example.com',
+        phone: '034 12 345 67',
+        subject: "Demande d'information",
+        message:
+          "Bonjour, je souhaiterais avoir plus d'informations sur vos services.",
+      };
+
       expect(mockQueue.add).toHaveBeenCalledWith(
         'send-contact-email',
         {
-          dto: mockContactDto,
+          dto: expectedPayload,
           ip: '192.168.1.100',
           timestamp: mockTimestamp,
         },
@@ -87,24 +106,6 @@ describe('ContactService', () => {
       expect(typeof callArgs.timestamp).toBe('number');
     });
 
-    it('devrait inclure tous les champs du DTO dans le job', async () => {
-      jest.spyOn(Date, 'now').mockReturnValue(1700000000000);
-
-      await service.queueContactEmail(mockContactDto, '192.168.1.100');
-      const jobData = mockQueue.add.mock.calls[0][1];
-
-      expect(jobData.dto).toEqual(mockContactDto);
-      expect(jobData.dto.firstName).toBe('Jean');
-      expect(jobData.dto.lastName).toBe('Dupont');
-      expect(jobData.dto.email).toBe('jean.dupont@example.com');
-      expect(jobData.dto.phone).toBe('034 12 345 67');
-      expect(jobData.dto.subject).toBe("Demande d'information");
-      expect(jobData.dto.message).toBe(
-        "Bonjour, je souhaiterais avoir plus d'informations sur vos services.",
-      );
-      expect(jobData.dto.turnstileToken).toBe('valid-token'); // ← ajouté
-    });
-
     it('devrait fonctionner avec un DTO sans téléphone', async () => {
       jest.spyOn(Date, 'now').mockReturnValue(1700000000000);
 
@@ -114,70 +115,8 @@ describe('ContactService', () => {
       const jobData = mockQueue.add.mock.calls[0][1];
       expect(jobData.dto.phone).toBeUndefined();
     });
-
-    it('devrait fonctionner avec un honeypot rempli', async () => {
-      jest.spyOn(Date, 'now').mockReturnValue(1700000000000);
-
-      const dtoAvecHoneypot = { ...mockContactDto, honeypot: 'Je suis un bot' };
-      await service.queueContactEmail(dtoAvecHoneypot, '192.168.1.100');
-
-      const jobData = mockQueue.add.mock.calls[0][1];
-      expect(jobData.dto.honeypot).toBe('Je suis un bot');
-    });
   });
 
-  // TESTS verifyTurnstile
-  describe('verifyTurnstile', () => {
-    it('devrait retourner true si Cloudflare répond success: true', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
-        json: jest.fn().mockResolvedValue({ success: true }),
-      } as any);
-
-      const result = await service.verifyTurnstile('valid-token');
-
-      expect(result).toBe(true);
-      expect(global.fetch).toHaveBeenCalledWith(
-        'https://challenges.cloudflare.com/turnstile/v0/siteverify',
-        expect.objectContaining({
-          method: 'POST',
-          body: expect.stringContaining('valid-token'),
-        }),
-      );
-    });
-
-    it('devrait retourner false si Cloudflare répond success: false', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
-        json: jest.fn().mockResolvedValue({ success: false }),
-      } as any);
-
-      const result = await service.verifyTurnstile('invalid-token');
-
-      expect(result).toBe(false);
-    });
-
-    it('devrait utiliser la clé secrète correcte dans la requête Cloudflare', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
-        json: jest.fn().mockResolvedValue({ success: true }),
-      } as any);
-
-      await service.verifyTurnstile('any-token');
-
-      const body = JSON.parse(
-        (global.fetch as jest.Mock).mock.calls[0][1].body,
-      );
-      expect(body.secret).toBe('1x0000000000000000000000000000000AA');
-    });
-
-    it('devrait rejeter si fetch échoue', async () => {
-      global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
-
-      await expect(service.verifyTurnstile('any-token')).rejects.toThrow(
-        'Network error',
-      );
-    });
-  });
-
-  // TESTS intégration queue
   describe('intégration queue', () => {
     it('devrait appeler queue.add exactement une fois par appel', async () => {
       jest.spyOn(Date, 'now').mockReturnValue(1700000000000);
@@ -191,13 +130,73 @@ describe('ContactService', () => {
     it("devrait rejeter l'erreur si la queue échoue", async () => {
       jest.spyOn(Date, 'now').mockReturnValue(1700000000000);
 
-      mockQueue.add.mockRejectedValueOnce(new Error('Erreur Redis temporaire'));
+      const errorMessage = 'Erreur Redis temporaire';
+      mockQueue.add.mockRejectedValueOnce(new Error(errorMessage));
 
       await expect(
         service.queueContactEmail(mockContactDto, '192.168.1.100'),
-      ).rejects.toThrow('Erreur Redis temporaire');
+      ).rejects.toThrow(errorMessage);
 
       expect(mockQueue.add).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('verifyTurnstile', () => {
+    it('devrait retourner true si Cloudflare répond success: true', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        json: jest.fn().mockResolvedValue({ success: true }),
+      } as any);
+
+      const result = await service.verifyTurnstile('valid-token');
+      expect(result).toBe(true);
+    });
+
+    it('devrait retourner false si Cloudflare répond success: false', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        json: jest
+          .fn()
+          .mockResolvedValue({ success: false, error: 'invalid token' }),
+      } as any);
+
+      const result = await service.verifyTurnstile('invalid-token');
+      expect(result).toBe(false);
+    });
+
+    it('devrait retourner false si fetch échoue', async () => {
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
+      global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
+
+      const result = await service.verifyTurnstile('any-token');
+      expect(result).toBe(false);
+
+      consoleErrorSpy.mockRestore(); // Restaure console.error
+    });
+
+    // Vérification précise du format Cloudflare
+    it('devrait appeler Cloudflare avec le bon endpoint et secret', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        json: jest.fn().mockResolvedValue({ success: true }),
+      } as any);
+
+      await service.verifyTurnstile('test-token');
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        }),
+      );
+
+      // Vérification du body query string
+      const body = (global.fetch as jest.Mock).mock.calls[0][1].body as string;
+      expect(body).toContain('secret=test-secret-key');
+      expect(body).toContain('response=test-token');
     });
   });
 });

@@ -135,8 +135,7 @@
     "moduleNameMapper": {
         "^src/(.*)$": "<rootDir>/$1",
         "^bcrypt$": "bcryptjs"
-    },
-    "forceExit": true
+    }
   },
   "pnpm": {
     "onlyBuiltDependencies": [

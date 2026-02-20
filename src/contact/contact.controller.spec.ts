@@ -2,6 +2,18 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ContactController } from './contact.controller';
 import { ContactService } from './contact.service';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { ThrottlerModule, ThrottlerStorage } from '@nestjs/throttler';
+
+class MockThrottlerStorage implements ThrottlerStorage {
+  async increment() {
+    return {
+      totalHits: 1,
+      timeToExpire: 60000,
+      isBlocked: false,
+      timeToBlockExpire: 0,
+    };
+  }
+}
 
 describe('ContactController', () => {
   let controller: ContactController;
@@ -14,6 +26,12 @@ describe('ContactController', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
+      imports: [
+        ThrottlerModule.forRoot({
+          throttlers: [{ ttl: 60, limit: 10 }], // Limites relaxées pour les tests
+          storage: new MockThrottlerStorage(),
+        }),
+      ],
       controllers: [ContactController],
       providers: [
         {

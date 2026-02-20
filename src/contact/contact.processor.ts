@@ -50,7 +50,9 @@ export class ContactProcessor {
         locale: 'fr',
       });
 
-      this.logger.log(`Email sent successfully to ${dto.email}`);
+      this.logger.log(
+        `Email sent successfully to ${process.env.CONTACT_EMAIL}`,
+      );
     } catch (error) {
       this.logger.error(
         `Failed to send contact email: ${error.message}`,

@@ -30,8 +30,19 @@ export class ThrottlerStorageRedisService implements ThrottlerStorage {
     // Déterminer si bloqué
     const isBlocked = current > limit;
 
-    // Durée de blocage en millisecondes (si bloqué)
-    const timeToBlockExpire = isBlocked ? blockDuration * 1000 : 0;
+    // Durée de blocage basée sur Redis (si bloqué)
+    let timeToBlockExpire = 0;
+    if (isBlocked) {
+      const blockDurationMs = blockDuration * 1000;
+      // S'assurer que la clé reste active au moins pendant la durée de blocage
+      if (timeToExpire <= 0 || timeToExpire < blockDurationMs) {
+        await this.redis.pexpire(key, blockDurationMs);
+        timeToExpire = blockDurationMs;
+      }
+      // Le temps restant de blocage reflète le TTL actuel de la clé
+      timeToBlockExpire = await this.redis.pttl(key);
+      if (timeToBlockExpire < 0) timeToBlockExpire = 0;
+    }
 
     return {
       totalHits: current,

@@ -4,7 +4,6 @@ import {
   IsNotEmpty,
   MinLength,
   MaxLength,
-  Matches,
   IsOptional,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
@@ -15,32 +14,34 @@ export class ContactDto {
   @IsNotEmpty()
   @MinLength(2)
   @MaxLength(50)
-  @Transform(({ value }) => value.trim())
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   firstName: string;
 
   @IsString()
   @IsNotEmpty()
   @MinLength(2)
   @MaxLength(50)
-  @Transform(({ value }) => value.trim())
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   lastName: string;
 
   @IsString()
   @IsOptional()
-  @Matches(/^\d{3} \d{2} \d{3} \d{2}$/, {
-    message: 'Phone must be in format: xxx xx xxx xx',
-  })
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   phone?: string;
 
   @IsEmail()
   @IsNotEmpty()
-  @Transform(({ value }) => value.trim().toLowerCase())
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   email: string;
 
   @IsString()
   @IsNotEmpty()
-  @Transform(({ value }) => value.trim())
+  @MaxLength(150)
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().replace(/[\r\n]+/g, ' ') : value,
+  )
   subject: string;
 
   @IsString()
@@ -48,19 +49,22 @@ export class ContactDto {
   @MinLength(10)
   @MaxLength(1000)
   @Transform(({ value }) =>
-    sanitizeHtml(value.trim(), {
-      allowedTags: [],
-      allowedAttributes: {},
-    }),
+    typeof value === 'string'
+      ? sanitizeHtml(value.trim(), {
+          allowedTags: [],
+          allowedAttributes: {},
+        })
+      : value,
   )
   message: string;
 
   @IsString()
   @IsOptional()
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   honeypot?: string;
 
   @IsString()
   @IsNotEmpty()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   turnstileToken: string;
 }

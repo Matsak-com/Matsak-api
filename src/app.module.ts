@@ -1,5 +1,5 @@
 import { MiddlewareConsumer, Module } from '@nestjs/common';
-import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { APP_FILTER } from '@nestjs/core';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -26,16 +26,17 @@ import { BullModule } from '@nestjs/bull';
 import { PreferenceModule } from './preference/preference.module';
 import { FaqsModule } from './faqs/faqs.module';
 import { ReviewsModule } from './reviews/reviews.module';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { ContactModule } from './contact/contact.module';
 import Redis from 'ioredis';
 import { ThrottlerStorageRedisService } from './throttler/throttler.storage';
+import { RedisService } from './common/providers/redis.provider';
 
 /**
  * Parse and validate Redis configuration
  * BullJS accepts either a connection URL string or a configuration object
  */
-function getRedisConfig() {
+export function getRedisConfig() {
   const redisUrl = process.env.REDIS_URL;
 
   // If REDIS_URL is provided, validate it's a proper Redis URL
@@ -59,11 +60,6 @@ function getRedisConfig() {
   };
 }
 
-const redis = new Redis({
-  host: 'redis',
-  port: 6379,
-});
-
 @Module({
   imports: [
     MongooseModule.forRoot(
@@ -77,14 +73,17 @@ const redis = new Redis({
     BullModule.forRoot({
       redis: getRedisConfig(),
     }),
-    ThrottlerModule.forRoot({
-      throttlers: [
-        {
-          ttl: 3600, // 1 heure en secondes
-          limit: 3, // 3 requêtes par heure par IP
-        },
-      ],
-      storage: new ThrottlerStorageRedisService(redis),
+    ThrottlerModule.forRootAsync({
+      useFactory: () => {
+        const config = getRedisConfig();
+        const redis =
+          typeof config === 'string' ? new Redis(config) : new Redis(config);
+
+        return {
+          throttlers: [{ ttl: 3600, limit: 3 }],
+          storage: new ThrottlerStorageRedisService(redis),
+        };
+      },
     }),
     UsersModule,
     AuthModule,
@@ -111,13 +110,10 @@ const redis = new Redis({
   controllers: [AppController],
   providers: [
     AppService,
+    RedisService,
     {
       provide: APP_FILTER,
       useClass: GlobalExceptionFilter,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
     },
   ],
 })

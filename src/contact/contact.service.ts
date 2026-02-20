@@ -1,44 +1,78 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { ContactDto } from './dto/contact.dto';
 import { ConfigService } from '@nestjs/config';
 
+interface ContactEmailPayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  subject: string;
+  message: string;
+}
 export interface ContactEmailJob {
-  dto: ContactDto;
+  dto: ContactEmailPayload;
   ip: string;
   timestamp: number;
 }
 
 @Injectable()
 export class ContactService {
+  private readonly logger = new Logger(ContactService.name);
   constructor(
     @InjectQueue('contact-emails') private readonly contactEmailQueue: Queue,
     private readonly configService: ConfigService,
   ) {}
 
   async verifyTurnstile(token: string): Promise<boolean> {
-    const secretKey = this.configService.get<string>('TURNSTILE_SECRET_KEY') ?? '1x0000000000000000000000000000000AA';
+    const secret = this.configService.get<string>('TURNSTILE_SECRET_KEY');
 
-    const response = await fetch(
-      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          secret: secretKey,
-          response: token,
-        }),
-      },
-    );
+    if (!secret) {
+      this.logger.warn(
+        'TURNSTILE_SECRET_KEY not set - skipping verification in dev',
+      );
+      return true; // Skip en dev si pas de clé
+    }
 
-    const data = await response.json();
-    return data.success === true;
+    try {
+      const body = new URLSearchParams({
+        secret,
+        response: token,
+      });
+
+      const response = await fetch(
+        'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: body.toString(),
+        },
+      );
+
+      const data = await response.json();
+      return data.success === true;
+    } catch (error) {
+      this.logger.error('Turnstile verification failed', error);
+      return false;
+    }
   }
 
   async queueContactEmail(dto: ContactDto, ip: string): Promise<void> {
-    const job: ContactEmailJob = {
-      dto,
+    const payload: ContactEmailPayload = {
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      email: dto.email,
+      phone: dto.phone,
+      subject: dto.subject,
+      message: dto.message,
+    };
+
+    const job = {
+      dto: payload,
       ip,
       timestamp: Date.now(),
     };
