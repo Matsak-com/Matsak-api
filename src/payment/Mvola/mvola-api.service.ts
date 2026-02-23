@@ -5,17 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { firstValueFrom } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { AxiosError } from 'axios';
-
-// ── Mock Store ─────────────────────────────────────────────────────
-export type MockStatus = 'PENDING' | 'SUCCESS' | 'FAILED';
-export interface MockTransaction {
-  serverCorrelationId: string;
-  transactionReference: string;
-  status: MockStatus;
-  amount: number;
-  customerPhone: string;
-}
-export const mockMvolaStore = new Map<string, MockTransaction>();
+import { MockStatus, MockTransaction, mockMvolaStore } from './mock/mvola-mock.store';
 
 // ── Types ──────────────────────────────────────────────────────────
 export interface MvolaTokenResponse {
@@ -79,7 +69,11 @@ export class MvolaApiService {
       '',
     );
     this.partnerName = this.configService.get<string>('MVOLA_PARTNER_NAME', '');
-    this.mockMode = this.configService.get<string>('MVOLA_MODE') === 'mock';
+    const mvolaMode = this.configService.get<string>('MVOLA_MODE', '').toLowerCase();
+    this.mockMode =
+      mvolaMode === 'mock' ||
+      mvolaMode === 'true' ||
+      mvolaMode === '1';
 
     if (this.mockMode) {
       this.logger.warn('🧪 MVola API en mode MOCK — aucune vraie transaction');
@@ -120,10 +114,10 @@ export class MvolaApiService {
           map((res) => res.data),
           catchError((error: AxiosError) => {
             this.logger.error(
-              'Erreur OAuth Mvola',
+              'Error OAuth Mvola',
               error.response?.data || error.message,
             );
-            throw new Error("Impossible d'obtenir le token Mvola");
+            throw new Error("Unable to obtain the Mvola token");
           }),
         ),
     );
@@ -208,10 +202,10 @@ export class MvolaApiService {
           map((res) => res.data),
           catchError((error: AxiosError) => {
             this.logger.error(
-              'Erreur POST merchantpay',
+              'Error POST merchantpay',
               error.response?.data || error.message,
             );
-            throw new Error("Erreur lors de l'initiation du paiement Mvola");
+            throw new Error("Error during Mvola payment initiation");
           }),
         ),
     );
@@ -267,11 +261,11 @@ export class MvolaApiService {
           map((res) => res.data),
           catchError((error: AxiosError) => {
             this.logger.error(
-              'Erreur GET status',
+              'Error GET status',
               error.response?.data || error.message,
             );
             throw new Error(
-              'Impossible de vérifier le statut de la transaction',
+              'Unable to verify transaction status',
             );
           }),
         ),
@@ -280,3 +274,5 @@ export class MvolaApiService {
     return response;
   }
 }
+export { mockMvolaStore };
+

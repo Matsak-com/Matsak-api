@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InvoiceRepository } from './invoice.repository';
-import { Invoice } from './invoice.shema';
+import { Invoice } from './invoice.schema';
 import { Types } from 'mongoose';
 
 interface CreateInvoiceFromPaymentDto {

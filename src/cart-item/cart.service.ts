@@ -202,32 +202,22 @@ export class CartService {
   // ✅ NOUVELLE MÉTHODE : Soft Delete du panier après paiement
   // ══════════════════════════════════════════════════════════════════
   async softDeleteCart(cartId: string): Promise<void> {
-    const cart = await this.cartRepository.findById({
-      id: new Types.ObjectId(cartId),
-    });
+  const objectId = new Types.ObjectId(cartId)
+  const cart = await this.cartRepository.findById({ id: objectId })
 
-    if (!cart) {
-      throw new NotFoundException(`Panier ${cartId} introuvable`);
-    }
-
-    // Vider les items ET marquer comme supprimé
-    await this.cartRepository.update({
-      id: cart._id as Types.ObjectId,
-      update: {
-        deleted_at: new Date(), // Soft delete
-      },
-    });
+  if (!cart) {
+    throw new NotFoundException(`Panier ${cartId} introuvable`)
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  // ✅ MÉTHODE ALTERNATIVE : Soft Delete par ObjectId direct
-  // ══════════════════════════════════════════════════════════════════
-  async softDeleteCartById(cartId: Types.ObjectId): Promise<void> {
-    await this.cartRepository.update({
-      id: cartId,
-      update: {
-        deleted_at: new Date(),
-      },
-    });
-  }
+  await this.softDeleteCartById(objectId)
+}
+
+async softDeleteCartById(cartId: Types.ObjectId): Promise<void> {
+  await this.cartRepository.update({
+    id: cartId,
+    update: {
+      deleted_at: new Date(),
+    },
+  })
+}
 }

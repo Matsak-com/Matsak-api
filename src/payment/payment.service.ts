@@ -16,7 +16,7 @@ import { MvolaApiService } from './Mvola/mvola-api.service';
 import { CartRepository } from '../cart-item/cart.repository';
 import { ProductService } from '../product/product.service';
 import { InvoiceService } from '../invoice/invoice.service';
-import { CartService } from '../cart-item/cart.service'; // ✅ Ajouter
+import { CartService } from '../cart-item/cart.service'; 
 import { InventoryService } from '../inventory/inventory.service';
 
 export interface InitPaymentInput {
@@ -170,61 +170,71 @@ export class PaymentService implements OnModuleInit {
 
   // ── 2. Callback Mvola — reçu quand le client confirme ──────────────
   async handleCallback(callbackData: Record<string, any>): Promise<void> {
-    this.logger.log('Callback Mvola reçu', JSON.stringify(callbackData));
+  this.logger.log('Callback Mvola reçu', JSON.stringify(callbackData));
 
-    const { serverCorrelationId, status } = callbackData;
+  const { serverCorrelationId, status } = callbackData;
 
-    if (!serverCorrelationId) {
-      this.logger.warn('Callback sans serverCorrelationId — ignoré');
-      return;
-    }
+  if (!serverCorrelationId) {
+    this.logger.warn('Callback sans serverCorrelationId — ignoré');
+    return;
+  }
 
-    const payment = await this.paymentRepo.findOne({
-      filter: { serverCorrelationId },
-    });
+  const payment = await this.paymentRepo.findOne({
+    filter: { serverCorrelationId },
+  });
 
-    if (!payment) {
-      this.logger.warn(
-        `Callback pour serverCorrelationId inconnu: ${serverCorrelationId}`,
-      );
-      return;
-    }
+  if (!payment) {
+    this.logger.warn(`Callback pour serverCorrelationId inconnu: ${serverCorrelationId}`);
+    return;
+  }
 
-    const newStatus =
-      status === 'COMPLETED' ? PaymentStatus.SUCCESS : PaymentStatus.FAILED;
+  // ✅ Idempotence
+  if ([PaymentStatus.SUCCESS, PaymentStatus.FAILED].includes(payment.status)) {
+    this.logger.warn(`Callback dupliqué ignoré — statut déjà: ${payment.status}`);
+    return;
+  }
 
-    // Mettre à jour le statut du paiement
+  // ✅ Paiement échoué → on marque directement FAILED et on sort
+  if (status !== 'COMPLETED') {
     await this.paymentRepo.update({
       id: payment._id.toString(),
       update: {
-        status: newStatus,
+        status: PaymentStatus.FAILED,
         mvolaResponse: callbackData,
-        ...(newStatus === PaymentStatus.FAILED && { failureReason: status }),
+        failureReason: status,
       },
     });
-
-    // ✅ CRÉER LA FACTURE ET SOFT DELETE DU PANIER SI LE PAIEMENT EST RÉUSSI
-    if (newStatus === PaymentStatus.SUCCESS) {
-      try {
-        // 1️⃣ Déduire le stock AVANT la création de facture
-        await this.deductStockFromCart(
-          payment.cartId,
-          payment.userId?.toString(),
-        );
-
-        // 2️⃣ Créer la facture
-        await this.createInvoiceForPayment(payment._id.toString());
-
-        // 3️⃣ Soft delete du panier APRÈS
-        await this.cartService.softDeleteCartById(payment.cartId);
-      } catch (error) {
-        this.logger.error(
-          `Échec du traitement post-paiement pour ${payment._id}`,
-          error,
-        );
-      }
-    }
+    return;
   }
+
+  // ✅ Paiement COMPLETED → post-traitement D'ABORD, SUCCESS après
+  try {
+    await this.deductStockFromCart(payment.cartId, payment.userId?.toString());
+    await this.createInvoiceForPayment(payment._id.toString());
+    await this.cartService.softDeleteCartById(payment.cartId);
+
+    // 4️⃣ Tout a réussi → on marque SUCCESS
+    await this.paymentRepo.update({
+      id: payment._id.toString(),
+      update: {
+        status: PaymentStatus.SUCCESS,
+        mvolaResponse: callbackData,
+      },
+    });
+  } catch (error) {
+    this.logger.error(`Échec post-paiement pour ${payment._id}`, error);
+
+    // ❌ Post-traitement échoué → FAILED avec raison explicite
+    await this.paymentRepo.update({
+      id: payment._id.toString(),
+      update: {
+        status: PaymentStatus.FAILED,
+        mvolaResponse: callbackData,
+        failureReason: 'POST_PROCESSING_FAILED',
+      },
+    });
+  }
+}
 
   // ── 3. Polling — vérifier le statut (fallback si callback pas reçu) ─
   async pollStatus(paymentId: string): Promise<Payment> {
@@ -330,9 +340,9 @@ export class PaymentService implements OnModuleInit {
   // ══════════════════════════════════════════════════════════════════
   private async createInvoiceForPayment(paymentId: string): Promise<void> {
     try {
-      void (await this.invoiceService.createInvoiceFromPayment({
+      await this.invoiceService.createInvoiceFromPayment({
         paymentId,
-      }));
+      });
     } catch (error) {
       this.logger.error(
         `Erreur détaillée lors de la création de facture pour le paiement ${paymentId}:`,

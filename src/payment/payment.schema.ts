@@ -70,7 +70,7 @@ export class Payment {
   customerPhone?: string;
 
   // Référence de transaction qu'on génère nous-mêmes
-  @Prop({ type: String, sparse: true, unique: true })
+  @Prop({ type: String, required: true, sparse: true, unique: true })
   transactionReference?: string;
 
   // Raison d'échec (si status = FAILED)
@@ -84,7 +84,7 @@ export class Payment {
 
 export const PaymentSchema = SchemaFactory.createForClass(Payment);
 
-// Index composé : un seul paiement PENDING/WAITING par panier à la fois
+// ── Index composé : un seul paiement PENDING/WAITING par panier à la fois ──
 PaymentSchema.index(
   { cartId: 1, status: 1 },
   {
@@ -95,3 +95,42 @@ PaymentSchema.index(
     },
   },
 );
+
+// ── Validation applicative complémentaire pour éviter les doublons PENDING/WAITING ──
+// Protège contre les race conditions que l'index MongoDB seul ne peut pas couvrir
+// (ex: deux requêtes simultanées avant que l'index ne soit mis à jour)
+PaymentSchema.pre<PaymentDocument>('save', async function (next) {
+  try {
+    // Vérifier uniquement à la création ou quand le status change
+    if (!this.isNew && !this.isModified('status')) {
+      return next();
+    }
+
+    // Si le status n'est pas PENDING/WAITING, aucune contrainte supplémentaire
+    if (![PaymentStatus.PENDING, PaymentStatus.WAITING].includes(this.status)) {
+      return next();
+    }
+
+    const PaymentModel = this.constructor as any;
+
+    const existing = await PaymentModel.findOne({
+      _id: { $ne: this._id },
+      cartId: this.cartId,
+      status: { $in: [PaymentStatus.PENDING, PaymentStatus.WAITING] },
+    })
+      .lean()
+      .exec();
+
+    if (existing) {
+      return next(
+        new Error(
+          'Another PENDING or WAITING payment already exists for this cart.',
+        ),
+      );
+    }
+
+    return next();
+  } catch (err) {
+    return next(err as Error);
+  }
+});

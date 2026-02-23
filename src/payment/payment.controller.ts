@@ -6,13 +6,23 @@ import {
   Param,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { PaymentService, InitPaymentInput } from './payment.service';
 import { mockMvolaStore } from './Mvola/mvola-api.service';
+import { IsOptional, IsPhoneNumber, IsString } from 'class-validator';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+
 
 class InitPaymentDto {
+  @IsString()
   cartId: string;
+
+  @IsOptional()
+  @IsString()
   userId?: string;
+
+  @IsString()  
   customerPhone: string;
 }
 
@@ -39,6 +49,7 @@ export class PaymentController {
     return { received: true };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('status/:paymentId')
   async getStatus(@Param('paymentId') paymentId: string) {
     return this.paymentService.pollStatus(paymentId);

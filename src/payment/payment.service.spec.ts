@@ -253,6 +253,37 @@ describe('PaymentService', () => {
         BadRequestException,
       );
     });
+
+    it('should rollback payment to FAILED when Mvola API throws after creation', async () => {
+      cartRepo.findById.mockResolvedValue(mockCart as any);
+      productService.calculatePrice.mockReturnValue({
+        basePrice: 1000,
+        finalPrice: 1000,
+        totalPrice: 2000,
+        discountsApplied: [],
+        currency: 'Ar',
+      });
+      paymentRepo.findOne.mockResolvedValue(null);
+      paymentRepo.create.mockResolvedValue(mockPayment as any);
+      paymentRepo.update.mockResolvedValue({
+        ...mockPayment,
+        status: PaymentStatus.FAILED,
+      } as any);
+      mvolaApiService.initMerchantPay.mockRejectedValue(
+        new Error('Mvola initiation error'),
+      );
+
+      await expect(service.initiate(initiateInput)).rejects.toThrow();
+
+      expect(paymentRepo.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: mockPayment._id,
+          update: expect.objectContaining({
+            status: PaymentStatus.FAILED,
+          }),
+        }),
+      );
+    });
   });
 
   describe('handleCallback', () => {
