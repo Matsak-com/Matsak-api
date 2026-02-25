@@ -16,7 +16,7 @@ import { MvolaApiService } from './Mvola/mvola-api.service';
 import { CartRepository } from '../cart-item/cart.repository';
 import { ProductService } from '../product/product.service';
 import { InvoiceService } from '../invoice/invoice.service';
-import { CartService } from '../cart-item/cart.service'; 
+import { CartService } from '../cart-item/cart.service';
 import { InventoryService } from '../inventory/inventory.service';
 
 export interface InitPaymentInput {
@@ -170,71 +170,80 @@ export class PaymentService implements OnModuleInit {
 
   // ── 2. Callback Mvola — reçu quand le client confirme ──────────────
   async handleCallback(callbackData: Record<string, any>): Promise<void> {
-  this.logger.log('Callback Mvola reçu', JSON.stringify(callbackData));
+    this.logger.log('Callback Mvola reçu', JSON.stringify(callbackData));
 
-  const { serverCorrelationId, status } = callbackData;
+    const { serverCorrelationId, status } = callbackData;
 
-  if (!serverCorrelationId) {
-    this.logger.warn('Callback sans serverCorrelationId — ignoré');
-    return;
-  }
+    if (!serverCorrelationId) {
+      this.logger.warn('Callback sans serverCorrelationId — ignoré');
+      return;
+    }
 
-  const payment = await this.paymentRepo.findOne({
-    filter: { serverCorrelationId },
-  });
-
-  if (!payment) {
-    this.logger.warn(`Callback pour serverCorrelationId inconnu: ${serverCorrelationId}`);
-    return;
-  }
-
-  // ✅ Idempotence
-  if ([PaymentStatus.SUCCESS, PaymentStatus.FAILED].includes(payment.status)) {
-    this.logger.warn(`Callback dupliqué ignoré — statut déjà: ${payment.status}`);
-    return;
-  }
-
-  // ✅ Paiement échoué → on marque directement FAILED et on sort
-  if (status !== 'COMPLETED') {
-    await this.paymentRepo.update({
-      id: payment._id.toString(),
-      update: {
-        status: PaymentStatus.FAILED,
-        mvolaResponse: callbackData,
-        failureReason: status,
-      },
+    const payment = await this.paymentRepo.findOne({
+      filter: { serverCorrelationId },
     });
-    return;
+
+    if (!payment) {
+      this.logger.warn(
+        `Callback pour serverCorrelationId inconnu: ${serverCorrelationId}`,
+      );
+      return;
+    }
+
+    // ✅ Idempotence
+    if (
+      [PaymentStatus.SUCCESS, PaymentStatus.FAILED].includes(payment.status)
+    ) {
+      this.logger.warn(
+        `Callback dupliqué ignoré — statut déjà: ${payment.status}`,
+      );
+      return;
+    }
+
+    // ✅ Paiement échoué → on marque directement FAILED et on sort
+    if (status !== 'COMPLETED') {
+      await this.paymentRepo.update({
+        id: payment._id.toString(),
+        update: {
+          status: PaymentStatus.FAILED,
+          mvolaResponse: callbackData,
+          failureReason: status,
+        },
+      });
+      return;
+    }
+
+    // ✅ Paiement COMPLETED → post-traitement D'ABORD, SUCCESS après
+    try {
+      await this.deductStockFromCart(
+        payment.cartId,
+        payment.userId?.toString(),
+      );
+      await this.createInvoiceForPayment(payment._id.toString());
+      await this.cartService.softDeleteCartById(payment.cartId);
+
+      // 4️⃣ Tout a réussi → on marque SUCCESS
+      await this.paymentRepo.update({
+        id: payment._id.toString(),
+        update: {
+          status: PaymentStatus.SUCCESS,
+          mvolaResponse: callbackData,
+        },
+      });
+    } catch (error) {
+      this.logger.error(`Échec post-paiement pour ${payment._id}`, error);
+
+      // ❌ Post-traitement échoué → FAILED avec raison explicite
+      await this.paymentRepo.update({
+        id: payment._id.toString(),
+        update: {
+          status: PaymentStatus.FAILED,
+          mvolaResponse: callbackData,
+          failureReason: 'POST_PROCESSING_FAILED',
+        },
+      });
+    }
   }
-
-  // ✅ Paiement COMPLETED → post-traitement D'ABORD, SUCCESS après
-  try {
-    await this.deductStockFromCart(payment.cartId, payment.userId?.toString());
-    await this.createInvoiceForPayment(payment._id.toString());
-    await this.cartService.softDeleteCartById(payment.cartId);
-
-    // 4️⃣ Tout a réussi → on marque SUCCESS
-    await this.paymentRepo.update({
-      id: payment._id.toString(),
-      update: {
-        status: PaymentStatus.SUCCESS,
-        mvolaResponse: callbackData,
-      },
-    });
-  } catch (error) {
-    this.logger.error(`Échec post-paiement pour ${payment._id}`, error);
-
-    // ❌ Post-traitement échoué → FAILED avec raison explicite
-    await this.paymentRepo.update({
-      id: payment._id.toString(),
-      update: {
-        status: PaymentStatus.FAILED,
-        mvolaResponse: callbackData,
-        failureReason: 'POST_PROCESSING_FAILED',
-      },
-    });
-  }
-}
 
   // ── 3. Polling — vérifier le statut (fallback si callback pas reçu) ─
   async pollStatus(paymentId: string): Promise<Payment> {
@@ -384,43 +393,42 @@ export class PaymentService implements OnModuleInit {
   // ✅ MÉTHODE PRIVÉE : Déduire le stock pour tous les produits du panier
   // ══════════════════════════════════════════════════════════════════
   private async deductStockFromCart(
-  cartId: Types.ObjectId,
-  userId?: string,
-): Promise<void> {
-  const cart = await this.cartRepo.findById({
-    id: cartId,
-    options: { populate: [{ path: 'items.product' }] },
-  });
+    cartId: Types.ObjectId,
+    userId?: string,
+  ): Promise<void> {
+    const cart = await this.cartRepo.findById({
+      id: cartId,
+      options: { populate: [{ path: 'items.product' }] },
+    });
 
-  if (!cart || !cart.items?.length) {
-    return;
-  }
-
-  for (const item of cart.items) {
-    const product: any = item.product;
-
-    // ✅ IMPORTANT : ignorer les produits sans gestion de stock
-    if (!product?.trackStock) {
-      continue;
+    if (!cart || !cart.items?.length) {
+      return;
     }
 
-    try {
-      await this.inventoryService.stockOut(
-        {
-          productId: product._id.toString(),
-          quantity: item.quantity,
-          reason: 'Vente - Paiement réussi',
-          reference: `CART-${cart._id}`,
-        },
-        userId,
-      );
-    } catch (error) {
-      this.logger.error(
-        `❌ Échec de déduction de stock pour produit ${product._id}: ${error.message}`,
-      );
-      // continuer avec les autres produits
+    for (const item of cart.items) {
+      const product: any = item.product;
+
+      // ✅ IMPORTANT : ignorer les produits sans gestion de stock
+      if (!product?.trackStock) {
+        continue;
+      }
+
+      try {
+        await this.inventoryService.stockOut(
+          {
+            productId: product._id.toString(),
+            quantity: item.quantity,
+            reason: 'Vente - Paiement réussi',
+            reference: `CART-${cart._id}`,
+          },
+          userId,
+        );
+      } catch (error) {
+        this.logger.error(
+          `❌ Échec de déduction de stock pour produit ${product._id}: ${error.message}`,
+        );
+        // continuer avec les autres produits
+      }
     }
   }
-}
-
 }

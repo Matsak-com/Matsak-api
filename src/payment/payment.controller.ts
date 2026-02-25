@@ -10,9 +10,8 @@ import {
 } from '@nestjs/common';
 import { PaymentService, InitPaymentInput } from './payment.service';
 import { mockMvolaStore } from './Mvola/mvola-api.service';
-import { IsOptional, IsPhoneNumber, IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-
 
 class InitPaymentDto {
   @IsString()
@@ -22,7 +21,7 @@ class InitPaymentDto {
   @IsString()
   userId?: string;
 
-  @IsString()  
+  @IsString()
   customerPhone: string;
 }
 

@@ -44,7 +44,7 @@ describe('MvolaApiService', () => {
           MVOLA_MODE: 'real',
         };
         return config[key] || defaultValue;
-      })as any,
+      }) as any,
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -325,7 +325,7 @@ describe('MvolaApiService', () => {
           MVOLA_MODE: 'mock',
         };
         return config[key] || defaultValue;
-      }) as any;  
+      }) as any;
 
       const module: TestingModule = await Test.createTestingModule({
         providers: [

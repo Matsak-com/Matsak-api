@@ -19,20 +19,19 @@ export class InvoiceRepository extends BaseRepository<InvoiceDocument> {
    * Generate next invoice number
    */
   async generateInvoiceNumber(): Promise<string> {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const prefix = `INV-${year}${month}`;
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const prefix = `INV-${year}${month}`;
 
-  // ✅ Atomique : incrémente un compteur en une seule opération
-  const counter = await this.counterModel.findOneAndUpdate(
-    { _id: prefix },
-    { $inc: { seq: 1 } },
-    { upsert: true, new: true },
-  );
+    // ✅ Atomique : incrémente un compteur en une seule opération
+    const counter = await this.counterModel.findOneAndUpdate(
+      { _id: prefix },
+      { $inc: { seq: 1 } },
+      { upsert: true, new: true },
+    );
 
-  const nextNumber = String(counter.seq).padStart(4, '0');
-  return `${prefix}-${nextNumber}`;
-}
-
+    const nextNumber = String(counter.seq).padStart(4, '0');
+    return `${prefix}-${nextNumber}`;
+  }
 }

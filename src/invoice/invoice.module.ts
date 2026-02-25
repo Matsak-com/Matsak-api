@@ -9,7 +9,10 @@ import { Counter, CounterSchema } from './counter.schema';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Invoice.name, schema: InvoiceSchema }, { name: Counter.name, schema: CounterSchema }]),
+    MongooseModule.forFeature([
+      { name: Invoice.name, schema: InvoiceSchema },
+      { name: Counter.name, schema: CounterSchema },
+    ]),
     ProductModule, // Import pour accéder au ProductService
   ],
   controllers: [InvoiceController],

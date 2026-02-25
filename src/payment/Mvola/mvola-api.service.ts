@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { firstValueFrom } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { AxiosError } from 'axios';
-import { MockStatus, MockTransaction, mockMvolaStore } from './mock/mvola-mock.store';
+import { mockMvolaStore } from './mock/mvola-mock.store';
 
 // ── Types ──────────────────────────────────────────────────────────
 export interface MvolaTokenResponse {
@@ -69,11 +69,11 @@ export class MvolaApiService {
       '',
     );
     this.partnerName = this.configService.get<string>('MVOLA_PARTNER_NAME', '');
-    const mvolaMode = this.configService.get<string>('MVOLA_MODE', '').toLowerCase();
+    const mvolaMode = this.configService
+      .get<string>('MVOLA_MODE', '')
+      .toLowerCase();
     this.mockMode =
-      mvolaMode === 'mock' ||
-      mvolaMode === 'true' ||
-      mvolaMode === '1';
+      mvolaMode === 'mock' || mvolaMode === 'true' || mvolaMode === '1';
 
     if (this.mockMode) {
       this.logger.warn('🧪 MVola API en mode MOCK — aucune vraie transaction');
@@ -117,7 +117,7 @@ export class MvolaApiService {
               'Error OAuth Mvola',
               error.response?.data || error.message,
             );
-            throw new Error("Unable to obtain the Mvola token");
+            throw new Error('Unable to obtain the Mvola token');
           }),
         ),
     );
@@ -205,7 +205,7 @@ export class MvolaApiService {
               'Error POST merchantpay',
               error.response?.data || error.message,
             );
-            throw new Error("Error during Mvola payment initiation");
+            throw new Error('Error during Mvola payment initiation');
           }),
         ),
     );
@@ -264,9 +264,7 @@ export class MvolaApiService {
               'Error GET status',
               error.response?.data || error.message,
             );
-            throw new Error(
-              'Unable to verify transaction status',
-            );
+            throw new Error('Unable to verify transaction status');
           }),
         ),
     );
@@ -275,4 +273,3 @@ export class MvolaApiService {
   }
 }
 export { mockMvolaStore };
-
