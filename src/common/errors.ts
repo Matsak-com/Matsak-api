@@ -53,6 +53,9 @@ export const ERRORS = {
   PAYMENT_ALREADY_IN_PROGRESS: 'A payment is already in progress for this cart',
   PAYMENT_DUPLICATE: 'Duplicate payment',
   PAYMENT_NOT_FOUND: 'Payment not found',
+  USER_CREATION_FAILED: 'USER_CREATION_FAILED',
+  REGISTRATION_FAILED: 'REGISTRATION_FAILED',
+  INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
 };
 
 export const TOKEN_MAP: Record<string, { status: number; message: string }> = {
@@ -207,5 +210,21 @@ export const TOKEN_MAP: Record<string, { status: number; message: string }> = {
   [ERRORS.FAQ_NOT_FOUND]: {
     status: HttpStatus.NOT_FOUND,
     message: 'FAQ not found',
+  },
+  [ERRORS.USER_CREATION_FAILED]: {
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    message: 'User creation failed',
+  },
+  [ERRORS.REGISTRATION_FAILED]: {
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    message: 'Registration failed',
+  },
+  [ERRORS.INTERNAL_SERVER_ERROR]: {
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    message: 'Internal server error',
+  },
+  [ERRORS.USER_ALREADY_EXISTS]: {
+    status: HttpStatus.CONFLICT,
+    message: 'User already exists',
   },
 };

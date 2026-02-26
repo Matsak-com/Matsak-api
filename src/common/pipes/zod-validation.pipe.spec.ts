@@ -19,7 +19,6 @@ describe('ZodValidationPipe', () => {
       firstname: 'Doe',
       email: 'john.doe@example.com',
       password: 'password123',
-      role: 'user',
     };
 
     const result = pipe.transform(validData);
@@ -32,7 +31,6 @@ describe('ZodValidationPipe', () => {
       firstname: 'Doe',
       email: 'invalid-email',
       password: 'password123',
-      role: 'user',
     };
 
     expect(() => pipe.transform(invalidData)).toThrow(BadRequestException);
@@ -44,7 +42,6 @@ describe('ZodValidationPipe', () => {
       firstname: 'Doe',
       email: 'john.doe@example.com',
       password: '123',
-      role: 'user',
     };
 
     expect(() => pipe.transform(invalidData)).toThrow(BadRequestException);
@@ -56,7 +53,6 @@ describe('ZodValidationPipe', () => {
       firstname: '',
       email: 'john.doe@example.com',
       password: 'password123',
-      role: 'user',
     };
 
     expect(() => pipe.transform(invalidData)).toThrow(BadRequestException);

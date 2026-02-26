@@ -13,6 +13,7 @@ import {
   FileTypeValidator,
   MaxFileSizeValidator,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
@@ -25,6 +26,10 @@ import {
   teamIdParamSchema,
 } from '../common/schemas/team.schemas';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorator/current-user.decorator';
+import { UserPayload } from '../auth/jwt/jwt.strategy';
+import { UserRole } from '../users/user.schema';
+import { userIdParamSchema } from '../common/schemas/auth.schemas';
 
 @Controller('teams')
 export class TeamsController {
@@ -57,8 +62,21 @@ export class TeamsController {
 
   @UseGuards(JwtAuthGuard)
   @Get('user/:userId')
-  async findByUser(@Param() params: { userId: string }) {
-    return this.teamsService.findByUser(params.userId);
+  @CompoundZodValidation({ params: userIdParamSchema })
+  async findByUser(
+    @Param() params: { userId: string },
+    @CurrentUser() user: UserPayload,
+  ) {
+    const isAdmin =
+      user.role === UserRole.ADMIN || user.role === UserRole.SUPERADMIN;
+    if (!isAdmin && user.userId !== params.userId) {
+      throw new ForbiddenException('You can only access your own teams');
+    }
+
+    return this.teamsService.findByUser({
+      userId: params.userId,
+      role: user.role,
+    });
   }
 
   @Get(':id')
