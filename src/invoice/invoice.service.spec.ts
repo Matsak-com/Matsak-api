@@ -3,6 +3,7 @@ import { InvoiceService } from './invoice.service';
 import { InvoiceRepository } from './invoice.repository';
 import { NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
+import { InvoiceStatus } from './invoice.schema'; // ← ajout
 
 describe('InvoiceService', () => {
   let service: InvoiceService;
@@ -16,7 +17,7 @@ describe('InvoiceService', () => {
     _id: new Types.ObjectId('507f1f77bcf86cd799439014'),
     payment: mockPaymentId,
     invoiceNumber: 'INV-2024-001',
-    status: 'paid',
+    status: InvoiceStatus.PAID, // ← fix
     invoiceDate: new Date('2024-01-15'),
     createdAt: new Date('2024-01-15'),
     updatedAt: new Date('2024-01-15'),
@@ -108,7 +109,7 @@ describe('InvoiceService', () => {
         doc: expect.objectContaining({
           payment: expect.any(Types.ObjectId),
           invoiceNumber: 'INV-2024-001',
-          status: 'paid',
+          status: InvoiceStatus.PAID, // ← fix
           invoiceDate: expect.any(Date),
         }),
       });
@@ -208,7 +209,7 @@ describe('InvoiceService', () => {
     it('should update invoice status to refunded', async () => {
       const updatedInvoice = {
         ...mockInvoice,
-        status: 'refunded',
+        status: InvoiceStatus.REFUNDED, // ← fix
         refundedAt: new Date(),
       };
 
@@ -217,7 +218,7 @@ describe('InvoiceService', () => {
 
       const result = await service.updateStatus(
         mockInvoice._id.toString(),
-        'refunded',
+        InvoiceStatus.REFUNDED, // ← fix
       );
 
       expect(invoiceRepo.findById).toHaveBeenCalledWith({
@@ -226,17 +227,17 @@ describe('InvoiceService', () => {
       expect(invoiceRepo.update).toHaveBeenCalledWith({
         id: mockInvoice._id.toString(),
         update: expect.objectContaining({
-          status: 'refunded',
+          status: InvoiceStatus.REFUNDED, // ← fix
           refundedAt: expect.any(Date),
         }),
       });
-      expect(result.status).toBe('refunded');
+      expect(result.status).toBe(InvoiceStatus.REFUNDED); // ← fix
     });
 
     it('should update invoice status to cancelled', async () => {
       const updatedInvoice = {
         ...mockInvoice,
-        status: 'cancelled',
+        status: InvoiceStatus.CANCELLED, // ← fix
       };
 
       invoiceRepo.findById.mockResolvedValue(mockInvoice as any);
@@ -244,21 +245,21 @@ describe('InvoiceService', () => {
 
       const result = await service.updateStatus(
         mockInvoice._id.toString(),
-        'cancelled',
+        InvoiceStatus.CANCELLED, // ← fix
       );
 
       expect(invoiceRepo.update).toHaveBeenCalledWith({
         id: mockInvoice._id.toString(),
-        update: { status: 'cancelled' },
+        update: { status: InvoiceStatus.CANCELLED }, // ← fix
       });
-      expect(result.status).toBe('cancelled');
+      expect(result.status).toBe(InvoiceStatus.CANCELLED); // ← fix
     });
 
     it('should throw NotFoundException when invoice not found', async () => {
       invoiceRepo.findById.mockResolvedValue(null);
 
       await expect(
-        service.updateStatus(mockInvoice._id.toString(), 'refunded'),
+        service.updateStatus(mockInvoice._id.toString(), InvoiceStatus.REFUNDED), // ← fix
       ).rejects.toThrow(NotFoundException);
     });
   });
