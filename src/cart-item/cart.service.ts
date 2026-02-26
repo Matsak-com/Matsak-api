@@ -198,9 +198,10 @@ export class CartService {
     });
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  // ✅ NOUVELLE MÉTHODE : Soft Delete du panier après paiement
-  // ══════════════════════════════════════════════════════════════════
+  /**
+   * Soft delete avec vérification — utiliser pour les endpoints API exposés.
+   * Lève NotFoundException si le panier n'existe pas.
+   */
   async softDeleteCart(cartId: string): Promise<void> {
     const objectId = new Types.ObjectId(cartId);
     const cart = await this.cartRepository.findById({ id: objectId });
@@ -212,12 +213,15 @@ export class CartService {
     await this.softDeleteCartById(objectId);
   }
 
+  /**
+   * Soft delete sans vérification — utiliser uniquement en interne
+   * quand l'existence du panier est déjà garantie (ex: post-paiement).
+   * Échoue silencieusement si le panier n'existe pas.
+   */
   async softDeleteCartById(cartId: Types.ObjectId): Promise<void> {
     await this.cartRepository.update({
       id: cartId,
-      update: {
-        deleted_at: new Date(),
-      },
+      update: { deleted_at: new Date() },
     });
   }
 }

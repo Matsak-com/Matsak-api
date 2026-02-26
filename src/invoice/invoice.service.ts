@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InvoiceRepository } from './invoice.repository';
-import { Invoice } from './invoice.schema';
+import { Invoice, InvoiceStatus } from './invoice.schema';
 import { Types } from 'mongoose';
 
 interface CreateInvoiceFromPaymentDto {
@@ -10,46 +10,49 @@ interface CreateInvoiceFromPaymentDto {
 @Injectable()
 export class InvoiceService {
   private readonly logger = new Logger(InvoiceService.name);
+  private readonly MAX_INVOICE_RETRIES = 3;
 
   constructor(private readonly invoiceRepo: InvoiceRepository) {}
 
-  /**
-   * Créer une facture ultra-minimaliste après paiement réussi
-   */
   async createInvoiceFromPayment(
     dto: CreateInvoiceFromPaymentDto,
   ): Promise<Invoice> {
-    try {
-      this.logger.log(`Création facture pour payment ${dto.paymentId}`);
+    this.logger.log(`Création facture pour payment ${dto.paymentId}`);
 
-      // Générer le numéro de facture
-      const invoiceNumber = await this.invoiceRepo.generateInvoiceNumber();
+    for (let attempt = 1; attempt <= this.MAX_INVOICE_RETRIES; attempt++) {
+      try {
+        const invoiceNumber = await this.invoiceRepo.generateInvoiceNumber();
 
-      // Créer la facture (juste payment + invoiceNumber)
-      const invoiceDoc: any = {
-        payment: new Types.ObjectId(dto.paymentId),
-        invoiceNumber,
-        status: 'paid' as const,
-        invoiceDate: new Date(),
-      };
+        const invoiceDoc: any = {
+          payment: new Types.ObjectId(dto.paymentId),
+          invoiceNumber,
+          status: InvoiceStatus.PAID,
+          invoiceDate: new Date(),
+        };
 
-      const invoice = await this.invoiceRepo.create({ doc: invoiceDoc });
+        const invoice = await this.invoiceRepo.create({ doc: invoiceDoc });
 
-      this.logger.log(`✅ Facture ${invoiceNumber} créée avec succès`);
+        this.logger.log(`✅ Facture ${invoiceNumber} créée avec succès`);
 
-      return invoice;
-    } catch (error) {
-      this.logger.error(
-        'Erreur lors de la création de facture',
-        error.stack || error.message,
-      );
-      throw error;
+        return invoice;
+      } catch (error) {
+        // Retry sur collision de numéro de facture
+        if (error.code === 11000 && attempt < this.MAX_INVOICE_RETRIES) {
+          this.logger.warn(
+            `Collision invoiceNumber — retry ${attempt}/${this.MAX_INVOICE_RETRIES}`,
+          );
+          continue;
+        }
+
+        this.logger.error(
+          'Erreur lors de la création de facture',
+          error.stack || error.message,
+        );
+        throw error;
+      }
     }
   }
 
-  /**
-   * Récupérer une facture par ID avec TOUTES les données enrichies
-   */
   async findOne(id: string): Promise<any> {
     const invoice = await this.invoiceRepo.findById({
       id,
@@ -79,59 +82,9 @@ export class InvoiceService {
       throw new NotFoundException(`Facture ${id} introuvable`);
     }
 
-    // Extraire et formater les données
-    const payment = invoice.payment as any;
-    const cart = payment?.cartId as any;
-    const user = payment?.userId as any;
-
-    // Trouver l'adresse par défaut
-    const defaultAddress = user?.addresses?.find((addr: any) => addr.isDefault);
-
-    // Construire la réponse enrichie
-    return {
-      // Données de la facture
-      _id: invoice._id,
-      invoiceNumber: invoice.invoiceNumber,
-      invoiceDate: invoice.invoiceDate,
-      status: invoice.status,
-      refundedAt: invoice.refundedAt,
-
-      // Données du paiement
-      payment: {
-        method: payment.method,
-        amount: payment.amount,
-        currency: payment.currency,
-        status: payment.status,
-        correlationId: payment.correlationId,
-        customerPhone: payment.customerPhone,
-        transactionReference: payment.transactionReference,
-        serverCorrelationId: payment.serverCorrelationId,
-        mvolaResponse: payment.mvolaResponse,
-        createdAt: payment.createdAt,
-        updatedAt: payment.updatedAt,
-      },
-
-      // Données du panier
-      cart: {
-        _id: cart?._id,
-        items: cart?.items || [],
-        // Ajoutez d'autres champs du cart si nécessaire
-      },
-
-      // Données du client
-      customer: user
-        ? {
-            name: user.name,
-            email: user.email,
-            defaultShippingAddress: defaultAddress || null,
-          }
-        : null,
-    };
+    return this.formatInvoiceResponse(invoice);
   }
 
-  /**
-   * Récupérer une facture par numéro
-   */
   async findByInvoiceNumber(invoiceNumber: string): Promise<any> {
     const invoice = await this.invoiceRepo.findOne({
       filter: { invoiceNumber },
@@ -161,70 +114,45 @@ export class InvoiceService {
       throw new NotFoundException(`Facture ${invoiceNumber} introuvable`);
     }
 
-    // Utiliser la même logique de formatage
     return this.formatInvoiceResponse(invoice);
   }
 
-  /**
-   * Récupérer une facture par ID de paiement
-   */
   async findByPaymentId(paymentId: string): Promise<Invoice | null> {
-    const invoice = await this.invoiceRepo.findOne({
+    return this.invoiceRepo.findOne({
       filter: { payment: new Types.ObjectId(paymentId) },
     });
-
-    return invoice;
   }
 
-  /**
-   * Mettre à jour le statut
-   */
-  async updateStatus(
-    id: string,
-    status: 'paid' | 'refunded' | 'cancelled',
-  ): Promise<Invoice> {
+  async updateStatus(id: string, status: InvoiceStatus): Promise<Invoice> {
     const invoice = await this.invoiceRepo.findById({ id });
 
     if (!invoice) {
       throw new NotFoundException(`Facture ${id} introuvable`);
     }
 
-    const updateData: any = {
-      status,
-    };
+    const updateData: any = { status };
 
-    if (status === 'refunded') {
+    if (status === InvoiceStatus.REFUNDED) {
       updateData.refundedAt = new Date();
     }
 
-    const updated = await this.invoiceRepo.update({
-      id,
-      update: updateData,
-    });
+    const updated = await this.invoiceRepo.update({ id, update: updateData });
 
     this.logger.log(`Facture ${invoice.invoiceNumber} → statut: ${status}`);
 
     return updated;
   }
 
-  /**
-   * Trouver toutes les factures d'un client
-   */
   async findByCustomer(customerId: string): Promise<any[]> {
     const invoices = await this.invoiceRepo.findAll({
-      filter: {
-        deleted_at: { $exists: false },
-      },
+      filter: { deleted_at: { $exists: false } },
       options: {
         sort: { invoiceDate: -1 },
         populate: [
           {
             path: 'payment',
             populate: [
-              {
-                path: 'userId',
-                select: 'name email addresses',
-              },
+              { path: 'userId', select: 'name email addresses' },
               {
                 path: 'cartId',
                 populate: {
@@ -238,7 +166,6 @@ export class InvoiceService {
       },
     });
 
-    // Filtrer par customerId et formater
     return invoices
       .filter((invoice: any) => {
         const payment = invoice.payment as any;
@@ -247,9 +174,6 @@ export class InvoiceService {
       .map((invoice) => this.formatInvoiceResponse(invoice));
   }
 
-  /**
-   * Soft delete
-   */
   async remove(id: string): Promise<void> {
     const invoice = await this.invoiceRepo.findById({ id });
 
@@ -265,14 +189,10 @@ export class InvoiceService {
     this.logger.log(`Facture ${invoice.invoiceNumber} supprimée (soft delete)`);
   }
 
-  /**
-   * Formater la réponse de la facture (méthode utilitaire)
-   */
   private formatInvoiceResponse(invoice: any): any {
     const payment = invoice.payment as any;
     const cart = payment?.cartId as any;
     const user = payment?.userId as any;
-
     const defaultAddress = user?.addresses?.find((addr: any) => addr.isDefault);
 
     return {

@@ -1,7 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Types } from 'mongoose';
-
-export type PaymentDocument = HydratedDocument<Payment>;
+import { Types } from 'mongoose';
 
 export enum PaymentStatus {
   PENDING = 'PENDING', // POST envoyé à Mvola, on attend
@@ -95,42 +93,3 @@ PaymentSchema.index(
     },
   },
 );
-
-// ── Validation applicative complémentaire pour éviter les doublons PENDING/WAITING ──
-// Protège contre les race conditions que l'index MongoDB seul ne peut pas couvrir
-// (ex: deux requêtes simultanées avant que l'index ne soit mis à jour)
-PaymentSchema.pre<PaymentDocument>('save', async function (next) {
-  try {
-    // Vérifier uniquement à la création ou quand le status change
-    if (!this.isNew && !this.isModified('status')) {
-      return next();
-    }
-
-    // Si le status n'est pas PENDING/WAITING, aucune contrainte supplémentaire
-    if (![PaymentStatus.PENDING, PaymentStatus.WAITING].includes(this.status)) {
-      return next();
-    }
-
-    const PaymentModel = this.constructor as any;
-
-    const existing = await PaymentModel.findOne({
-      _id: { $ne: this._id },
-      cartId: this.cartId,
-      status: { $in: [PaymentStatus.PENDING, PaymentStatus.WAITING] },
-    })
-      .lean()
-      .exec();
-
-    if (existing) {
-      return next(
-        new Error(
-          'Another PENDING or WAITING payment already exists for this cart.',
-        ),
-      );
-    }
-
-    return next();
-  } catch (err) {
-    return next(err as Error);
-  }
-});

@@ -24,14 +24,32 @@ export class InvoiceRepository extends BaseRepository<InvoiceDocument> {
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const prefix = `INV-${year}${month}`;
 
-    // ✅ Atomique : incrémente un compteur en une seule opération
-    const counter = await this.counterModel.findOneAndUpdate(
+    // Trouver le max réel en base
+    const lastInvoice = await this.model
+      .findOne({ invoiceNumber: { $regex: `^${prefix}-` } })
+      .sort({ invoiceNumber: -1 })
+      .select('invoiceNumber')
+      .lean();
+
+    const lastSeqInDb = lastInvoice
+      ? parseInt(lastInvoice.invoiceNumber.split('-')[2], 10)
+      : 0;
+
+    // Incrémenter le compteur, mais jamais en dessous du max en base
+    const updated = await this.counterModel.findOneAndUpdate(
       { _id: prefix },
-      { $inc: { seq: 1 } },
+      [
+        {
+          $set: {
+            seq: {
+              $add: [{ $max: ['$seq', lastSeqInDb] }, 1],
+            },
+          },
+        },
+      ],
       { upsert: true, new: true },
     );
 
-    const nextNumber = String(counter.seq).padStart(4, '0');
-    return `${prefix}-${nextNumber}`;
+    return `${prefix}-${String(updated.seq).padStart(4, '0')}`;
   }
 }

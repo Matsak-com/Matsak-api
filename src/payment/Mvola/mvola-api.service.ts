@@ -39,7 +39,6 @@ export interface InitMerchantPayParams {
 export class MvolaApiService {
   private readonly logger = new Logger(MvolaApiService.name);
 
-  // Config depuis .env
   private readonly baseUrl: string;
   private readonly consumerKey: string;
   private readonly consumerSecret: string;
@@ -47,7 +46,6 @@ export class MvolaApiService {
   private readonly partnerName: string;
   private readonly mockMode: boolean;
 
-  // Cache du token OAuth
   private accessToken: string | null = null;
   private tokenExpiresAt: number = 0;
 
@@ -101,7 +99,7 @@ export class MvolaApiService {
     const response = await firstValueFrom(
       this.httpService
         .post<MvolaTokenResponse>(
-          `https://developer.mvola.mg/oauth2/token`,
+          `${this.baseUrl}/oauth2/token`, // ← fix Copilot appliqué
           'grant_type=client_credentials',
           {
             headers: {
@@ -117,7 +115,7 @@ export class MvolaApiService {
               'Error OAuth Mvola',
               error.response?.data || error.message,
             );
-            throw new Error('Unable to obtain the Mvola token');
+            throw new Error("Impossible d'obtenir le token Mvola"); // ← fix
           }),
         ),
     );
@@ -132,7 +130,6 @@ export class MvolaApiService {
   async initMerchantPay(
     params: InitMerchantPayParams,
   ): Promise<MvolaInitPaymentResponse> {
-    // Mode MOCK
     if (this.mockMode) {
       this.logger.warn(
         `🧪 MOCK init — amount: ${params.amount}, phone: ${params.customerPhone}`,
@@ -140,7 +137,6 @@ export class MvolaApiService {
 
       const serverCorrelationId = uuidv4();
 
-      // Stocker la transaction mock
       mockMvolaStore.set(serverCorrelationId, {
         serverCorrelationId,
         transactionReference: params.transactionReference,
@@ -156,7 +152,6 @@ export class MvolaApiService {
       };
     }
 
-    // Mode RÉEL
     const token = await this.getAccessToken();
 
     const body = {
@@ -205,7 +200,7 @@ export class MvolaApiService {
               'Error POST merchantpay',
               error.response?.data || error.message,
             );
-            throw new Error('Error during Mvola payment initiation');
+            throw new Error("Erreur lors de l'initiation du paiement Mvola"); // ← fix
           }),
         ),
     );
@@ -218,7 +213,6 @@ export class MvolaApiService {
     serverCorrelationId: string,
     correlationId: string,
   ): Promise<MvolaStatusResponse> {
-    // Mode MOCK
     if (this.mockMode) {
       const mockTx = mockMvolaStore.get(serverCorrelationId);
 
@@ -236,7 +230,6 @@ export class MvolaApiService {
       };
     }
 
-    // Mode RÉEL
     const token = await this.getAccessToken();
 
     const headers = {
@@ -264,7 +257,9 @@ export class MvolaApiService {
               'Error GET status',
               error.response?.data || error.message,
             );
-            throw new Error('Unable to verify transaction status');
+            throw new Error(
+              'Impossible de vérifier le statut de la transaction',
+            ); // ← fix
           }),
         ),
     );
@@ -272,4 +267,5 @@ export class MvolaApiService {
     return response;
   }
 }
+
 export { mockMvolaStore };

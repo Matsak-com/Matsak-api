@@ -3,7 +3,6 @@ import {
   Injectable,
   NotFoundException,
   Logger,
-  OnModuleInit,
 } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
@@ -26,7 +25,7 @@ export interface InitPaymentInput {
 }
 
 @Injectable()
-export class PaymentService implements OnModuleInit {
+export class PaymentService {
   private readonly logger = new Logger(PaymentService.name);
   private readonly callbackBaseUrl: string;
 
@@ -44,10 +43,6 @@ export class PaymentService implements OnModuleInit {
       'APP_CALLBACK_BASE_URL',
       'http://localhost:3000',
     );
-  }
-  onModuleInit() {
-    this.logger.log('PaymentService initialisé');
-    // Ajoutez ici toute logique d'initialisation si nécessaire
   }
 
   // ── 1. Initier un paiement Mvola ───────────────────────────────────
@@ -160,6 +155,18 @@ export class PaymentService implements OnModuleInit {
       }
 
       if ((error as any).code === 11000) {
+        const keyValue = (error as any)?.keyValue as
+          | Record<string, unknown>
+          | undefined;
+        const duplicateField = keyValue ? Object.keys(keyValue)[0] : 'unknown';
+        const duplicateValue = keyValue?.[duplicateField];
+
+        // Log détaillé pour le debugging interne
+        this.logger.error(
+          `Duplicate key error — field: ${duplicateField}, value: ${duplicateValue}`,
+        );
+
+        // Message générique pour le client — ne pas exposer les champs internes
         throw new BadRequestException(ERRORS.PAYMENT_DUPLICATE);
       }
 
@@ -214,6 +221,18 @@ export class PaymentService implements OnModuleInit {
     }
 
     // ✅ Paiement COMPLETED → post-traitement D'ABORD, SUCCESS après
+    const transitioned = await this.paymentRepo.transitionStatus({
+      id: payment._id.toString(),
+      fromStatus: payment.status,
+      toStatus: PaymentStatus.SUCCESS,
+      update: { mvolaResponse: callbackData },
+    });
+
+    if (!transitioned) {
+      this.logger.warn(`Payment ${payment._id} already transitioned, skipping`);
+      return;
+    }
+
     try {
       await this.deductStockFromCart(
         payment.cartId,
@@ -221,27 +240,8 @@ export class PaymentService implements OnModuleInit {
       );
       await this.createInvoiceForPayment(payment._id.toString());
       await this.cartService.softDeleteCartById(payment.cartId);
-
-      // 4️⃣ Tout a réussi → on marque SUCCESS
-      await this.paymentRepo.update({
-        id: payment._id.toString(),
-        update: {
-          status: PaymentStatus.SUCCESS,
-          mvolaResponse: callbackData,
-        },
-      });
     } catch (error) {
       this.logger.error(`Échec post-paiement pour ${payment._id}`, error);
-
-      // ❌ Post-traitement échoué → FAILED avec raison explicite
-      await this.paymentRepo.update({
-        id: payment._id.toString(),
-        update: {
-          status: PaymentStatus.FAILED,
-          mvolaResponse: callbackData,
-          failureReason: 'POST_PROCESSING_FAILED',
-        },
-      });
     }
   }
 
@@ -283,10 +283,11 @@ export class PaymentService implements OnModuleInit {
     }
 
     if (newStatus !== payment.status) {
-      await this.paymentRepo.update({
+      const transitioned = await this.paymentRepo.transitionStatus({
         id: paymentId,
+        fromStatus: payment.status,
+        toStatus: newStatus,
         update: {
-          status: newStatus,
           mvolaResponse: mvolaStatus,
           ...(newStatus === PaymentStatus.FAILED && {
             failureReason: mvolaStatus.status,
@@ -294,19 +295,18 @@ export class PaymentService implements OnModuleInit {
         },
       });
 
-      // ✅ CRÉER LA FACTURE ET SOFT DELETE DU PANIER SI LE STATUT DEVIENT SUCCESS
+      if (!transitioned) {
+        this.logger.warn(`Payment ${paymentId} already transitioned, skipping`);
+        return this.paymentRepo.findById({ id: paymentId });
+      }
+
       if (newStatus === PaymentStatus.SUCCESS) {
         try {
-          // 1️⃣ Déduire le stock AVANT la création de facture
           await this.deductStockFromCart(
             payment.cartId,
             payment.userId?.toString(),
           );
-
-          // 2️⃣ Créer la facture
           await this.createInvoiceForPayment(paymentId);
-
-          // 3️⃣ Soft delete du panier APRÈS
           await this.cartService.softDeleteCartById(payment.cartId);
         } catch (error) {
           this.logger.error(

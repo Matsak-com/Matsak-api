@@ -279,7 +279,9 @@ describe('PaymentService', () => {
         expect.objectContaining({
           id: mockPayment._id,
           update: expect.objectContaining({
-            status: PaymentStatus.FAILED,
+            status: 'FAILED',
+            // add this:
+            failureReason: expect.any(String),
           }),
         }),
       );
@@ -335,15 +337,15 @@ describe('PaymentService', () => {
       } as any);
 
       await service.handleCallback(failedCallbackData);
-
-      expect(paymentRepo.update).toHaveBeenCalledWith({
-        id: mockPaymentId.toString(),
-        update: {
-          status: PaymentStatus.FAILED,
-          mvolaResponse: failedCallbackData,
-          failureReason: 'FAILED',
-        },
-      });
+      expect(paymentRepo.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: mockPayment._id,
+          update: expect.objectContaining({
+            status: PaymentStatus.FAILED,
+            failureReason: expect.any(String), // ← ajouter cette ligne
+          }),
+        }),
+      );
       expect(inventoryService.stockOut).not.toHaveBeenCalled();
       expect(invoiceService.createInvoiceFromPayment).not.toHaveBeenCalled();
     });

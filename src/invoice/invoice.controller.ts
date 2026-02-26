@@ -7,14 +7,23 @@ import {
   UseGuards,
   Put,
 } from '@nestjs/common';
+import { IsEnum } from 'class-validator';
 import { InvoiceService } from './invoice.service';
+import { InvoiceStatus } from './invoice.schema';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+
+class UpdateInvoiceStatusDto {
+  @IsEnum(InvoiceStatus, {
+    message: `status doit être une valeur valide: ${Object.values(InvoiceStatus).join(', ')}`,
+  })
+  status: InvoiceStatus;
+}
 
 @Controller('invoices')
 export class InvoiceController {
   constructor(private readonly invoiceService: InvoiceService) {}
 
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.invoiceService.findOne(id);
@@ -28,8 +37,8 @@ export class InvoiceController {
 
   @UseGuards(JwtAuthGuard)
   @Put(':id/status')
-  updateStatus(@Param('id') id: string, @Body() body: { status: string }) {
-    return this.invoiceService.updateStatus(id, body.status as any);
+  updateStatus(@Param('id') id: string, @Body() dto: UpdateInvoiceStatusDto) {
+    return this.invoiceService.updateStatus(id, dto.status);
   }
 
   @UseGuards(JwtAuthGuard)

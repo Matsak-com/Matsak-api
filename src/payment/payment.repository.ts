@@ -1,7 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model, PopulateOptions, UpdateQuery } from 'mongoose';
-import { Payment, PaymentDocument } from './payment.schema';
+import {
+  FilterQuery,
+  Model,
+  PopulateOptions,
+  Types,
+  UpdateQuery,
+} from 'mongoose';
+import { Payment, PaymentStatus } from './payment.schema';
 
 interface FindByIdParams {
   id: string;
@@ -61,12 +67,31 @@ abstract class BaseRepository<TDocument> {
     await this.model.findByIdAndDelete(params.id).exec();
   }
 }
+
 @Injectable()
-export class PaymentRepository extends BaseRepository<PaymentDocument> {
+export class PaymentRepository extends BaseRepository<Payment> {
   constructor(
     @InjectModel(Payment.name)
-    paymentModel: Model<PaymentDocument>,
+    paymentModel: Model<Payment>,
   ) {
     super(paymentModel);
+  }
+
+  async transitionStatus({
+    id,
+    fromStatus,
+    toStatus,
+    update = {},
+  }: {
+    id: string;
+    fromStatus: PaymentStatus;
+    toStatus: PaymentStatus;
+    update?: Record<string, any>;
+  }): Promise<Payment | null> {
+    return this.model.findOneAndUpdate(
+      { _id: new Types.ObjectId(id), status: fromStatus },
+      { $set: { status: toStatus, ...update } },
+      { new: true },
+    );
   }
 }

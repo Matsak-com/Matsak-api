@@ -135,7 +135,7 @@ describe('MvolaApiService', () => {
       httpService.post.mockReturnValue(throwError(() => axiosError) as any);
 
       await expect(service['getAccessToken']()).rejects.toThrow(
-        "Impossible d'obtenir le token Mvola",
+        'Unable to obtain the Mvola token',
       );
     });
   });
@@ -238,7 +238,7 @@ describe('MvolaApiService', () => {
       httpService.post.mockReturnValueOnce(throwError(() => axiosError) as any);
 
       await expect(service.initMerchantPay(initParams)).rejects.toThrow(
-        "Erreur lors de l'initiation du paiement Mvola",
+        'Error during Mvola payment initiation',
       );
     });
   });
@@ -308,7 +308,7 @@ describe('MvolaApiService', () => {
 
       await expect(
         service.getTransactionStatus(serverCorrelationId, correlationId),
-      ).rejects.toThrow('Impossible de vérifier le statut de la transaction');
+      ).rejects.toThrow('Unable to verify transaction status');
     });
   });
 
