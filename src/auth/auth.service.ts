@@ -96,12 +96,12 @@ export class AuthService {
           HttpStatus.CONFLICT,
         );
       }
-      
+
       const userToCreate = {
         ...createUserDto,
         role: 'user' as UserRole,
       };
-    
+
       // Create user
       const createdUser = await this.usersService.create(userToCreate);
 
