@@ -11,9 +11,16 @@ import {
 } from '@nestjs/common';
 import { PaymentService, InitPaymentInput } from './payment.service';
 import { mockMvolaStore } from './Mvola/mvola-api.service';
-import { IsMongoId, IsPhoneNumber } from 'class-validator';
+import {
+  IsEnum,
+  IsMongoId,
+  IsOptional,
+  IsPhoneNumber,
+  ValidateIf,
+} from 'class-validator';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { MvolaWebhookGuard } from './guards/mvola-webhook.guard';
+import { DeliveryMethod } from './payment.schema';
 
 class InitPaymentDto {
   @IsMongoId({ message: 'cartId doit être un ObjectId valide' })
@@ -23,6 +30,17 @@ class InitPaymentDto {
     message: 'customerPhone doit être un numéro malgache valide',
   })
   customerPhone: string;
+
+  @IsEnum(DeliveryMethod, {
+    message: 'deliveryMethod doit être "delivery" ou "pickup"',
+  })
+  deliveryMethod: DeliveryMethod;
+
+  // Requis uniquement si deliveryMethod = 'delivery'
+  @ValidateIf((o) => o.deliveryMethod === DeliveryMethod.DELIVERY)
+  @IsMongoId({ message: 'deliveryAddressId doit être un ObjectId valide' })
+  @IsOptional()
+  deliveryAddressId?: string;
 }
 
 @Controller('payments')
@@ -37,6 +55,8 @@ export class PaymentController {
       cartId: dto.cartId,
       userId: req.user?.userId,
       customerPhone: dto.customerPhone,
+      deliveryMethod: dto.deliveryMethod,
+      deliveryAddressId: dto.deliveryAddressId,
     };
 
     return this.paymentService.initiate(input);

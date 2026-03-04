@@ -50,6 +50,35 @@
       "noAccount": "If you didn't create an account, you can safely ignore this email.",
       "signature": "Best regards,<br>The Matsak Team"
     },
+    "invoice": {
+      "subject": "Your invoice {{invoiceNumber}}",
+      "greeting": "Hello",
+      "title": "Your Invoice",
+      "thankYou": "Thank you for your order. Here is a summary of your invoice.",
+      "invoiceNumber": "Invoice number",
+      "invoiceDate": "Invoice date",
+      "paymentMethod": "Payment method",
+      "transactionRef": "Transaction reference",
+      "phone": "Phone",
+      "orderedItems": "Ordered items",
+      "itemName": "Item",
+      "quantity": "Qty",
+      "unitPrice": "Unit price",
+      "total": "Total",
+      "subtotal": "Subtotal",
+      "totalPaid": "Total paid",
+      "shippingAddress": "Shipping address",
+      "support": "If you have any questions about your invoice, feel free to contact our team.",
+      "signature": "Best regards,<br>The Matsak Team",
+
+      "deliveryQrTitle": "Delivery QR Code",
+      "deliveryQrDescription": "The delivery driver will scan this QR code upon delivery to confirm receipt of your order.",
+      "deliveryQrMeta": "Contains: invoice number · address · amount — Show to delivery driver",
+
+      "pickupQrTitle": "Pickup QR Codes",
+      "pickupQrDescription": "Show the QR code for each pharmacy when you pick up your medications.",
+      "pickupQrMeta": "Show at pharmacy"
+    },
     "common": {
       "footer": "© {{year}} Matsak. All rights reserved.",
       "contactUs": "Contact us",

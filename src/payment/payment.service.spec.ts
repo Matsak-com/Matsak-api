@@ -162,7 +162,10 @@ describe('PaymentService', () => {
         id: mockCartId,
         options: { populate: [{ path: 'items.product' }] },
       });
-      expect(productService.calculatePrice).toHaveBeenCalledWith(mockProduct, 2);
+      expect(productService.calculatePrice).toHaveBeenCalledWith(
+        mockProduct,
+        2,
+      );
       expect(paymentRepo.create).toHaveBeenCalled();
       expect(mvolaApiService.initMerchantPay).toHaveBeenCalled();
       expect(result.status).toBe(PaymentStatus.WAITING);
@@ -170,7 +173,9 @@ describe('PaymentService', () => {
 
     it('should throw NotFoundException when cart not found', async () => {
       cartRepo.findById.mockResolvedValue(null);
-      await expect(service.initiate(initiateInput)).rejects.toThrow(NotFoundException);
+      await expect(service.initiate(initiateInput)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw NotFoundException when cart is deleted', async () => {
@@ -178,12 +183,16 @@ describe('PaymentService', () => {
         ...mockCart,
         deleted_at: new Date(),
       } as any);
-      await expect(service.initiate(initiateInput)).rejects.toThrow(NotFoundException);
+      await expect(service.initiate(initiateInput)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw BadRequestException when cart is empty', async () => {
       cartRepo.findById.mockResolvedValue({ ...mockCart, items: [] } as any);
-      await expect(service.initiate(initiateInput)).rejects.toThrow(BadRequestException);
+      await expect(service.initiate(initiateInput)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException when total amount is zero', async () => {
@@ -195,7 +204,9 @@ describe('PaymentService', () => {
         discountsApplied: [],
         currency: 'Ar',
       });
-      await expect(service.initiate(initiateInput)).rejects.toThrow(BadRequestException);
+      await expect(service.initiate(initiateInput)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException when payment already in progress', async () => {
@@ -208,7 +219,9 @@ describe('PaymentService', () => {
         currency: 'Ar',
       });
       paymentRepo.findOne.mockResolvedValue(mockPayment as any);
-      await expect(service.initiate(initiateInput)).rejects.toThrow(BadRequestException);
+      await expect(service.initiate(initiateInput)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should rollback payment to FAILED when Mvola API throws after creation', async () => {
@@ -364,7 +377,10 @@ describe('PaymentService', () => {
     });
 
     it('should return payment if already completed', async () => {
-      const completedPayment = { ...mockPayment, status: PaymentStatus.SUCCESS };
+      const completedPayment = {
+        ...mockPayment,
+        status: PaymentStatus.SUCCESS,
+      };
       paymentRepo.findById.mockResolvedValue(completedPayment as any);
 
       const result = await service.pollStatus(mockPaymentId.toString());
@@ -375,7 +391,9 @@ describe('PaymentService', () => {
 
     it('should throw NotFoundException when payment not found', async () => {
       paymentRepo.findById.mockResolvedValue(null);
-      await expect(service.pollStatus(mockPaymentId.toString())).rejects.toThrow(NotFoundException);
+      await expect(
+        service.pollStatus(mockPaymentId.toString()),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should throw BadRequestException when transaction data incomplete', async () => {
@@ -385,7 +403,9 @@ describe('PaymentService', () => {
         serverCorrelationId: undefined,
       };
       paymentRepo.findById.mockResolvedValue(incompletePayment as any);
-      await expect(service.pollStatus(mockPaymentId.toString())).rejects.toThrow(BadRequestException);
+      await expect(
+        service.pollStatus(mockPaymentId.toString()),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -412,19 +432,29 @@ describe('PaymentService', () => {
 
     it('should throw NotFoundException when payment not found', async () => {
       paymentRepo.findById.mockResolvedValue(null);
-      await expect(service.expire(mockPaymentId.toString())).rejects.toThrow(NotFoundException);
+      await expect(service.expire(mockPaymentId.toString())).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw BadRequestException when payment already completed', async () => {
-      const completedPayment = { ...mockPayment, status: PaymentStatus.SUCCESS };
+      const completedPayment = {
+        ...mockPayment,
+        status: PaymentStatus.SUCCESS,
+      };
       paymentRepo.findById.mockResolvedValue(completedPayment as any);
-      await expect(service.expire(mockPaymentId.toString())).rejects.toThrow(BadRequestException);
+      await expect(service.expire(mockPaymentId.toString())).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
   describe('regenerateInvoice', () => {
     it('should regenerate invoice successfully', async () => {
-      const successfulPayment = { ...mockPayment, status: PaymentStatus.SUCCESS };
+      const successfulPayment = {
+        ...mockPayment,
+        status: PaymentStatus.SUCCESS,
+      };
       paymentRepo.findById.mockResolvedValue(successfulPayment as any);
       invoiceService.findByPaymentId.mockResolvedValue(null);
       invoiceService.createInvoiceFromPayment.mockResolvedValue({
@@ -440,22 +470,31 @@ describe('PaymentService', () => {
 
     it('should throw NotFoundException when payment not found', async () => {
       paymentRepo.findById.mockResolvedValue(null);
-      await expect(service.regenerateInvoice(mockPaymentId.toString())).rejects.toThrow(NotFoundException);
+      await expect(
+        service.regenerateInvoice(mockPaymentId.toString()),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should throw BadRequestException when payment not successful', async () => {
       const failedPayment = { ...mockPayment, status: PaymentStatus.FAILED };
       paymentRepo.findById.mockResolvedValue(failedPayment as any);
-      await expect(service.regenerateInvoice(mockPaymentId.toString())).rejects.toThrow(BadRequestException);
+      await expect(
+        service.regenerateInvoice(mockPaymentId.toString()),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException when invoice already exists', async () => {
-      const successfulPayment = { ...mockPayment, status: PaymentStatus.SUCCESS };
+      const successfulPayment = {
+        ...mockPayment,
+        status: PaymentStatus.SUCCESS,
+      };
       paymentRepo.findById.mockResolvedValue(successfulPayment as any);
       invoiceService.findByPaymentId.mockResolvedValue({
         invoiceNumber: 'INV-202602-0001',
       } as any);
-      await expect(service.regenerateInvoice(mockPaymentId.toString())).rejects.toThrow(BadRequestException);
+      await expect(
+        service.regenerateInvoice(mockPaymentId.toString()),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -499,7 +538,9 @@ describe('PaymentService', () => {
 
       const cartWithNonTrackedProduct = {
         ...mockCart,
-        items: [{ product: { ...mockProduct, trackStock: false }, quantity: 2 }],
+        items: [
+          { product: { ...mockProduct, trackStock: false }, quantity: 2 },
+        ],
       };
 
       paymentRepo.findOne.mockResolvedValue(mockPayment as any);
@@ -530,7 +571,9 @@ describe('PaymentService', () => {
         status: PaymentStatus.SUCCESS,
       } as any);
       cartRepo.findById.mockResolvedValue(mockCart as any);
-      inventoryService.stockOut.mockRejectedValue(new Error('Insufficient stock'));
+      inventoryService.stockOut.mockRejectedValue(
+        new Error('Insufficient stock'),
+      );
       invoiceService.createInvoiceFromPayment.mockResolvedValue({
         invoiceNumber: 'INV-202602-0001',
       } as any);

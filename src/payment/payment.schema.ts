@@ -13,26 +13,19 @@ export enum PaymentMethod {
   MVOLA = 'MVOLA',
 }
 
+export enum DeliveryMethod {
+  DELIVERY = 'delivery', // Livraison à domicile
+  PICKUP = 'pickup', // Retrait en pharmacie
+}
+
 @Schema({ timestamps: true })
 export class Payment {
   _id?: Types.ObjectId;
 
-  // Référence vers le panier concerné
-  @Prop({
-    type: Types.ObjectId,
-    ref: 'Cart',
-    required: true,
-    index: true,
-  })
+  @Prop({ type: Types.ObjectId, ref: 'Cart', required: true, index: true })
   cartId: Types.ObjectId;
 
-  // Référence vers l'utilisateur (optionnel si session anonyme)
-  @Prop({
-    type: Types.ObjectId,
-    ref: 'User',
-    sparse: true,
-    index: true,
-  })
+  @Prop({ type: Types.ObjectId, ref: 'User', sparse: true, index: true })
   userId?: Types.ObjectId;
 
   @Prop({ type: String, required: true, enum: PaymentMethod })
@@ -53,29 +46,38 @@ export class Payment {
   })
   status: PaymentStatus;
 
-  // ── Mvola-specific fields ──────────────────────────────────────
+  // ── Delivery ──────────────────────────────────────────────────────────────
 
-  // serverCorrelationId retourné par Mvola après le POST (utilisé pour le polling)
+  // Choix du client : livraison à domicile ou retrait en pharmacie
+  @Prop({
+    type: String,
+    required: true,
+    enum: DeliveryMethod,
+    default: DeliveryMethod.DELIVERY,
+  })
+  deliveryMethod: DeliveryMethod;
+
+  // Adresse de livraison choisie (uniquement si deliveryMethod = 'delivery')
+  @Prop({ type: Types.ObjectId, ref: 'Address', sparse: true })
+  deliveryAddressId?: Types.ObjectId;
+
+  // ── Mvola-specific fields ─────────────────────────────────────────────────
+
   @Prop({ type: String, sparse: true, index: true })
   serverCorrelationId?: string;
 
-  // X-CorrelationID qu'on envoie dans le header (notre UUID interne)
   @Prop({ type: String, sparse: true })
   correlationId?: string;
 
-  // Numéro du client qui paie (debitParty)
   @Prop({ type: String, sparse: true })
   customerPhone?: string;
 
-  // Référence de transaction qu'on génère nous-mêmes
   @Prop({ type: String, required: true, sparse: true, unique: true })
   transactionReference?: string;
 
-  // Raison d'échec (si status = FAILED)
   @Prop({ type: String, sparse: true })
   failureReason?: string;
 
-  // Raw response de Mvola (pour debug)
   @Prop({ type: Object, sparse: true })
   mvolaResponse?: Record<string, any>;
 }

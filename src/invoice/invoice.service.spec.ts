@@ -259,7 +259,10 @@ describe('InvoiceService', () => {
       invoiceRepo.findById.mockResolvedValue(null);
 
       await expect(
-        service.updateStatus(mockInvoice._id.toString(), InvoiceStatus.REFUNDED), // ← fix
+        service.updateStatus(
+          mockInvoice._id.toString(),
+          InvoiceStatus.REFUNDED,
+        ), // ← fix
       ).rejects.toThrow(NotFoundException);
     });
   });
