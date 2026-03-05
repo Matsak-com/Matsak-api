@@ -14,31 +14,39 @@ import { I18nService } from './i18n.service';
 @Module({
   imports: [
     ConfigModule,
-    MailerModule.forRoot({
-      transport: {
-        host: process.env.MAIL_HOST || 'localhost',
-        port: parseInt(process.env.MAIL_PORT || '1025', 10),
-        secure: process.env.MAIL_SECURE === 'true',
-        auth:
-          process.env.MAIL_USER && process.env.MAIL_PASSWORD
-            ? {
-                user: process.env.MAIL_USER,
-                pass: process.env.MAIL_PASSWORD,
-              }
-            : undefined,
-      },
-      defaults: {
-        from: process.env.MAIL_FROM || '"Matsak" <noreply@matsak.com>',
-      },
-      template: {
-        dir: join(__dirname, 'templates'),
-        adapter: new HandlebarsAdapter({
-          year: () => new Date().getFullYear(),
-        }),
-        options: {
-          strict: false,
+    MailerModule.forRootAsync({
+      useFactory: () => ({
+        transport: {
+          host: process.env.MAIL_HOST || 'localhost',
+          port: parseInt(process.env.MAIL_PORT || '1025', 10),
+          secure: process.env.MAIL_SECURE === 'true',
+          auth:
+            process.env.MAIL_USER && process.env.MAIL_PASSWORD
+              ? {
+                  user: process.env.MAIL_USER,
+                  pass: process.env.MAIL_PASSWORD,
+                }
+              : undefined,
         },
-      },
+        defaults: {
+          from: process.env.MAIL_FROM || '"Matsak" <noreply@matsak.com>',
+        },
+        template: {
+          dir: join(__dirname, 'templates'),
+          adapter: new HandlebarsAdapter({
+            year: () => new Date().getFullYear(),
+          }),
+          options: {
+            strict: false,
+            // Configuration du layout
+            layout: 'default',
+            layoutDir: join(__dirname, 'templates', 'layouts'),
+            partialsDir: join(__dirname, 'templates', 'partials'),
+            allowProtoPropertiesByDefault: true,
+            allowProtoMethodsByDefault: true,
+          },
+        },
+      }),
     }),
     BullModule.registerQueue({
       name: 'notifications',
@@ -56,6 +64,6 @@ import { I18nService } from './i18n.service';
     SmsProvider,
     I18nService,
   ],
-  exports: [NotificationService],
+  exports: [NotificationService, I18nService, EmailProvider],
 })
 export class NotificationModule {}

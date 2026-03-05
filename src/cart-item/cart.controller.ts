@@ -10,7 +10,6 @@ import {
   Req,
 } from '@nestjs/common';
 import { ERRORS } from '../common/errors';
-import { Request } from 'express';
 import { CartService } from './cart.service';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import {
@@ -22,28 +21,87 @@ import {
   updateCartQuantitySchema,
   productIdQuerySchema,
 } from '../common/schemas/cart.schemas';
+import { Request } from 'express';
+import { Types } from 'mongoose';
+
+interface CartRequest extends Request {
+  headers: {
+    'x-user-id'?: string;
+  };
+}
 
 @Controller('cart')
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 
-  @Post('add')
-  @ZodValidation(addToCartSchema)
-  async add(@Body() dto: AddToCartDto, @Req() req: Request) {
-    const sessionId = req.cookies.sessionId;
-    if (!sessionId) {
-      throw new BadRequestException(ERRORS.SESSION_ID_MISSING);
+  // 🔹 Méthode utilitaire pour extraire sessionId et userId
+  private getCartIdentifiers(req: CartRequest) {
+    const sessionId = req.cookies?.sessionId;
+    const userIdFromHeader = req.headers['x-user-id'];
+
+    // PRIORITÉ 1: userId depuis le header (envoyé par le client depuis localStorage)
+    if (userIdFromHeader && Types.ObjectId.isValid(userIdFromHeader)) {
+      return {
+        sessionId: undefined,
+        userId: new Types.ObjectId(userIdFromHeader),
+      };
     }
-    return this.cartService.addToCart(sessionId, dto);
+
+    // PRIORITÉ 2: sessionId depuis les cookies
+    if (sessionId) {
+      return {
+        sessionId,
+        userId: undefined,
+      };
+    }
+
+    console.error('❌ Aucun identifiant trouvé');
+    throw new BadRequestException(ERRORS.SESSION_ID_MISSING);
   }
 
   @Get()
-  async get(@Req() req: Request) {
-    const sessionId = req.cookies.sessionId;
+  async get(@Req() req: CartRequest) {
+    const { sessionId, userId } = this.getCartIdentifiers(req);
+    const result = await this.cartService.getCart(sessionId, userId);
+    return result;
+  }
+
+  @Post('add')
+  @ZodValidation(addToCartSchema)
+  async add(@Body() dto: AddToCartDto, @Req() req: CartRequest) {
+    const { sessionId, userId } = this.getCartIdentifiers(req);
+    return this.cartService.addToCart(dto, sessionId, userId);
+  }
+
+  @Post('merge')
+  async mergeCart(@Req() req: CartRequest) {
+    const sessionId = req.cookies?.sessionId;
+    const userIdFromHeader = req.headers['x-user-id'];
+
+    // Pas de sessionId ? Rien à fusionner
     if (!sessionId) {
-      throw new BadRequestException(ERRORS.SESSION_ID_MISSING);
+      return { items: [] };
     }
-    return this.cartService.getCart(sessionId);
+
+    // Vérifier userId valide
+    if (!userIdFromHeader || !Types.ObjectId.isValid(userIdFromHeader)) {
+      throw new BadRequestException('userId invalide pour la fusion');
+    }
+
+    const userId = new Types.ObjectId(userIdFromHeader);
+
+    // Effectuer la fusion
+    const mergedCart = await this.cartService.mergeSessionCartToUser(
+      sessionId,
+      userId,
+    );
+
+    if (mergedCart) {
+      // Enrichir les items avant de retourner
+      const enrichedItems = await this.cartService.getCart(undefined, userId);
+      return enrichedItems;
+    }
+    return { items: [] };
   }
 
   @Patch('update')
@@ -52,53 +110,29 @@ export class CartController {
     body: updateCartQuantitySchema,
   })
   async updateQuantity(
-    @Req() req: Request,
+    @Req() req: CartRequest,
     @Query() query: { productId: string },
     @Body() body: { quantity: number },
   ) {
-    const sessionId = req.cookies.sessionId;
-    if (!sessionId) {
-      throw new BadRequestException(ERRORS.SESSION_ID_MISSING);
-    }
-    if (!query.productId) {
-      throw new BadRequestException(ERRORS.PRODUCT_ID_MISSING);
-    }
-    if (body.quantity == null || body.quantity < 1) {
-      throw new BadRequestException(ERRORS.INVALID_QUANTITY);
-    }
-
+    const { sessionId, userId } = this.getCartIdentifiers(req);
     return this.cartService.updateItemQuantity(
-      sessionId,
       query.productId,
       body.quantity,
+      sessionId,
+      userId,
     );
   }
 
   @Delete('remove')
   @CompoundZodValidation({ query: productIdQuerySchema })
-  async remove(@Req() req: Request, @Query() query: { productId: string }) {
-    const sessionId = req.cookies.sessionId;
-    if (!sessionId) {
-      throw new BadRequestException(ERRORS.SESSION_ID_MISSING);
-    }
-    return this.cartService.deleteItem(sessionId, query.productId);
+  async remove(@Req() req: CartRequest, @Query() query: { productId: string }) {
+    const { sessionId, userId } = this.getCartIdentifiers(req);
+    return this.cartService.deleteItem(query.productId, sessionId, userId);
   }
 
   @Delete('clear')
-  async clear(@Req() req: Request) {
-    const sessionId = req.cookies.sessionId;
-    if (!sessionId) {
-      throw new BadRequestException(ERRORS.SESSION_ID_MISSING);
-    }
-    return this.cartService.clearCart(sessionId);
-  }
-
-  @Get('debug')
-  async debug(@Req() req: Request) {
-    const sessionId = req.cookies.sessionId;
-    if (!sessionId) {
-      throw new BadRequestException(ERRORS.SESSION_ID_MISSING);
-    }
-    return this.cartService.debugCart(sessionId);
+  async clear(@Req() req: CartRequest) {
+    const { sessionId, userId } = this.getCartIdentifiers(req);
+    return this.cartService.clearCart(sessionId, userId);
   }
 }

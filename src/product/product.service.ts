@@ -77,14 +77,14 @@ export class ProductService implements OnModuleInit {
         try {
           for (const file of files) {
             const uploadedImage = await this.imageservice.upload({
-            buffer: file.buffer,
-            originalname: file.originalname,
-            mimetype: file.mimetype,
-          });
-          uploadedImageIds.push(
-            new Types.ObjectId(uploadedImage._id.toString()),
-          );
-        }          // Update product with all image IDs
+              buffer: file.buffer,
+              originalname: file.originalname,
+              mimetype: file.mimetype,
+            });
+            uploadedImageIds.push(
+              new Types.ObjectId(uploadedImage._id.toString()),
+            );
+          } // Update product with all image IDs
           await this.productRepo.update({
             id: productId,
             update: { images: uploadedImageIds },
@@ -157,7 +157,7 @@ export class ProductService implements OnModuleInit {
         }
       }
 
-      return populated as Product;
+      return this.withReviewStats(populated as Product);
     } catch (error) {
       // Handle duplicate key errors
       if ((error as any).code === 11000) {
@@ -169,12 +169,14 @@ export class ProductService implements OnModuleInit {
   }
 
   async findAll(): Promise<Product[]> {
-    return this.productRepo.findAll({
+    const products = await this.productRepo.findAll({
       filter: { deleted_at: { $exists: false } },
       options: {
         populate: [{ path: 'detail' }, { path: 'images' }, { path: 'team' }],
       },
     });
+
+    return products.map((product) => this.withReviewStats(product));
   }
 
   async findBy({
@@ -182,12 +184,13 @@ export class ProductService implements OnModuleInit {
   }: {
     filter: FilterQuery<Product>;
   }): Promise<Product[]> {
-    return this.productRepo.findAll({
+    const products = await this.productRepo.findAll({
       filter,
       options: {
         populate: [{ path: 'detail' }, { path: 'images' }],
       },
     });
+    return products.map((product) => this.withReviewStats(product));
   }
 
   async findOne(id: string): Promise<Product> {
@@ -200,7 +203,23 @@ export class ProductService implements OnModuleInit {
     if (!product) {
       throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
     }
-    return product;
+    return this.withReviewStats(product);
+  }
+
+  private withReviewStats(product: Product | null): Product {
+    if (!product) {
+      return product as any;
+    }
+
+    const asObject = (product as any).toObject
+      ? (product as any).toObject()
+      : product;
+
+    return {
+      ...asObject,
+      averageRating: asObject.averageRating ?? 0,
+      reviewCount: asObject.reviewCount ?? 0,
+    } as Product;
   }
 
   async search(keyword: string) {

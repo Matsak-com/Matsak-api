@@ -1,0 +1,52 @@
+{{> header}}
+
+<div class="content">
+    <h2>{{t.title}}</h2>
+    <p class="greeting">{{t.greeting}}</p>
+    <p>{{t.thankYou}}</p>
+
+    <h3>{{t.items}}</h3>
+    <table class="order-table">
+      <thead>
+        <tr>
+          <th>{{t.itemName}}</th>
+          <th style="text-align: center;">{{t.quantity}}</th>
+          <th style="text-align: right;">{{t.price}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each items}}
+        <tr>
+          <td>{{this.name}}</td>
+          <td style="text-align: center;">{{this.quantity}}</td>
+          <td style="text-align: right;">${{this.price}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2" style="text-align: right;"><strong>{{../t.subtotal}}:</strong></td>
+          <td style="text-align: right;">${{subtotal}}</td>
+        </tr>
+        <tr>
+          <td colspan="2" style="text-align: right;"><strong>{{../t.tax}}:</strong></td>
+          <td style="text-align: right;">${{tax}}</td>
+        </tr>
+        <tr>
+          <td colspan="2" style="text-align: right;"><strong>{{../t.total}}:</strong></td>
+          <td style="text-align: right;"><strong>${{total}}</strong></td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div class="order-info">
+      <p><strong>{{t.orderId}}:</strong> {{orderId}}</p>
+      <p><strong>{{t.orderDate}}:</strong> {{orderDate}}</p>
+      <p><strong>{{t.shippingAddress}}:</strong><br>{{shippingAddress}}</p>
+    </div>
+
+    <p>{{t.tracking}}</p>
+    <p class="signature">{{{t.signature}}}</p>
+</div>
+
+{{> footer}}
