@@ -10,7 +10,7 @@ import { InvoiceService } from '../invoice/invoice.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { Types } from 'mongoose';
-import { PaymentStatus, PaymentMethod } from './payment.schema';
+import { PaymentStatus, PaymentMethod,  DeliveryMethod } from './payment.schema';
 
 describe('PaymentService', () => {
   let service: PaymentService;
@@ -129,6 +129,7 @@ describe('PaymentService', () => {
       cartId: mockCartId.toString(),
       userId: mockUserId.toString(),
       customerPhone: '0340000000',
+      deliveryMethod: DeliveryMethod.DELIVERY,
     };
 
 

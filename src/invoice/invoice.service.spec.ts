@@ -1,9 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { InvoiceService } from './invoice.service';
 import { InvoiceRepository } from './invoice.repository';
+import { NotificationService } from '../notifications/notification.service';
 import { NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
-import { InvoiceStatus } from './invoice.schema'; // ← ajout
+import { InvoiceStatus } from './invoice.schema';
 
 describe('InvoiceService', () => {
   let service: InvoiceService;
@@ -17,7 +18,7 @@ describe('InvoiceService', () => {
     _id: new Types.ObjectId('507f1f77bcf86cd799439014'),
     payment: mockPaymentId,
     invoiceNumber: 'INV-2024-001',
-    status: InvoiceStatus.PAID, // ← fix
+    status: InvoiceStatus.PAID,
     invoiceDate: new Date('2024-01-15'),
     createdAt: new Date('2024-01-15'),
     updatedAt: new Date('2024-01-15'),
@@ -79,12 +80,20 @@ describe('InvoiceService', () => {
       generateInvoiceNumber: jest.fn(),
     };
 
+    const mockNotificationService = {
+      sendEmail: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InvoiceService,
         {
           provide: InvoiceRepository,
           useValue: mockInvoiceRepo,
+        },
+        {
+          provide: NotificationService,
+          useValue: mockNotificationService,
         },
       ],
     }).compile();
@@ -101,6 +110,8 @@ describe('InvoiceService', () => {
 
       invoiceRepo.generateInvoiceNumber.mockResolvedValue('INV-2024-001');
       invoiceRepo.create.mockResolvedValue(mockInvoice as any);
+      // findOne est appelé pour récupérer la facture complète avant l'email
+      invoiceRepo.findById.mockResolvedValue(mockPopulatedInvoice as any);
 
       const result = await service.createInvoiceFromPayment(createDto);
 
@@ -109,7 +120,7 @@ describe('InvoiceService', () => {
         doc: expect.objectContaining({
           payment: expect.any(Types.ObjectId),
           invoiceNumber: 'INV-2024-001',
-          status: InvoiceStatus.PAID, // ← fix
+          status: InvoiceStatus.PAID,
           invoiceDate: expect.any(Date),
         }),
       });
@@ -209,7 +220,7 @@ describe('InvoiceService', () => {
     it('should update invoice status to refunded', async () => {
       const updatedInvoice = {
         ...mockInvoice,
-        status: InvoiceStatus.REFUNDED, // ← fix
+        status: InvoiceStatus.REFUNDED,
         refundedAt: new Date(),
       };
 
@@ -218,7 +229,7 @@ describe('InvoiceService', () => {
 
       const result = await service.updateStatus(
         mockInvoice._id.toString(),
-        InvoiceStatus.REFUNDED, // ← fix
+        InvoiceStatus.REFUNDED,
       );
 
       expect(invoiceRepo.findById).toHaveBeenCalledWith({
@@ -227,17 +238,17 @@ describe('InvoiceService', () => {
       expect(invoiceRepo.update).toHaveBeenCalledWith({
         id: mockInvoice._id.toString(),
         update: expect.objectContaining({
-          status: InvoiceStatus.REFUNDED, // ← fix
+          status: InvoiceStatus.REFUNDED,
           refundedAt: expect.any(Date),
         }),
       });
-      expect(result.status).toBe(InvoiceStatus.REFUNDED); // ← fix
+      expect(result.status).toBe(InvoiceStatus.REFUNDED);
     });
 
     it('should update invoice status to cancelled', async () => {
       const updatedInvoice = {
         ...mockInvoice,
-        status: InvoiceStatus.CANCELLED, // ← fix
+        status: InvoiceStatus.CANCELLED,
       };
 
       invoiceRepo.findById.mockResolvedValue(mockInvoice as any);
@@ -245,24 +256,21 @@ describe('InvoiceService', () => {
 
       const result = await service.updateStatus(
         mockInvoice._id.toString(),
-        InvoiceStatus.CANCELLED, // ← fix
+        InvoiceStatus.CANCELLED,
       );
 
       expect(invoiceRepo.update).toHaveBeenCalledWith({
         id: mockInvoice._id.toString(),
-        update: { status: InvoiceStatus.CANCELLED }, // ← fix
+        update: { status: InvoiceStatus.CANCELLED },
       });
-      expect(result.status).toBe(InvoiceStatus.CANCELLED); // ← fix
+      expect(result.status).toBe(InvoiceStatus.CANCELLED);
     });
 
     it('should throw NotFoundException when invoice not found', async () => {
       invoiceRepo.findById.mockResolvedValue(null);
 
       await expect(
-        service.updateStatus(
-          mockInvoice._id.toString(),
-          InvoiceStatus.REFUNDED,
-        ), // ← fix
+        service.updateStatus(mockInvoice._id.toString(), InvoiceStatus.REFUNDED),
       ).rejects.toThrow(NotFoundException);
     });
   });
