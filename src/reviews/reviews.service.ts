@@ -4,24 +4,50 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Connection, Model, Types } from 'mongoose';
+import { InjectConnection } from '@nestjs/mongoose';
+import { ClientSession, Connection, Types } from 'mongoose';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { Review, ReviewStatus } from './review.schema';
-import { Team, TeamDocument } from '../teams/team.schema';
 import { ReviewRepository } from './review.repository';
+import { TeamRepository } from '../teams/team.repository';
 
 @Injectable()
 export class ReviewsService {
   constructor(
     private readonly reviewRepo: ReviewRepository,
-    @InjectModel(Team.name)
-    private readonly teamModel: Model<TeamDocument>,
+    private readonly teamRepo: TeamRepository,
     @InjectConnection()
     private readonly connection: Connection,
   ) {}
 
   async create(dto: CreateReviewDto): Promise<Review> {
+    const userObjectId = new Types.ObjectId(dto.userId);
+    const teamObjectId = new Types.ObjectId(dto.teamId);
+    const userIdMatcher = { $in: [userObjectId, dto.userId] } as any;
+    const teamIdMatcher = { $in: [teamObjectId, dto.teamId] } as any;
+
+    const lastReview = await this.reviewRepo.findOne({
+      filter: {
+        userId: userIdMatcher,
+        teamId: teamIdMatcher,
+        deleted_at: null,
+        status: { $in: [ReviewStatus.PENDING, ReviewStatus.APPROVED] },
+      } as any,
+      options: {
+        sort: { createdAt: -1 },
+      },
+    });
+
+    if (lastReview) {
+      if (lastReview.status === ReviewStatus.APPROVED) {
+        throw new ConflictException('ALREADY_REVIEWED_TEAM_APPROVED');
+      }
+
+      if (lastReview.status === ReviewStatus.PENDING) {
+        throw new ConflictException('REVIEW_ALREADY_PENDING');
+      }
+    }
+
     const isVerified = false;
     const status: ReviewStatus = ReviewStatus.PENDING;
 
@@ -29,8 +55,8 @@ export class ReviewsService {
       ...dto,
       status,
       isVerified,
-      teamId: new Types.ObjectId(dto.teamId),
-      userId: new Types.ObjectId(dto.userId),
+      teamId: teamObjectId,
+      userId: userObjectId,
     } as any;
 
     const shouldUpdateTeamStats = false;
@@ -91,7 +117,7 @@ export class ReviewsService {
   async approve(reviewId: string): Promise<Review> {
     if (!this.supportsTransactions()) {
       const review = await this.reviewRepo.findOne({
-        filter: { _id: reviewId, deleted_at: { $exists: false } } as any,
+        filter: { _id: reviewId } as any,
       });
 
       if (!review) {
@@ -146,7 +172,7 @@ export class ReviewsService {
 
     try {
       const review = await this.reviewRepo.findOne({
-        filter: { _id: reviewId, deleted_at: { $exists: false } } as any,
+        filter: { _id: reviewId } as any,
       });
 
       if (!review) {
@@ -188,6 +214,43 @@ export class ReviewsService {
     }
   }
 
+  async reject(reviewId: string): Promise<Review> {
+    const review = await this.reviewRepo.findOne({
+      filter: { _id: reviewId } as any,
+    });
+
+    if (!review) {
+      throw new NotFoundException('Review not found');
+    }
+
+    if (review.status === ReviewStatus.REJECTED) {
+      return review as Review;
+    }
+
+    if (review.status === ReviewStatus.APPROVED) {
+      throw new BadRequestException('APPROVED_REVIEW_CANNOT_BE_REJECTED');
+    }
+
+    review.status = ReviewStatus.REJECTED;
+    return (await review.save()) as Review;
+  }
+
+  async getAll({ status }: { status?: ReviewStatus }): Promise<Review[]> {
+    const filter: Record<string, unknown> = {};
+
+    if (status) {
+      filter.status = status;
+    }
+
+    return (await this.reviewRepo.findAll({
+      filter: filter as any,
+      options: {
+        sort: { createdAt: -1 },
+        populate: { path: 'userId', select: 'name firstname avatarFileKey' },
+      },
+    })) as Review[];
+  }
+
   async getByTeam(teamId: string): Promise<Review[]> {
     return (await this.reviewRepo.findAll({
       filter: {
@@ -201,6 +264,20 @@ export class ReviewsService {
     })) as Review[];
   }
 
+  async delete(reviewId: string): Promise<Review> {
+    const review = await this.reviewRepo.findOne({
+      filter: { _id: reviewId } as any,
+    });
+
+    if (!review) {
+      throw new NotFoundException('Review not found');
+    }
+
+    review.status = ReviewStatus.REJECTED;
+    review.deleted_at = new Date();
+    return (await review.save()) as Review;
+  }
+
   private async updateTeamStats({
     session,
     teamId,
@@ -210,16 +287,10 @@ export class ReviewsService {
     teamId: Types.ObjectId | string;
     newRating: number;
   }) {
-    const query = this.teamModel.findOne({
-      _id: teamId,
-      deleted_at: { $exists: false },
+    const team = await this.teamRepo.findOne({
+      filter: { _id: teamId } as any,
+      options: session ? { session } : {},
     });
-
-    if (session) {
-      query.session(session);
-    }
-
-    const team = await query.exec();
 
     if (!team) {
       throw new NotFoundException('Team not found');
