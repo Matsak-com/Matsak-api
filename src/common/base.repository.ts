@@ -5,6 +5,7 @@ import {
   PopulateOptions,
   ProjectionType,
   Types,
+  ClientSession,
 } from 'mongoose';
 
 type QueryOptionsExtended<T> = {
@@ -14,6 +15,7 @@ type QueryOptionsExtended<T> = {
   limit?: number;
   skip?: number;
   lean?: boolean;
+  session?: ClientSession;
 };
 
 export class BaseRepository<T extends { deleted_at?: Date }> {
@@ -32,13 +34,20 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
   }
 
   withNotDeleted(filter?: FilterQuery<T>) {
-    // Use $exists:false so we match documents where `deleted_at` is not set
-    // (some repositories use `{ deleted_at: { $exists: false } }`). This
-    // ensures consistency across the codebase and avoids missing results
-    // when the field is absent.
+    const notDeleted = {
+      $or: [{ deleted_at: { $exists: false } }, { deleted_at: null }],
+    } as FilterQuery<T>;
+
+    if (filter && Object.prototype.hasOwnProperty.call(filter, 'deleted_at')) {
+      return filter as FilterQuery<T>;
+    }
+
+    if (!filter || Object.keys(filter).length === 0) {
+      return notDeleted as FilterQuery<T>;
+    }
+
     return {
-      ...(filter ?? {}),
-      deleted_at: { $exists: false },
+      $and: [filter as FilterQuery<T>, notDeleted],
     } as FilterQuery<T>;
   }
 
@@ -145,6 +154,7 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
     if (options.limit !== undefined) query.limit(options.limit);
     if (options.skip !== undefined) query.skip(options.skip);
     if (options.lean) query.lean();
+    if (options.session) query.session(options.session);
   }
 
   private applyUpdateQueryOptions(
@@ -155,6 +165,7 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
     // We also skip sort, limit, skip as they don't make sense for findOneAndUpdate
     if (options.populate) query.populate(options.populate);
     if (options.lean) query.lean();
+    if (options.session) query.session(options.session);
   }
 
   /**

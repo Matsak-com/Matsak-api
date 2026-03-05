@@ -9,6 +9,7 @@ import { FilterQuery, Types } from 'mongoose';
 import { MembersService } from '../members/members.service';
 import { RolesService } from '../roles/roles.service';
 import { MemberStatus } from '../members/member.schema';
+import { UserRole } from '../users/user.schema';
 
 /**
  * Service for managing teams, including creation, retrieval, updating, and deletion.
@@ -114,7 +115,31 @@ export class TeamsService {
     return results;
   }
 
-  async findByUser(userId: string): Promise<Team[] | null> {
+  async findByUser({
+    userId,
+    role,
+  }: {
+    userId: string;
+    role: UserRole;
+  }): Promise<Team[] | null> {
+    if (role === UserRole.SUPERADMIN) {
+      const teams = await this.teamsRepository.findAll({
+        filter: {},
+        options: { sort: { name: 1 } },
+      });
+      const results = await Promise.all(
+        teams.map(async (team) => {
+          if (team.picture) {
+            team.picture = await this.awsS3Service.getFileUrl({
+              fileKey: team.picture,
+            });
+          }
+          return team;
+        }),
+      );
+      return results.length > 0 ? results : null;
+    }
+
     const aggregationPipeline = [
       {
         $lookup: {
