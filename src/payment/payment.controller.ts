@@ -8,9 +8,9 @@ import {
   HttpStatus,
   UseGuards,
   Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PaymentService, InitPaymentInput } from './payment.service';
-import { mockMvolaStore } from './Mvola/mvola-api.service';
 import {
   IsEnum,
   IsMongoId,
@@ -36,7 +36,6 @@ class InitPaymentDto {
   })
   deliveryMethod: DeliveryMethod;
 
-  // Requis uniquement si deliveryMethod = 'delivery'
   @ValidateIf((o) => o.deliveryMethod === DeliveryMethod.DELIVERY)
   @IsMongoId({ message: 'deliveryAddressId doit être un ObjectId valide' })
   @IsOptional()
@@ -72,33 +71,13 @@ export class PaymentController {
 
   @UseGuards(JwtAuthGuard)
   @Get('status/:paymentId')
-  async getStatus(@Param('paymentId') paymentId: string) {
-    return this.paymentService.pollStatus(paymentId);
-  }
+  async getStatus(@Param('paymentId') paymentId: string, @Request() req: any) {
+    const payment = await this.paymentService.pollStatus(paymentId);
 
-  // ── Route MOCK : simuler la confirmation client ──────────────────
-  @Post('mock/confirm/:serverCorrelationId')
-  @HttpCode(HttpStatus.OK)
-  mockConfirm(@Param('serverCorrelationId') serverCorrelationId: string) {
-    if (process.env.NODE_ENV === 'production') {
-      return { error: 'Route non disponible en production' };
+    if (payment.userId?.toString() !== req.user?.userId) {
+      throw new ForbiddenException('Vous ne pouvez pas consulter ce paiement');
     }
 
-    const mockTx = mockMvolaStore.get(serverCorrelationId);
-
-    if (!mockTx) {
-      return { error: 'Transaction introuvable' };
-    }
-
-    mockTx.status = 'SUCCESS';
-    mockMvolaStore.set(serverCorrelationId, mockTx);
-
-    this.paymentService.handleCallback({
-      serverCorrelationId,
-      status: 'COMPLETED',
-      transactionReference: mockTx.transactionReference,
-    });
-
-    return { success: true, status: 'SUCCESS' };
+    return payment;
   }
 }

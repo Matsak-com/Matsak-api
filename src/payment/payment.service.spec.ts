@@ -131,6 +131,118 @@ describe('PaymentService', () => {
       customerPhone: '0340000000',
     };
 
+
+    // ── À insérer dans describe('initiate') après le test existant
+    // "should rollback payment to FAILED when Mvola API throws after creation"
+
+    it('should rollback payment to FAILED when paymentRepo.update throws after Mvola call', async () => {
+      // Simule une erreur sur la mise à jour serverCorrelationId → WAITING
+      // (l'update WAITING échoue, pas l'update de rollback)
+      cartRepo.findById.mockResolvedValue(mockCart as any);
+      productService.calculatePrice.mockReturnValue({
+        basePrice: 1000,
+        finalPrice: 1000,
+        totalPrice: 2000,
+        discountsApplied: [],
+        currency: 'Ar',
+      });
+      paymentRepo.findOne.mockResolvedValue(null);
+      paymentRepo.create.mockResolvedValue(mockPayment as any);
+      mvolaApiService.initMerchantPay.mockResolvedValue({
+        serverCorrelationId: 'server-correlation-id',
+        status: 'PENDING',
+      });
+      // Premier update (→ WAITING) échoue, deuxième (rollback → FAILED) réussit
+      paymentRepo.update
+        .mockRejectedValueOnce(new Error('DB write error'))
+        .mockResolvedValueOnce({ ...mockPayment, status: PaymentStatus.FAILED } as any);
+
+      await expect(service.initiate(initiateInput)).rejects.toThrow('DB write error');
+
+      expect(paymentRepo.update).toHaveBeenCalledTimes(2);
+      expect(paymentRepo.update).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          id: mockPaymentId.toString(),
+          update: expect.objectContaining({
+            status: PaymentStatus.FAILED,
+            failureReason: 'DB write error',
+          }),
+        }),
+      );
+    });
+
+    it('should still throw the original error when rollback itself fails', async () => {
+      // Scénario : Mvola échoue ET le rollback échoue aussi
+      // → l'erreur originale doit remonter, pas celle du rollback
+      cartRepo.findById.mockResolvedValue(mockCart as any);
+      productService.calculatePrice.mockReturnValue({
+        basePrice: 1000,
+        finalPrice: 1000,
+        totalPrice: 2000,
+        discountsApplied: [],
+        currency: 'Ar',
+      });
+      paymentRepo.findOne.mockResolvedValue(null);
+      paymentRepo.create.mockResolvedValue(mockPayment as any);
+      mvolaApiService.initMerchantPay.mockRejectedValue(
+        new Error('Mvola unreachable'),
+      );
+      paymentRepo.update.mockRejectedValue(new Error('DB unavailable'));
+
+      await expect(service.initiate(initiateInput)).rejects.toThrow(
+        'Mvola unreachable',
+      );
+    });
+
+    it('should NOT attempt rollback when error occurs before payment creation', async () => {
+      // Erreur lors du calcul du montant (avant paymentRepo.create)
+      // → paymentId est null, aucun rollback ne doit être tenté
+      cartRepo.findById.mockResolvedValue(mockCart as any);
+      productService.calculatePrice.mockReturnValue({
+        basePrice: 1000,
+        finalPrice: 1000,
+        totalPrice: 0, // → BadRequestException INVALID_AMOUNT avant create
+        discountsApplied: [],
+        currency: 'Ar',
+      });
+      paymentRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.initiate(initiateInput)).rejects.toThrow(
+        BadRequestException,
+      );
+
+      expect(paymentRepo.create).not.toHaveBeenCalled();
+      // Aucun rollback : update ne doit jamais être appelé avec status FAILED
+      expect(paymentRepo.update).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({ status: PaymentStatus.FAILED }),
+        }),
+      );
+    });
+
+    it('should require deliveryAddressId when deliveryMethod is delivery', async () => {
+      cartRepo.findById.mockResolvedValue(mockCart as any);
+      productService.calculatePrice.mockReturnValue({
+        basePrice: 1000,
+        finalPrice: 1000,
+        totalPrice: 2000,
+        discountsApplied: [],
+        currency: 'Ar',
+      });
+      paymentRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.initiate({
+          ...initiateInput,
+          deliveryMethod: 'delivery' as any,
+          deliveryAddressId: undefined,
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      // Validation doit intervenir avant la création du payment
+      expect(paymentRepo.create).not.toHaveBeenCalled();
+    });
+
     it('should initiate payment successfully', async () => {
       cartRepo.findById.mockResolvedValue(mockCart as any);
       productService.calculatePrice.mockReturnValue({
