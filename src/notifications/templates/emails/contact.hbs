@@ -1,0 +1,27 @@
+{{> header}}
+
+<div class="content">
+  <h2>Nouveau formulaire de contact</h2>
+
+  <div class="contact-details">
+    <p><strong>Nom :</strong> {{user.firstName}} {{user.lastName}}</p>
+    <p><strong>Email :</strong> <a href="mailto:{{user.email}}">{{user.email}}</a></p>
+    {{#if user.phone}}
+      <p><strong>Téléphone :</strong> {{user.phone}}</p>
+    {{/if}}
+    <p><strong>Sujet :</strong> {{subject}}</p>
+    <p><strong>Message :</strong></p>
+    <p class="contact-message">{{message}}</p>
+    
+    <div class="contact-meta">
+      <p><strong>Adresse IP :</strong> {{ip}}</p>
+      <p><strong>Date et heure :</strong> {{timestamp}}</p>
+    </div>
+  </div>
+
+  <p class="contact-info">
+    Ce message a été envoyé via le formulaire de contact de votre site web.
+  </p>
+</div>
+
+{{> footer}}

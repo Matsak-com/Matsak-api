@@ -29,12 +29,17 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { PaymentModule } from './payment/payment.module';
 import { InvoiceModule } from './invoice/invoice.module';
 import { CookieConsentController } from './cookie-consent/cookie-consent.controller';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { ContactModule } from './contact/contact.module';
+import Redis from 'ioredis';
+import { ThrottlerStorageRedisService } from './throttler/throttler.storage';
+import { RedisService } from './common/providers/redis.provider';
 
 /**
  * Parse and validate Redis configuration
  * BullJS accepts either a connection URL string or a configuration object
  */
-function getRedisConfig() {
+export function getRedisConfig() {
   const redisUrl = process.env.REDIS_URL;
 
   // If REDIS_URL is provided, validate it's a proper Redis URL
@@ -71,6 +76,18 @@ function getRedisConfig() {
     BullModule.forRoot({
       redis: getRedisConfig(),
     }),
+    ThrottlerModule.forRootAsync({
+      useFactory: () => {
+        const config = getRedisConfig();
+        const redis =
+          typeof config === 'string' ? new Redis(config) : new Redis(config);
+
+        return {
+          throttlers: [{ ttl: 3600, limit: 3 }],
+          storage: new ThrottlerStorageRedisService(redis),
+        };
+      },
+    }),
     UsersModule,
     AuthModule,
     ConfigModule.forRoot(),
@@ -78,7 +95,6 @@ function getRedisConfig() {
     MembersModule,
     RolesModule,
     CategoriesModule,
-    ConfigModule.forRoot(),
     SubCategoriesModule,
     DetailProductModule,
     ImageProductModule,
@@ -94,10 +110,12 @@ function getRedisConfig() {
     ReviewsModule,
     PaymentModule,
     InvoiceModule,
+    ContactModule,
   ],
   controllers: [AppController, CookieConsentController],
   providers: [
     AppService,
+    RedisService,
     {
       provide: APP_FILTER,
       useClass: GlobalExceptionFilter,
