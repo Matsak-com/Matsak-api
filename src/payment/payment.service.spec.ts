@@ -474,7 +474,10 @@ describe('PaymentService', () => {
         .mockResolvedValueOnce(waitingPayment as any)
         .mockResolvedValueOnce({ ...waitingPayment, status: PaymentStatus.SUCCESS } as any);
 
-      mvolaApiService.getTransactionStatus.mockResolvedValue({ status: 'COMPLETED' });
+      mvolaApiService.getTransactionStatus.mockResolvedValue({
+  status: 'COMPLETED',
+  serverCorrelationId: 'server-correlation-id',
+});
       paymentRepo.transitionStatus.mockResolvedValue(null as any); // déjà pris par le callback
 
       await service.pollStatus(mockPaymentId.toString());
@@ -494,7 +497,10 @@ describe('PaymentService', () => {
         .mockResolvedValueOnce(waitingPayment as any)
         .mockResolvedValueOnce({ ...waitingPayment, status: PaymentStatus.FAILED } as any);
 
-      mvolaApiService.getTransactionStatus.mockResolvedValue({ status: 'FAILED' });
+      mvolaApiService.getTransactionStatus.mockResolvedValue({
+  status: 'FAILED',
+  serverCorrelationId: 'server-correlation-id',
+});
       paymentRepo.transitionStatus.mockResolvedValue({ ...waitingPayment, status: PaymentStatus.FAILED } as any);
 
       const result = await service.pollStatus(mockPaymentId.toString());
