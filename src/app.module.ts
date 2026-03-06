@@ -26,14 +26,14 @@ import { BullModule } from '@nestjs/bull';
 import { PreferenceModule } from './preference/preference.module';
 import { FaqsModule } from './faqs/faqs.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { PaymentModule } from './payment/payment.module';
+import { InvoiceModule } from './invoice/invoice.module';
+import { CookieConsentController } from './cookie-consent/cookie-consent.controller';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ContactModule } from './contact/contact.module';
 import Redis from 'ioredis';
 import { ThrottlerStorageRedisService } from './throttler/throttler.storage';
 import { RedisService } from './common/providers/redis.provider';
-import { PaymentModule } from './payment/payment.module';
-import { InvoiceModule } from './invoice/invoice.module';
-import { CookieConsentController } from './cookie-consent/cookie-consent.controller';
 
 /**
  * Parse and validate Redis configuration
@@ -108,9 +108,9 @@ export function getRedisConfig() {
     PreferenceModule,
     FaqsModule,
     ReviewsModule,
-    ContactModule,
     PaymentModule,
     InvoiceModule,
+    ContactModule,
   ],
   controllers: [AppController, CookieConsentController],
   providers: [
