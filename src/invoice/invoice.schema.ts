@@ -17,6 +17,9 @@ export class Invoice {
   })
   payment: Types.ObjectId;
 
+  @Prop({ type: Types.ObjectId, ref: 'User', required: false, index: true })
+  userId: Types.ObjectId;
+
   // ══════════════════════════════════════════════════════════════
   // FACTURE - Juste le numéro pour la comptabilité
   // ══════════════════════════════════════════════════════════════

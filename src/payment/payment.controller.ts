@@ -9,10 +9,23 @@ import {
 } from '@nestjs/common';
 import { PaymentService, InitPaymentInput } from './payment.service';
 import { mockMvolaStore } from './Mvola/mvola-api.service';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsPhoneNumber,
+  IsString,
+} from 'class-validator';
 
 class InitPaymentDto {
+  @IsString()
+  @IsNotEmpty()
   cartId: string;
+  @IsOptional()
+  @IsString()
   userId?: string;
+  @IsString()
+  @IsNotEmpty()
+  @IsPhoneNumber(null)
   customerPhone: string;
 }
 

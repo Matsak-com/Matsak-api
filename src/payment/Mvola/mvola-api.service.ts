@@ -4,18 +4,8 @@ import { HttpService } from '@nestjs/axios';
 import { v4 as uuidv4 } from 'uuid';
 import { firstValueFrom } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
-import { AxiosError } from 'axios';
-
-// ── Mock Store ─────────────────────────────────────────────────────
-export type MockStatus = 'PENDING' | 'SUCCESS' | 'FAILED';
-export interface MockTransaction {
-  serverCorrelationId: string;
-  transactionReference: string;
-  status: MockStatus;
-  amount: number;
-  customerPhone: string;
-}
-export const mockMvolaStore = new Map<string, MockTransaction>();
+import { AxiosError, AxiosResponse } from 'axios';
+import { mockMvolaStore } from './mock/mvola-mock.store';
 
 // ── Types ──────────────────────────────────────────────────────────
 export interface MvolaTokenResponse {
@@ -49,7 +39,6 @@ export interface InitMerchantPayParams {
 export class MvolaApiService {
   private readonly logger = new Logger(MvolaApiService.name);
 
-  // Config depuis .env
   private readonly baseUrl: string;
   private readonly consumerKey: string;
   private readonly consumerSecret: string;
@@ -70,14 +59,8 @@ export class MvolaApiService {
       'https://pre-api.mvola.mg',
     );
     this.consumerKey = this.configService.get<string>('MVOLA_CONSUMER_KEY', '');
-    this.consumerSecret = this.configService.get<string>(
-      'MVOLA_CONSUMER_SECRET',
-      '',
-    );
-    this.merchantPhone = this.configService.get<string>(
-      'MVOLA_MERCHANT_PHONE',
-      '',
-    );
+    this.consumerSecret = this.configService.get<string>('MVOLA_CONSUMER_SECRET', '');
+    this.merchantPhone = this.configService.get<string>('MVOLA_MERCHANT_PHONE', '');
     this.partnerName = this.configService.get<string>('MVOLA_PARTNER_NAME', '');
     this.mockMode = this.configService.get<string>('MVOLA_MODE') === 'mock';
 
@@ -117,7 +100,7 @@ export class MvolaApiService {
           },
         )
         .pipe(
-          map((res) => res.data),
+          map((res: AxiosResponse<MvolaTokenResponse>) => res.data),
           catchError((error: AxiosError) => {
             this.logger.error(
               'Erreur OAuth Mvola',
@@ -138,7 +121,6 @@ export class MvolaApiService {
   async initMerchantPay(
     params: InitMerchantPayParams,
   ): Promise<MvolaInitPaymentResponse> {
-    // Mode MOCK
     if (this.mockMode) {
       this.logger.warn(
         `🧪 MOCK init — amount: ${params.amount}, phone: ${params.customerPhone}`,
@@ -146,7 +128,6 @@ export class MvolaApiService {
 
       const serverCorrelationId = uuidv4();
 
-      // Stocker la transaction mock
       mockMvolaStore.set(serverCorrelationId, {
         serverCorrelationId,
         transactionReference: params.transactionReference,
@@ -162,7 +143,6 @@ export class MvolaApiService {
       };
     }
 
-    // Mode RÉEL
     const token = await this.getAccessToken();
 
     const body = {
@@ -197,7 +177,7 @@ export class MvolaApiService {
       `POST merchantpay — correlationId: ${params.correlationId}, amount: ${params.amount}`,
     );
 
-    const response = await firstValueFrom(
+    return firstValueFrom(
       this.httpService
         .post<MvolaInitPaymentResponse>(
           `${this.baseUrl}/mvola/mm/transactions/type/merchantpay/1.0.0`,
@@ -205,7 +185,7 @@ export class MvolaApiService {
           { headers },
         )
         .pipe(
-          map((res) => res.data),
+          map((res: AxiosResponse<MvolaInitPaymentResponse>) => res.data),
           catchError((error: AxiosError) => {
             this.logger.error(
               'Erreur POST merchantpay',
@@ -215,8 +195,6 @@ export class MvolaApiService {
           }),
         ),
     );
-
-    return response;
   }
 
   // ── 3. GET /merchantpay/{serverCorrelationId} — vérifier le statut ─
@@ -224,7 +202,6 @@ export class MvolaApiService {
     serverCorrelationId: string,
     correlationId: string,
   ): Promise<MvolaStatusResponse> {
-    // Mode MOCK
     if (this.mockMode) {
       const mockTx = mockMvolaStore.get(serverCorrelationId);
 
@@ -242,7 +219,6 @@ export class MvolaApiService {
       };
     }
 
-    // Mode RÉEL
     const token = await this.getAccessToken();
 
     const headers = {
@@ -257,26 +233,22 @@ export class MvolaApiService {
 
     this.logger.log(`GET status — serverCorrelationId: ${serverCorrelationId}`);
 
-    const response = await firstValueFrom(
+    return firstValueFrom(
       this.httpService
         .get<MvolaStatusResponse>(
           `${this.baseUrl}/mvola/mm/transactions/type/merchantpay/1.0/${serverCorrelationId}`,
           { headers },
         )
         .pipe(
-          map((res) => res.data),
+          map((res: AxiosResponse<MvolaStatusResponse>) => res.data),
           catchError((error: AxiosError) => {
             this.logger.error(
               'Erreur GET status',
               error.response?.data || error.message,
             );
-            throw new Error(
-              'Impossible de vérifier le statut de la transaction',
-            );
+            throw new Error('Impossible de vérifier le statut de la transaction');
           }),
         ),
     );
-
-    return response;
   }
 }

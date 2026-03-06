@@ -66,7 +66,7 @@ export class PaymentRepository {
     return query.exec();
   }
 
-  async update(params: UpdateParams): Promise<PaymentDocument> {
+  async update(params: UpdateParams): Promise<PaymentDocument | null> {
     return this.paymentModel
       .findByIdAndUpdate(params.id, params.update, { new: true })
       .exec();

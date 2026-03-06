@@ -16,7 +16,7 @@ import { MvolaApiService } from './Mvola/mvola-api.service';
 import { CartRepository } from '../cart-item/cart.repository';
 import { ProductService } from '../product/product.service';
 import { InvoiceService } from '../invoice/invoice.service';
-import { CartService } from '../cart-item/cart.service'; // ✅ Ajouter
+import { CartService } from '../cart-item/cart.service';
 import { InventoryService } from '../inventory/inventory.service';
 
 export interface InitPaymentInput {
@@ -33,7 +33,7 @@ export class PaymentService implements OnModuleInit {
   constructor(
     private readonly paymentRepo: PaymentRepository,
     private readonly cartRepo: CartRepository,
-    private readonly cartService: CartService, // ✅ Ajouter
+    private readonly cartService: CartService,
     private readonly productService: ProductService,
     private readonly mvolaApiService: MvolaApiService,
     private readonly configService: ConfigService,
@@ -45,9 +45,9 @@ export class PaymentService implements OnModuleInit {
       'http://localhost:3000',
     );
   }
+
   onModuleInit() {
     this.logger.log('PaymentService initialisé');
-    // Ajoutez ici toute logique d'initialisation si nécessaire
   }
 
   // ── 1. Initier un paiement Mvola ───────────────────────────────────
@@ -56,7 +56,6 @@ export class PaymentService implements OnModuleInit {
     let paymentId: string | null = null;
 
     try {
-      // Step 1: Vérifier que le panier existe et n'est pas supprimé
       const cart = await this.cartRepo.findById({
         id: new Types.ObjectId(cartId),
         options: { populate: [{ path: 'items.product' }] },
@@ -70,15 +69,10 @@ export class PaymentService implements OnModuleInit {
         throw new BadRequestException(ERRORS.CART_EMPTY);
       }
 
-      // Step 2: Calculer le montant total avec les prix et discounts réels
       let totalAmount = 0;
-
       for (const item of cart.items) {
         const product = item.product as any;
-        const pricing = this.productService.calculatePrice(
-          product,
-          item.quantity,
-        );
+        const pricing = this.productService.calculatePrice(product, item.quantity);
         totalAmount += pricing.totalPrice;
       }
 
@@ -86,7 +80,6 @@ export class PaymentService implements OnModuleInit {
         throw new BadRequestException(ERRORS.INVALID_AMOUNT);
       }
 
-      // Step 3: Vérifier qu'il n'y a pas déjà un paiement actif pour ce panier
       const existingActive = await this.paymentRepo.findOne({
         filter: {
           cartId: new Types.ObjectId(cartId),
@@ -98,7 +91,6 @@ export class PaymentService implements OnModuleInit {
         throw new BadRequestException(ERRORS.PAYMENT_ALREADY_IN_PROGRESS);
       }
 
-      // Step 4: Créer l'enregistrement Payment en PENDING
       const correlationId = uuidv4();
       const transactionReference = uuidv4();
 
@@ -118,7 +110,6 @@ export class PaymentService implements OnModuleInit {
 
       paymentId = (payment as any)._id.toString();
 
-      // Step 5: Appeler l'API Mvola
       const mvolaResponse = await this.mvolaApiService.initMerchantPay({
         amount: totalAmount,
         customerPhone,
@@ -128,7 +119,6 @@ export class PaymentService implements OnModuleInit {
         descriptionText: `Commande - Panier ${cartId}`,
       });
 
-      // Step 6: Mettre à jour avec serverCorrelationId → WAITING
       await this.paymentRepo.update({
         id: paymentId,
         update: {
@@ -138,24 +128,16 @@ export class PaymentService implements OnModuleInit {
         },
       });
 
-      // Step 7: Retourner le payment populé
       return this.paymentRepo.findById({ id: paymentId });
     } catch (error) {
-      // Rollback si l'erreur arrive après la création du Payment
       if (paymentId) {
         try {
           await this.paymentRepo.update({
             id: paymentId,
-            update: {
-              status: PaymentStatus.FAILED,
-              failureReason: error.message,
-            },
+            update: { status: PaymentStatus.FAILED, failureReason: error.message },
           });
         } catch (cleanupError) {
-          this.logger.error(
-            `Failed to rollback payment ${paymentId}`,
-            cleanupError,
-          );
+          this.logger.error(`Failed to rollback payment ${paymentId}`, cleanupError);
         }
       }
 
@@ -168,7 +150,7 @@ export class PaymentService implements OnModuleInit {
     }
   }
 
-  // ── 2. Callback Mvola — reçu quand le client confirme ──────────────
+  // ── 2. Callback Mvola ───────────────────────────────────────────────
   async handleCallback(callbackData: Record<string, any>): Promise<void> {
     this.logger.log('Callback Mvola reçu', JSON.stringify(callbackData));
 
@@ -184,16 +166,13 @@ export class PaymentService implements OnModuleInit {
     });
 
     if (!payment) {
-      this.logger.warn(
-        `Callback pour serverCorrelationId inconnu: ${serverCorrelationId}`,
-      );
+      this.logger.warn(`Callback pour serverCorrelationId inconnu: ${serverCorrelationId}`);
       return;
     }
 
     const newStatus =
       status === 'COMPLETED' ? PaymentStatus.SUCCESS : PaymentStatus.FAILED;
 
-    // Mettre à jour le statut du paiement
     await this.paymentRepo.update({
       id: payment._id.toString(),
       update: {
@@ -203,30 +182,16 @@ export class PaymentService implements OnModuleInit {
       },
     });
 
-    // ✅ CRÉER LA FACTURE ET SOFT DELETE DU PANIER SI LE PAIEMENT EST RÉUSSI
     if (newStatus === PaymentStatus.SUCCESS) {
-      try {
-        // 1️⃣ Déduire le stock AVANT la création de facture
-        await this.deductStockFromCart(
-          payment.cartId,
-          payment.userId?.toString(),
-        );
-
-        // 2️⃣ Créer la facture
-        await this.createInvoiceForPayment(payment._id.toString());
-
-        // 3️⃣ Soft delete du panier APRÈS
-        await this.cartService.softDeleteCartById(payment.cartId);
-      } catch (error) {
-        this.logger.error(
-          `Échec du traitement post-paiement pour ${payment._id}`,
-          error,
-        );
-      }
+      await this.handlePaymentSuccess(
+        payment._id.toString(),
+        payment.cartId,
+        payment.userId?.toString(),
+      );
     }
   }
 
-  // ── 3. Polling — vérifier le statut (fallback si callback pas reçu) ─
+  // ── 3. Polling ──────────────────────────────────────────────────────
   async pollStatus(paymentId: string): Promise<Payment> {
     const payment = await this.paymentRepo.findById({ id: paymentId });
 
@@ -234,13 +199,10 @@ export class PaymentService implements OnModuleInit {
       throw new NotFoundException(ERRORS.PAYMENT_NOT_FOUND);
     }
 
-    // Déjà terminé → retourner directement
     if (
-      [
-        PaymentStatus.SUCCESS,
-        PaymentStatus.FAILED,
-        PaymentStatus.EXPIRED,
-      ].includes(payment.status)
+      [PaymentStatus.SUCCESS, PaymentStatus.FAILED, PaymentStatus.EXPIRED].includes(
+        payment.status,
+      )
     ) {
       return payment;
     }
@@ -249,7 +211,6 @@ export class PaymentService implements OnModuleInit {
       throw new BadRequestException('Données de transaction incomplètes');
     }
 
-    // Interroger Mvola pour le statut réel
     const mvolaStatus = await this.mvolaApiService.getTransactionStatus(
       payment.serverCorrelationId,
       payment.correlationId,
@@ -269,39 +230,23 @@ export class PaymentService implements OnModuleInit {
         update: {
           status: newStatus,
           mvolaResponse: mvolaStatus,
-          ...(newStatus === PaymentStatus.FAILED && {
-            failureReason: mvolaStatus.status,
-          }),
+          ...(newStatus === PaymentStatus.FAILED && { failureReason: mvolaStatus.status }),
         },
       });
 
-      // ✅ CRÉER LA FACTURE ET SOFT DELETE DU PANIER SI LE STATUT DEVIENT SUCCESS
       if (newStatus === PaymentStatus.SUCCESS) {
-        try {
-          // 1️⃣ Déduire le stock AVANT la création de facture
-          await this.deductStockFromCart(
-            payment.cartId,
-            payment.userId?.toString(),
-          );
-
-          // 2️⃣ Créer la facture
-          await this.createInvoiceForPayment(paymentId);
-
-          // 3️⃣ Soft delete du panier APRÈS
-          await this.cartService.softDeleteCartById(payment.cartId);
-        } catch (error) {
-          this.logger.error(
-            `Échec du traitement post-paiement pour ${paymentId}`,
-            error,
-          );
-        }
+        await this.handlePaymentSuccess(
+          paymentId,
+          payment.cartId,
+          payment.userId?.toString(),
+        );
       }
     }
 
     return this.paymentRepo.findById({ id: paymentId });
   }
 
-  // ── 4. Marquer un paiement comme expiré ────────────────────────────
+  // ── 4. Expirer un paiement ──────────────────────────────────────────
   async expire(paymentId: string): Promise<Payment> {
     const payment = await this.paymentRepo.findById({ id: paymentId });
 
@@ -309,9 +254,7 @@ export class PaymentService implements OnModuleInit {
       throw new NotFoundException(ERRORS.PAYMENT_NOT_FOUND);
     }
 
-    if (
-      ![PaymentStatus.PENDING, PaymentStatus.WAITING].includes(payment.status)
-    ) {
+    if (![PaymentStatus.PENDING, PaymentStatus.WAITING].includes(payment.status)) {
       throw new BadRequestException(
         'Seul un paiement en cours peut être marqué comme expiré',
       );
@@ -325,26 +268,7 @@ export class PaymentService implements OnModuleInit {
     return this.paymentRepo.findById({ id: paymentId });
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  // ✅ MÉTHODE PRIVÉE : Créer une facture pour un paiement réussi
-  // ══════════════════════════════════════════════════════════════════
-  private async createInvoiceForPayment(paymentId: string): Promise<void> {
-    try {
-      void (await this.invoiceService.createInvoiceFromPayment({
-        paymentId,
-      }));
-    } catch (error) {
-      this.logger.error(
-        `Erreur détaillée lors de la création de facture pour le paiement ${paymentId}:`,
-        error.stack || error.message,
-      );
-      throw error;
-    }
-  }
-
-  // ══════════════════════════════════════════════════════════════════
-  // ✅ MÉTHODE PUBLIQUE : Régénérer une facture manuellement
-  // ══════════════════════════════════════════════════════════════════
+  // ── 5. Régénérer une facture manuellement ───────────────────────────
   async regenerateInvoice(paymentId: string): Promise<void> {
     const payment = await this.paymentRepo.findById({ id: paymentId });
 
@@ -358,21 +282,67 @@ export class PaymentService implements OnModuleInit {
       );
     }
 
-    // Vérifier si une facture existe déjà
-    const existingInvoice =
-      await this.invoiceService.findByPaymentId(paymentId);
+    const existingInvoice = await this.invoiceService.findByPaymentId(paymentId);
     if (existingInvoice) {
       throw new BadRequestException(
         `Une facture existe déjà pour ce paiement: ${existingInvoice.invoiceNumber}`,
       );
     }
 
-    await this.createInvoiceForPayment(paymentId);
+    await this.createInvoiceForPayment(paymentId, payment.userId?.toString());
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  // ✅ MÉTHODE PRIVÉE : Déduire le stock pour tous les produits du panier
-  // ══════════════════════════════════════════════════════════════════
+  // ── Privé : orchestration post-paiement réussi ─────────────────────
+  //
+  // Ordre intentionnel :
+  //   1️⃣  Facture  — idempotente (contrainte unique + catch 11000).
+  //                  Sert de verrou : si callback et polling arrivent
+  //                  simultanément, le second obtient la facture existante
+  //                  sans déclencher la suite.
+  //   2️⃣  Stock    — seulement si la facture est créée (ou déjà existante).
+  //                  Évite une déduction orpheline si la création de facture
+  //                  échoue pour une raison autre que le duplicate key.
+  //   3️⃣  Panier   — soft-delete en dernier, non critique.
+  //
+  private async handlePaymentSuccess(
+    paymentId: string,
+    cartId: Types.ObjectId,
+    userId?: string,
+  ): Promise<void> {
+    try {
+      // 1️⃣ Facture en premier — point de synchronisation entre callback et polling
+      await this.createInvoiceForPayment(paymentId, userId);
+
+      // 2️⃣ Déduction stock seulement après facture confirmée
+      await this.deductStockFromCart(cartId, userId);
+
+      // 3️⃣ Soft-delete panier
+      await this.cartService.softDeleteCartById(cartId);
+    } catch (error) {
+      this.logger.error(
+        `Échec du traitement post-paiement pour ${paymentId}`,
+        error,
+      );
+    }
+  }
+
+  // ── Privé : créer la facture ────────────────────────────────────────
+  private async createInvoiceForPayment(
+    paymentId: string,
+    userId?: string,
+  ): Promise<void> {
+    try {
+      await this.invoiceService.createInvoiceFromPayment({ paymentId, userId });
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la création de facture pour le paiement ${paymentId}:`,
+        error.stack || error.message,
+      );
+      throw error;
+    }
+  }
+
+  // ── Privé : déduire le stock du panier ─────────────────────────────
   private async deductStockFromCart(
     cartId: Types.ObjectId,
     userId?: string,
@@ -382,17 +352,12 @@ export class PaymentService implements OnModuleInit {
       options: { populate: [{ path: 'items.product' }] },
     });
 
-    if (!cart || !cart.items?.length) {
-      return;
-    }
+    if (!cart || !cart.items?.length) return;
 
     for (const item of cart.items) {
       const product: any = item.product;
 
-      // ✅ IMPORTANT : ignorer les produits sans gestion de stock
-      if (!product?.trackStock) {
-        continue;
-      }
+      if (!product?.trackStock) continue;
 
       try {
         await this.inventoryService.stockOut(
@@ -406,9 +371,9 @@ export class PaymentService implements OnModuleInit {
         );
       } catch (error) {
         this.logger.error(
-          `❌ Échec de déduction de stock pour produit ${product._id}: ${error.message}`,
+          `❌ Échec de déduction de stock pour produit ${product._id}: ${error instanceof Error ? error.message : String(error)}`,
         );
-        // continuer avec les autres produits
+        throw new Error(`Échec de déduction de stock pour le produit ${product._id}`);
       }
     }
   }

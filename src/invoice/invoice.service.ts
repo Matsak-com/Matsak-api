@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InvoiceRepository } from './invoice.repository';
-import { Invoice } from './invoice.shema';
+import { Invoice } from './invoice.schema';
 import { Types } from 'mongoose';
 
 interface CreateInvoiceFromPaymentDto {
   paymentId: string;
+  userId?: string;
 }
 
 @Injectable()
@@ -14,7 +15,12 @@ export class InvoiceService {
   constructor(private readonly invoiceRepo: InvoiceRepository) {}
 
   /**
-   * Créer une facture ultra-minimaliste après paiement réussi
+   * Créer une facture après paiement réussi.
+   *
+   * Idempotent : si callback et polling arrivent simultanément, la contrainte
+   * unique sur `payment` (invoice.schema.ts) lève un MongoError 11000.
+   * On intercepte cette erreur et on retourne la facture déjà créée plutôt
+   * que de propager une exception.
    */
   async createInvoiceFromPayment(
     dto: CreateInvoiceFromPaymentDto,
@@ -22,12 +28,13 @@ export class InvoiceService {
     try {
       this.logger.log(`Création facture pour payment ${dto.paymentId}`);
 
-      // Générer le numéro de facture
       const invoiceNumber = await this.invoiceRepo.generateInvoiceNumber();
 
-      // Créer la facture (juste payment + invoiceNumber)
       const invoiceDoc: any = {
         payment: new Types.ObjectId(dto.paymentId),
+        // userId dénormalisé pour permettre findByCustomer directement en base
+        // sans charger toutes les factures en mémoire
+        ...(dto.userId && { userId: new Types.ObjectId(dto.userId) }),
         invoiceNumber,
         status: 'paid' as const,
         invoiceDate: new Date(),
@@ -35,10 +42,29 @@ export class InvoiceService {
 
       const invoice = await this.invoiceRepo.create({ doc: invoiceDoc });
 
-      this.logger.log(`✅ Facture ${invoiceNumber} créée avec succès`);
+      this.logger.log(`✅ Facture ${invoiceNumber} créée`);
 
       return invoice;
     } catch (error) {
+      // Contrainte unique sur `payment` : race condition entre handleCallback
+      // et pollStatus → la facture a déjà été créée par l'autre processus
+      if ((error as any)?.code === 11000) {
+        this.logger.warn(
+          `Race condition détectée : facture déjà existante pour payment ${dto.paymentId} — retour de la facture existante`,
+        );
+
+        const existing = await this.invoiceRepo.findOne({
+          filter: { payment: new Types.ObjectId(dto.paymentId) },
+        });
+
+        if (existing) return existing;
+
+        // Extrêmement improbable : 11000 mais document introuvable
+        this.logger.error(
+          `Incohérence : duplicate key mais aucune facture trouvée pour payment ${dto.paymentId}`,
+        );
+      }
+
       this.logger.error(
         'Erreur lors de la création de facture',
         error.stack || error.message,
@@ -48,7 +74,7 @@ export class InvoiceService {
   }
 
   /**
-   * Récupérer une facture par ID avec TOUTES les données enrichies
+   * Récupérer une facture par ID avec toutes les données enrichies
    */
   async findOne(id: string): Promise<any> {
     const invoice = await this.invoiceRepo.findById({
@@ -58,16 +84,10 @@ export class InvoiceService {
           {
             path: 'payment',
             populate: [
-              {
-                path: 'userId',
-                select: 'name email addresses',
-              },
+              { path: 'userId', select: 'name email addresses' },
               {
                 path: 'cartId',
-                populate: {
-                  path: 'items.product',
-                  populate: { path: 'detail' },
-                },
+                populate: { path: 'items.product', populate: { path: 'detail' } },
               },
             ],
           },
@@ -79,24 +99,17 @@ export class InvoiceService {
       throw new NotFoundException(`Facture ${id} introuvable`);
     }
 
-    // Extraire et formater les données
     const payment = invoice.payment as any;
     const cart = payment?.cartId as any;
     const user = payment?.userId as any;
-
-    // Trouver l'adresse par défaut
     const defaultAddress = user?.addresses?.find((addr: any) => addr.isDefault);
 
-    // Construire la réponse enrichie
     return {
-      // Données de la facture
       _id: invoice._id,
       invoiceNumber: invoice.invoiceNumber,
       invoiceDate: invoice.invoiceDate,
       status: invoice.status,
       refundedAt: invoice.refundedAt,
-
-      // Données du paiement
       payment: {
         method: payment.method,
         amount: payment.amount,
@@ -110,21 +123,9 @@ export class InvoiceService {
         createdAt: payment.createdAt,
         updatedAt: payment.updatedAt,
       },
-
-      // Données du panier
-      cart: {
-        _id: cart?._id,
-        items: cart?.items || [],
-        // Ajoutez d'autres champs du cart si nécessaire
-      },
-
-      // Données du client
+      cart: { _id: cart?._id, items: cart?.items || [] },
       customer: user
-        ? {
-            name: user.name,
-            email: user.email,
-            defaultShippingAddress: defaultAddress || null,
-          }
+        ? { name: user.name, email: user.email, defaultShippingAddress: defaultAddress || null }
         : null,
     };
   }
@@ -140,16 +141,10 @@ export class InvoiceService {
           {
             path: 'payment',
             populate: [
-              {
-                path: 'userId',
-                select: 'name email addresses',
-              },
+              { path: 'userId', select: 'name email addresses' },
               {
                 path: 'cartId',
-                populate: {
-                  path: 'items.product',
-                  populate: { path: 'detail' },
-                },
+                populate: { path: 'items.product', populate: { path: 'detail' } },
               },
             ],
           },
@@ -161,7 +156,6 @@ export class InvoiceService {
       throw new NotFoundException(`Facture ${invoiceNumber} introuvable`);
     }
 
-    // Utiliser la même logique de formatage
     return this.formatInvoiceResponse(invoice);
   }
 
@@ -169,11 +163,9 @@ export class InvoiceService {
    * Récupérer une facture par ID de paiement
    */
   async findByPaymentId(paymentId: string): Promise<Invoice | null> {
-    const invoice = await this.invoiceRepo.findOne({
+    return this.invoiceRepo.findOne({
       filter: { payment: new Types.ObjectId(paymentId) },
     });
-
-    return invoice;
   }
 
   /**
@@ -189,18 +181,10 @@ export class InvoiceService {
       throw new NotFoundException(`Facture ${id} introuvable`);
     }
 
-    const updateData: any = {
-      status,
-    };
+    const updateData: any = { status };
+    if (status === 'refunded') updateData.refundedAt = new Date();
 
-    if (status === 'refunded') {
-      updateData.refundedAt = new Date();
-    }
-
-    const updated = await this.invoiceRepo.update({
-      id,
-      update: updateData,
-    });
+    const updated = await this.invoiceRepo.update({ id, update: updateData });
 
     this.logger.log(`Facture ${invoice.invoiceNumber} → statut: ${status}`);
 
@@ -208,11 +192,14 @@ export class InvoiceService {
   }
 
   /**
-   * Trouver toutes les factures d'un client
+   * Trouver toutes les factures d'un client.
+   * Filtre directement en base sur le champ userId dénormalisé —
+   * évite le chargement en mémoire de toutes les factures.
    */
   async findByCustomer(customerId: string): Promise<any[]> {
     const invoices = await this.invoiceRepo.findAll({
       filter: {
+        userId: new Types.ObjectId(customerId),
         deleted_at: { $exists: false },
       },
       options: {
@@ -221,16 +208,10 @@ export class InvoiceService {
           {
             path: 'payment',
             populate: [
-              {
-                path: 'userId',
-                select: 'name email addresses',
-              },
+              { path: 'userId', select: 'name email addresses' },
               {
                 path: 'cartId',
-                populate: {
-                  path: 'items.product',
-                  populate: { path: 'detail' },
-                },
+                populate: { path: 'items.product', populate: { path: 'detail' } },
               },
             ],
           },
@@ -238,13 +219,7 @@ export class InvoiceService {
       },
     });
 
-    // Filtrer par customerId et formater
-    return invoices
-      .filter((invoice: any) => {
-        const payment = invoice.payment as any;
-        return payment?.userId?._id?.toString() === customerId;
-      })
-      .map((invoice) => this.formatInvoiceResponse(invoice));
+    return invoices.map((invoice) => this.formatInvoiceResponse(invoice));
   }
 
   /**
@@ -257,22 +232,15 @@ export class InvoiceService {
       throw new NotFoundException(`Facture ${id} introuvable`);
     }
 
-    await this.invoiceRepo.update({
-      id,
-      update: { deleted_at: new Date() },
-    });
+    await this.invoiceRepo.update({ id, update: { deleted_at: new Date() } });
 
     this.logger.log(`Facture ${invoice.invoiceNumber} supprimée (soft delete)`);
   }
 
-  /**
-   * Formater la réponse de la facture (méthode utilitaire)
-   */
   private formatInvoiceResponse(invoice: any): any {
     const payment = invoice.payment as any;
     const cart = payment?.cartId as any;
     const user = payment?.userId as any;
-
     const defaultAddress = user?.addresses?.find((addr: any) => addr.isDefault);
 
     return {
@@ -283,7 +251,6 @@ export class InvoiceService {
       refundedAt: invoice.refundedAt,
       createdAt: invoice.createdAt,
       updatedAt: invoice.updatedAt,
-
       payment: {
         method: payment.method,
         amount: payment.amount,
@@ -297,18 +264,9 @@ export class InvoiceService {
         createdAt: payment.createdAt,
         updatedAt: payment.updatedAt,
       },
-
-      cart: {
-        _id: cart?._id,
-        items: cart?.items || [],
-      },
-
+      cart: { _id: cart?._id, items: cart?.items || [] },
       customer: user
-        ? {
-            name: user.name,
-            email: user.email,
-            defaultShippingAddress: defaultAddress || null,
-          }
+        ? { name: user.name, email: user.email, defaultShippingAddress: defaultAddress || null }
         : null,
     };
   }

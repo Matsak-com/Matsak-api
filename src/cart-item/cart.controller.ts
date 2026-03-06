@@ -57,7 +57,7 @@ export class CartController {
     throw new BadRequestException({
       message:
         'Veuillez accepter les cookies ou vous connecter pour utiliser le panier',
-      code: 'NO_IDENTIFIER',
+      code: 'AUTHENTICATION_OR_CONSENT_REQUIRED',
       requiresCookieConsent: true,
     });
   }

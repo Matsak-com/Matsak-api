@@ -11,7 +11,15 @@ export class SessionMiddleware implements NestMiddleware {
     const cookieConsent = req.cookies?.cookieConsent;
 
     // ⚠️ Si l'utilisateur n'a pas encore décidé (undefined) ou a refusé
-    if (!cookieConsent || cookieConsent === 'rejected') {
+    if (cookieConsent === 'rejected') {
+      if (req.cookies.sessionId) {
+        res.clearCookie('sessionId', { path: '/' });
+      }
+      next();
+      return;
+    }
+    // ⚠️ Si l'utilisateur n'a pas encore décidé (undefined)
+    if (!cookieConsent) {
       next();
       return;
     }
