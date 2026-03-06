@@ -259,7 +259,7 @@ export class InvoiceService {
     };
 
     await this.notificationService.sendEmail({
-      to: 'rakotoharilalakaloinaalicia@gmail.com', //customer.email
+      to: customer.email,
       subject: `Votre facture ${invoice.invoiceNumber}`,
       template: 'invoice',
       context: JSON.parse(JSON.stringify(context)),
