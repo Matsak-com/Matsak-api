@@ -65,6 +65,10 @@ export class PaymentController {
       return { error: 'Mock store non initialisé' };
     }
 
+    if (typeof mockMvolaStore.set !== 'function') {
+      return { error: 'Mock store non initialisé (set indisponible)' };
+    }
+
     const mockTx = mockMvolaStore.get(serverCorrelationId);
 
     if (!mockTx) {
