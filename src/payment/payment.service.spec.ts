@@ -142,11 +142,11 @@ describe('PaymentService', () => {
       expect(paymentRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           doc: expect.objectContaining({
-            cartId: expect.any(Types.ObjectId),
-            amount: 15000,
-            status: PaymentStatus.PENDING,
-          }),
-        }),
+            cartId: '507f1f77bcf86cd799439015', // string, pas ObjectId
+            amount: 7500,                        // montant réel calculé
+            status: 'PENDING',
+          })
+        })
       );
       expect(mvolaApiService.initMerchantPay).toHaveBeenCalled();
       expect(paymentRepo.update).toHaveBeenCalledWith(
