@@ -6,10 +6,9 @@ import { InvoiceRepository } from './invoice.repository';
 
 // ── IDs fixes ──────────────────────────────────────────────────────
 const mockInvoiceId = new Types.ObjectId('507f1f77bcf86cd799439011');
-const mockUserId    = new Types.ObjectId('507f1f77bcf86cd799439012');
+const mockUserId = new Types.ObjectId('507f1f77bcf86cd799439012');
 const mockPaymentId = new Types.ObjectId('507f1f77bcf86cd799439013');
-const mockCartId    = new Types.ObjectId('507f1f77bcf86cd799439014');
-const otherUserId   = new Types.ObjectId('507f1f77bcf86cd799439099');
+const mockCartId = new Types.ObjectId('507f1f77bcf86cd799439014');
 
 // ── Factories ──────────────────────────────────────────────────────
 const makePayment = (userIdOverride?: Types.ObjectId) => ({
@@ -29,11 +28,18 @@ const makePayment = (userIdOverride?: Types.ObjectId) => ({
     _id: userIdOverride ?? mockUserId,
     name: 'John Doe',
     email: 'john@example.com',
-    addresses: [{ _id: new Types.ObjectId(), isDefault: true, street: '123 Main St' }],
+    addresses: [
+      { _id: new Types.ObjectId(), isDefault: true, street: '123 Main St' },
+    ],
   },
   cartId: {
     _id: mockCartId,
-    items: [{ product: { _id: new Types.ObjectId(), name: 'Produit A' }, quantity: 2 }],
+    items: [
+      {
+        product: { _id: new Types.ObjectId(), name: 'Produit A' },
+        quantity: 2,
+      },
+    ],
   },
 });
 
@@ -57,9 +63,11 @@ const makeRepoMock = () => ({
   findById: jest.fn().mockResolvedValue(makeInvoice()),
   findOne: jest.fn().mockResolvedValue(null),
   findAll: jest.fn().mockResolvedValue([makeInvoice()]),
-  update: jest.fn().mockImplementation(({ id, update }) =>
-    Promise.resolve({ ...makeInvoice(), ...update }),
-  ),
+  update: jest
+    .fn()
+    .mockImplementation(({ update }) =>
+      Promise.resolve({ ...makeInvoice(), ...update }),
+    ),
 });
 
 // ══════════════════════════════════════════════════════════════════
@@ -130,12 +138,14 @@ describe('InvoiceService', () => {
       expect(result).toEqual(existing);
     });
 
-    it('propage l\'erreur si 11000 mais facture introuvable (incohérence)', async () => {
+    it("propage l'erreur si 11000 mais facture introuvable (incohérence)", async () => {
       invoiceRepo.create.mockRejectedValue({ code: 11000 });
       invoiceRepo.findOne.mockResolvedValue(null);
 
       await expect(
-        service.createInvoiceFromPayment({ paymentId: mockPaymentId.toString() }),
+        service.createInvoiceFromPayment({
+          paymentId: mockPaymentId.toString(),
+        }),
       ).rejects.toMatchObject({ code: 11000 });
     });
 
@@ -143,7 +153,9 @@ describe('InvoiceService', () => {
       invoiceRepo.create.mockRejectedValue(new Error('Database error'));
 
       await expect(
-        service.createInvoiceFromPayment({ paymentId: mockPaymentId.toString() }),
+        service.createInvoiceFromPayment({
+          paymentId: mockPaymentId.toString(),
+        }),
       ).rejects.toThrow('Database error');
     });
   });
@@ -164,7 +176,9 @@ describe('InvoiceService', () => {
     it('lève NotFoundException si facture introuvable', async () => {
       invoiceRepo.findById.mockResolvedValue(null);
 
-      await expect(service.findOne('nonexistent-id')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('nonexistent-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('gère le cas customer null (paiement anonyme)', async () => {
@@ -268,10 +282,15 @@ describe('InvoiceService', () => {
       invoiceRepo.findById.mockResolvedValue(makeInvoice());
       invoiceRepo.update.mockResolvedValue(makeInvoice({ status: 'paid' }));
 
-      const result = await service.updateStatus(mockInvoiceId.toString(), 'paid');
+      const result = await service.updateStatus(
+        mockInvoiceId.toString(),
+        'paid',
+      );
 
       expect(invoiceRepo.update).toHaveBeenCalledWith(
-        expect.objectContaining({ update: expect.objectContaining({ status: 'paid' }) }),
+        expect.objectContaining({
+          update: expect.objectContaining({ status: 'paid' }),
+        }),
       );
       expect(result.status).toBe('paid');
     });
@@ -288,7 +307,9 @@ describe('InvoiceService', () => {
 
     it('ne set pas refundedAt pour les autres statuts', async () => {
       invoiceRepo.findById.mockResolvedValue(makeInvoice());
-      invoiceRepo.update.mockResolvedValue(makeInvoice({ status: 'cancelled' }));
+      invoiceRepo.update.mockResolvedValue(
+        makeInvoice({ status: 'cancelled' }),
+      );
 
       await service.updateStatus(mockInvoiceId.toString(), 'cancelled');
 
@@ -299,9 +320,9 @@ describe('InvoiceService', () => {
     it('lève NotFoundException si facture introuvable', async () => {
       invoiceRepo.findById.mockResolvedValue(null);
 
-      await expect(
-        service.updateStatus('nonexistent', 'paid'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.updateStatus('nonexistent', 'paid')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -321,7 +342,9 @@ describe('InvoiceService', () => {
     it('lève NotFoundException si facture introuvable', async () => {
       invoiceRepo.findById.mockResolvedValue(null);
 
-      await expect(service.remove('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(service.remove('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

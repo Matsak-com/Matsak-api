@@ -59,8 +59,14 @@ export class MvolaApiService {
       'https://pre-api.mvola.mg',
     );
     this.consumerKey = this.configService.get<string>('MVOLA_CONSUMER_KEY', '');
-    this.consumerSecret = this.configService.get<string>('MVOLA_CONSUMER_SECRET', '');
-    this.merchantPhone = this.configService.get<string>('MVOLA_MERCHANT_PHONE', '');
+    this.consumerSecret = this.configService.get<string>(
+      'MVOLA_CONSUMER_SECRET',
+      '',
+    );
+    this.merchantPhone = this.configService.get<string>(
+      'MVOLA_MERCHANT_PHONE',
+      '',
+    );
     this.partnerName = this.configService.get<string>('MVOLA_PARTNER_NAME', '');
     this.mockMode = this.configService.get<string>('MVOLA_MODE') === 'mock';
 
@@ -246,7 +252,9 @@ export class MvolaApiService {
               'Erreur GET status',
               error.response?.data || error.message,
             );
-            throw new Error('Impossible de vérifier le statut de la transaction');
+            throw new Error(
+              'Impossible de vérifier le statut de la transaction',
+            );
           }),
         ),
     );

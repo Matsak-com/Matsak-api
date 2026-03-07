@@ -13,9 +13,9 @@ describe('SessionMiddleware', () => {
     return res;
   };
 
-  const mockRequest = (
-    cookies: Record<string, string> = {},
-  ): any => ({ cookies: { ...cookies } });
+  const mockRequest = (cookies: Record<string, string> = {}): any => ({
+    cookies: { ...cookies },
+  });
 
   beforeEach(() => {
     middleware = new SessionMiddleware();
@@ -49,7 +49,10 @@ describe('SessionMiddleware', () => {
     });
 
     it('should clear an existing sessionId cookie', () => {
-      const req = mockRequest({ cookieConsent: 'rejected', sessionId: 'existing-session' });
+      const req = mockRequest({
+        cookieConsent: 'rejected',
+        sessionId: 'existing-session',
+      });
       const res = mockResponse();
 
       middleware.use(req, res, mockNext);

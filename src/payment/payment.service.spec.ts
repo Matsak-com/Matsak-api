@@ -13,10 +13,10 @@ import { CartService } from '../cart-item/cart.service';
 import { InventoryService } from '../inventory/inventory.service';
 
 // ── IDs fixes ──────────────────────────────────────────────────────
-const mockUserId    = new Types.ObjectId('507f1f77bcf86cd799439012');
+const mockUserId = new Types.ObjectId('507f1f77bcf86cd799439012');
 const mockPaymentId = new Types.ObjectId('507f1f77bcf86cd799439013');
 const mockProductId = new Types.ObjectId('507f1f77bcf86cd799439014');
-const mockCartId    = new Types.ObjectId('507f1f77bcf86cd799439015');
+const mockCartId = new Types.ObjectId('507f1f77bcf86cd799439015');
 
 // ── Factories ──────────────────────────────────────────────────────
 const makeProduct = (overrides: any = {}) => ({
@@ -93,7 +93,9 @@ describe('PaymentService', () => {
     };
 
     invoiceService = {
-      createInvoiceFromPayment: jest.fn().mockResolvedValue({ invoiceNumber: 'INV-001' }),
+      createInvoiceFromPayment: jest
+        .fn()
+        .mockResolvedValue({ invoiceNumber: 'INV-001' }),
       findByPaymentId: jest.fn().mockResolvedValue(null),
     };
 
@@ -161,37 +163,51 @@ describe('PaymentService', () => {
     it('lève NotFoundException si le panier est introuvable', async () => {
       cartRepo.findById.mockResolvedValue(null);
 
-      await expect(service.initiate(initiateInput)).rejects.toThrow(NotFoundException);
+      await expect(service.initiate(initiateInput)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('lève NotFoundException si le panier est soft-deleted', async () => {
       cartRepo.findById.mockResolvedValue(makeCart({ deleted_at: new Date() }));
 
-      await expect(service.initiate(initiateInput)).rejects.toThrow(NotFoundException);
+      await expect(service.initiate(initiateInput)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('lève BadRequestException si le panier est vide', async () => {
       cartRepo.findById.mockResolvedValue(makeCart({ items: [] }));
 
-      await expect(service.initiate(initiateInput)).rejects.toThrow(BadRequestException);
+      await expect(service.initiate(initiateInput)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('lève BadRequestException si le montant est nul', async () => {
       productService.calculatePrice.mockReturnValue({ totalPrice: 0 });
 
-      await expect(service.initiate(initiateInput)).rejects.toThrow(BadRequestException);
+      await expect(service.initiate(initiateInput)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('lève BadRequestException si un paiement actif existe déjà', async () => {
-      paymentRepo.findOne.mockResolvedValue(makePayment({ status: PaymentStatus.PENDING }));
+      paymentRepo.findOne.mockResolvedValue(
+        makePayment({ status: PaymentStatus.PENDING }),
+      );
 
-      await expect(service.initiate(initiateInput)).rejects.toThrow(BadRequestException);
+      await expect(service.initiate(initiateInput)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('marque le paiement FAILED si initMerchantPay lève une erreur', async () => {
       mvolaApiService.initMerchantPay.mockRejectedValue(new Error('API error'));
 
-      await expect(service.initiate(initiateInput)).rejects.toThrow('API error');
+      await expect(service.initiate(initiateInput)).rejects.toThrow(
+        'API error',
+      );
 
       expect(paymentRepo.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -208,7 +224,10 @@ describe('PaymentService', () => {
         makeCart({
           items: [
             { product: makeProduct(), quantity: 1 },
-            { product: makeProduct({ _id: new Types.ObjectId() }), quantity: 3 },
+            {
+              product: makeProduct({ _id: new Types.ObjectId() }),
+              quantity: 3,
+            },
           ],
         }),
       );
@@ -219,7 +238,9 @@ describe('PaymentService', () => {
       await service.initiate(initiateInput);
 
       expect(paymentRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ doc: expect.objectContaining({ amount: 8000 }) }),
+        expect.objectContaining({
+          doc: expect.objectContaining({ amount: 8000 }),
+        }),
       );
     });
   });
@@ -248,7 +269,10 @@ describe('PaymentService', () => {
     it('met à jour le statut en FAILED pour un status non-COMPLETED', async () => {
       paymentRepo.findOne.mockResolvedValue(makePayment());
 
-      await service.handleCallback({ serverCorrelationId: 'sc-001', status: 'FAILED' });
+      await service.handleCallback({
+        serverCorrelationId: 'sc-001',
+        status: 'FAILED',
+      });
 
       expect(paymentRepo.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -280,7 +304,9 @@ describe('PaymentService', () => {
   // ── pollStatus ────────────────────────────────────────────────────
   describe('pollStatus', () => {
     it('retourne le paiement sans appeler MVola si déjà SUCCESS', async () => {
-      paymentRepo.findById.mockResolvedValue(makePayment({ status: PaymentStatus.SUCCESS }));
+      paymentRepo.findById.mockResolvedValue(
+        makePayment({ status: PaymentStatus.SUCCESS }),
+      );
 
       const result = await service.pollStatus(mockPaymentId.toString());
 
@@ -289,7 +315,9 @@ describe('PaymentService', () => {
     });
 
     it('retourne le paiement sans appeler MVola si déjà FAILED', async () => {
-      paymentRepo.findById.mockResolvedValue(makePayment({ status: PaymentStatus.FAILED }));
+      paymentRepo.findById.mockResolvedValue(
+        makePayment({ status: PaymentStatus.FAILED }),
+      );
 
       const result = await service.pollStatus(mockPaymentId.toString());
 
@@ -298,7 +326,9 @@ describe('PaymentService', () => {
     });
 
     it('retourne le paiement sans appeler MVola si déjà EXPIRED', async () => {
-      paymentRepo.findById.mockResolvedValue(makePayment({ status: PaymentStatus.EXPIRED }));
+      paymentRepo.findById.mockResolvedValue(
+        makePayment({ status: PaymentStatus.EXPIRED }),
+      );
 
       const result = await service.pollStatus(mockPaymentId.toString());
 
@@ -330,7 +360,9 @@ describe('PaymentService', () => {
       paymentRepo.findById
         .mockResolvedValueOnce(makePayment({ status: PaymentStatus.WAITING }))
         .mockResolvedValueOnce(makePayment({ status: PaymentStatus.FAILED }));
-      mvolaApiService.getTransactionStatus.mockResolvedValue({ status: 'FAILED' });
+      mvolaApiService.getTransactionStatus.mockResolvedValue({
+        status: 'FAILED',
+      });
 
       await service.pollStatus(mockPaymentId.toString());
 
@@ -345,8 +377,12 @@ describe('PaymentService', () => {
     });
 
     it("ne met pas à jour si le statut MVola n'a pas changé", async () => {
-      paymentRepo.findById.mockResolvedValue(makePayment({ status: PaymentStatus.WAITING }));
-      mvolaApiService.getTransactionStatus.mockResolvedValue({ status: 'PENDING' });
+      paymentRepo.findById.mockResolvedValue(
+        makePayment({ status: PaymentStatus.WAITING }),
+      );
+      mvolaApiService.getTransactionStatus.mockResolvedValue({
+        status: 'PENDING',
+      });
 
       await service.pollStatus(mockPaymentId.toString());
 
@@ -356,17 +392,22 @@ describe('PaymentService', () => {
     it('lève NotFoundException si paiement introuvable', async () => {
       paymentRepo.findById.mockResolvedValue(null);
 
-      await expect(service.pollStatus('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(service.pollStatus('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('lève BadRequestException si données MVola incomplètes', async () => {
       paymentRepo.findById.mockResolvedValue(
-        makePayment({ status: PaymentStatus.WAITING, serverCorrelationId: null }),
+        makePayment({
+          status: PaymentStatus.WAITING,
+          serverCorrelationId: null,
+        }),
       );
 
-      await expect(service.pollStatus(mockPaymentId.toString())).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.pollStatus(mockPaymentId.toString()),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -398,22 +439,30 @@ describe('PaymentService', () => {
     });
 
     it('lève BadRequestException si le paiement est déjà SUCCESS', async () => {
-      paymentRepo.findById.mockResolvedValue(makePayment({ status: PaymentStatus.SUCCESS }));
+      paymentRepo.findById.mockResolvedValue(
+        makePayment({ status: PaymentStatus.SUCCESS }),
+      );
 
-      await expect(service.expire(mockPaymentId.toString())).rejects.toThrow(BadRequestException);
+      await expect(service.expire(mockPaymentId.toString())).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('lève NotFoundException si paiement introuvable', async () => {
       paymentRepo.findById.mockResolvedValue(null);
 
-      await expect(service.expire('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(service.expire('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   // ── regenerateInvoice ─────────────────────────────────────────────
   describe('regenerateInvoice', () => {
     it('régénère la facture avec paymentId ET userId', async () => {
-      paymentRepo.findById.mockResolvedValue(makePayment({ status: PaymentStatus.SUCCESS }));
+      paymentRepo.findById.mockResolvedValue(
+        makePayment({ status: PaymentStatus.SUCCESS }),
+      );
       invoiceService.findByPaymentId.mockResolvedValue(null);
 
       await service.regenerateInvoice(mockPaymentId.toString());
@@ -425,29 +474,37 @@ describe('PaymentService', () => {
     });
 
     it('lève BadRequestException si une facture existe déjà', async () => {
-      paymentRepo.findById.mockResolvedValue(makePayment({ status: PaymentStatus.SUCCESS }));
-      invoiceService.findByPaymentId.mockResolvedValue({ invoiceNumber: 'INV-001' });
-
-      await expect(service.regenerateInvoice(mockPaymentId.toString())).rejects.toThrow(
-        BadRequestException,
+      paymentRepo.findById.mockResolvedValue(
+        makePayment({ status: PaymentStatus.SUCCESS }),
       );
+      invoiceService.findByPaymentId.mockResolvedValue({
+        invoiceNumber: 'INV-001',
+      });
+
+      await expect(
+        service.regenerateInvoice(mockPaymentId.toString()),
+      ).rejects.toThrow(BadRequestException);
     });
 
-    it('lève BadRequestException si le paiement n\'est pas SUCCESS', async () => {
-      paymentRepo.findById.mockResolvedValue(makePayment({ status: PaymentStatus.FAILED }));
-
-      await expect(service.regenerateInvoice(mockPaymentId.toString())).rejects.toThrow(
-        BadRequestException,
+    it("lève BadRequestException si le paiement n'est pas SUCCESS", async () => {
+      paymentRepo.findById.mockResolvedValue(
+        makePayment({ status: PaymentStatus.FAILED }),
       );
+
+      await expect(
+        service.regenerateInvoice(mockPaymentId.toString()),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('lève NotFoundException si paiement introuvable', async () => {
       paymentRepo.findById.mockResolvedValue(null);
 
-      await expect(service.regenerateInvoice('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(service.regenerateInvoice('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
-    it('passe userId undefined si le paiement n\'a pas de userId', async () => {
+    it("passe userId undefined si le paiement n'a pas de userId", async () => {
       paymentRepo.findById.mockResolvedValue(
         makePayment({ status: PaymentStatus.SUCCESS, userId: undefined }),
       );
@@ -516,7 +573,9 @@ describe('PaymentService', () => {
     it('ne déduit pas le stock pour les produits trackStock:false', async () => {
       paymentRepo.findOne.mockResolvedValue(makePayment());
       cartRepo.findById.mockResolvedValue(
-        makeCart({ items: [{ product: makeProduct({ trackStock: false }), quantity: 1 }] }),
+        makeCart({
+          items: [{ product: makeProduct({ trackStock: false }), quantity: 1 }],
+        }),
       );
 
       await service.handleCallback(successCallback);
@@ -535,14 +594,21 @@ describe('PaymentService', () => {
 
   // ── deductStockFromCart — gestion d'erreur ────────────────────────
   describe('deductStockFromCart (via handleCallback)', () => {
-    const successCallback = { serverCorrelationId: 'sc-001', status: 'COMPLETED' };
+    const successCallback = {
+      serverCorrelationId: 'sc-001',
+      status: 'COMPLETED',
+    };
 
     it('arrête le traitement si la déduction de stock échoue', async () => {
       paymentRepo.findOne.mockResolvedValue(makePayment());
-      inventoryService.stockOut.mockRejectedValue(new Error('Insufficient stock'));
+      inventoryService.stockOut.mockRejectedValue(
+        new Error('Insufficient stock'),
+      );
 
       // handlePaymentSuccess absorbe l'erreur (try/catch) — pas de throw
-      await expect(service.handleCallback(successCallback)).resolves.not.toThrow();
+      await expect(
+        service.handleCallback(successCallback),
+      ).resolves.not.toThrow();
 
       // La facture a été créée avant l'échec du stock
       expect(invoiceService.createInvoiceFromPayment).toHaveBeenCalled();

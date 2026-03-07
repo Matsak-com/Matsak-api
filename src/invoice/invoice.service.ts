@@ -87,7 +87,10 @@ export class InvoiceService {
               { path: 'userId', select: 'name email addresses' },
               {
                 path: 'cartId',
-                populate: { path: 'items.product', populate: { path: 'detail' } },
+                populate: {
+                  path: 'items.product',
+                  populate: { path: 'detail' },
+                },
               },
             ],
           },
@@ -125,7 +128,11 @@ export class InvoiceService {
       },
       cart: { _id: cart?._id, items: cart?.items || [] },
       customer: user
-        ? { name: user.name, email: user.email, defaultShippingAddress: defaultAddress || null }
+        ? {
+            name: user.name,
+            email: user.email,
+            defaultShippingAddress: defaultAddress || null,
+          }
         : null,
     };
   }
@@ -144,7 +151,10 @@ export class InvoiceService {
               { path: 'userId', select: 'name email addresses' },
               {
                 path: 'cartId',
-                populate: { path: 'items.product', populate: { path: 'detail' } },
+                populate: {
+                  path: 'items.product',
+                  populate: { path: 'detail' },
+                },
               },
             ],
           },
@@ -211,7 +221,10 @@ export class InvoiceService {
               { path: 'userId', select: 'name email addresses' },
               {
                 path: 'cartId',
-                populate: { path: 'items.product', populate: { path: 'detail' } },
+                populate: {
+                  path: 'items.product',
+                  populate: { path: 'detail' },
+                },
               },
             ],
           },
@@ -266,7 +279,11 @@ export class InvoiceService {
       },
       cart: { _id: cart?._id, items: cart?.items || [] },
       customer: user
-        ? { name: user.name, email: user.email, defaultShippingAddress: defaultAddress || null }
+        ? {
+            name: user.name,
+            email: user.email,
+            defaultShippingAddress: defaultAddress || null,
+          }
         : null,
     };
   }

@@ -72,7 +72,10 @@ export class PaymentService implements OnModuleInit {
       let totalAmount = 0;
       for (const item of cart.items) {
         const product = item.product as any;
-        const pricing = this.productService.calculatePrice(product, item.quantity);
+        const pricing = this.productService.calculatePrice(
+          product,
+          item.quantity,
+        );
         totalAmount += pricing.totalPrice;
       }
 
@@ -134,10 +137,16 @@ export class PaymentService implements OnModuleInit {
         try {
           await this.paymentRepo.update({
             id: paymentId,
-            update: { status: PaymentStatus.FAILED, failureReason: error.message },
+            update: {
+              status: PaymentStatus.FAILED,
+              failureReason: error.message,
+            },
           });
         } catch (cleanupError) {
-          this.logger.error(`Failed to rollback payment ${paymentId}`, cleanupError);
+          this.logger.error(
+            `Failed to rollback payment ${paymentId}`,
+            cleanupError,
+          );
         }
       }
 
@@ -166,7 +175,9 @@ export class PaymentService implements OnModuleInit {
     });
 
     if (!payment) {
-      this.logger.warn(`Callback pour serverCorrelationId inconnu: ${serverCorrelationId}`);
+      this.logger.warn(
+        `Callback pour serverCorrelationId inconnu: ${serverCorrelationId}`,
+      );
       return;
     }
 
@@ -200,9 +211,11 @@ export class PaymentService implements OnModuleInit {
     }
 
     if (
-      [PaymentStatus.SUCCESS, PaymentStatus.FAILED, PaymentStatus.EXPIRED].includes(
-        payment.status,
-      )
+      [
+        PaymentStatus.SUCCESS,
+        PaymentStatus.FAILED,
+        PaymentStatus.EXPIRED,
+      ].includes(payment.status)
     ) {
       return payment;
     }
@@ -230,7 +243,9 @@ export class PaymentService implements OnModuleInit {
         update: {
           status: newStatus,
           mvolaResponse: mvolaStatus,
-          ...(newStatus === PaymentStatus.FAILED && { failureReason: mvolaStatus.status }),
+          ...(newStatus === PaymentStatus.FAILED && {
+            failureReason: mvolaStatus.status,
+          }),
         },
       });
 
@@ -254,7 +269,9 @@ export class PaymentService implements OnModuleInit {
       throw new NotFoundException(ERRORS.PAYMENT_NOT_FOUND);
     }
 
-    if (![PaymentStatus.PENDING, PaymentStatus.WAITING].includes(payment.status)) {
+    if (
+      ![PaymentStatus.PENDING, PaymentStatus.WAITING].includes(payment.status)
+    ) {
       throw new BadRequestException(
         'Seul un paiement en cours peut être marqué comme expiré',
       );
@@ -282,7 +299,8 @@ export class PaymentService implements OnModuleInit {
       );
     }
 
-    const existingInvoice = await this.invoiceService.findByPaymentId(paymentId);
+    const existingInvoice =
+      await this.invoiceService.findByPaymentId(paymentId);
     if (existingInvoice) {
       throw new BadRequestException(
         `Une facture existe déjà pour ce paiement: ${existingInvoice.invoiceNumber}`,
@@ -373,7 +391,9 @@ export class PaymentService implements OnModuleInit {
         this.logger.error(
           `❌ Échec de déduction de stock pour produit ${product._id}: ${error instanceof Error ? error.message : String(error)}`,
         );
-        throw new Error(`Échec de déduction de stock pour le produit ${product._id}`);
+        throw new Error(
+          `Échec de déduction de stock pour le produit ${product._id}`,
+        );
       }
     }
   }
