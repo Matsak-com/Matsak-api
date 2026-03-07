@@ -342,7 +342,9 @@ describe('MvolaApiService', () => {
       }).compile();
 
       service = module.get<MvolaApiService>(MvolaApiService);
-      mockMvolaStore.clear();
+      if (mockMvolaStore && typeof mockMvolaStore.clear === 'function') {
+        mockMvolaStore.clear();
+      }
     });
 
     it('should return mock token in mock mode', async () => {
