@@ -66,7 +66,7 @@ describe('MvolaApiService', () => {
     configService = module.get(ConfigService);
 
     // Clear mock store before each test
-    mockMvolaStore.clear();
+    mockMvolaStore?.clear?.();
   });
 
   describe('getAccessToken (real mode)', () => {
