@@ -9,7 +9,7 @@ const mockInvoiceId = new Types.ObjectId('507f1f77bcf86cd799439011');
 const mockUserId    = new Types.ObjectId('507f1f77bcf86cd799439012');
 const mockPaymentId = new Types.ObjectId('507f1f77bcf86cd799439013');
 const mockCartId    = new Types.ObjectId('507f1f77bcf86cd799439014');
-const otherUserId   = new Types.ObjectId('507f1f77bcf86cd799439099');
+
 
 // ── Factories ──────────────────────────────────────────────────────
 const makePayment = (userIdOverride?: Types.ObjectId) => ({
