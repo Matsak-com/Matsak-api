@@ -342,7 +342,7 @@ describe('MvolaApiService', () => {
       }).compile();
 
       service = module.get<MvolaApiService>(MvolaApiService);
-      if (mockMvolaStore && typeof mockMvolaStore.clear === 'function') {
+      if (typeof mockMvolaStore.clear === 'function') {
         mockMvolaStore.clear();
       }
     });
