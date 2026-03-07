@@ -61,23 +61,17 @@ export class PaymentController {
   @Post('mock/confirm/:serverCorrelationId')
   @HttpCode(HttpStatus.OK)
   mockConfirm(@Param('serverCorrelationId') serverCorrelationId: string) {
-    const mockTx = mockMvolaStore.get(serverCorrelationId);
+    if (!mockMvolaStore) {
+      return { error: 'Mock store non initialisé' };
+    }
 
+    const mockTx = mockMvolaStore.get(serverCorrelationId);
     if (!mockTx) {
       return { error: 'Transaction introuvable' };
     }
 
-    // Marquer comme SUCCESS
     mockTx.status = 'SUCCESS';
     mockMvolaStore.set(serverCorrelationId, mockTx);
-
-    // Simuler le callback
-    this.paymentService.handleCallback({
-      serverCorrelationId,
-      status: 'COMPLETED',
-      transactionReference: mockTx.transactionReference,
-    });
-
-    return { success: true, status: 'SUCCESS' };
+    return { success: true };
   }
 }
