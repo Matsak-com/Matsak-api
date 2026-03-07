@@ -61,6 +61,10 @@ export class PaymentController {
   @Post('mock/confirm/:serverCorrelationId')
   @HttpCode(HttpStatus.OK)
   mockConfirm(@Param('serverCorrelationId') serverCorrelationId: string) {
+    if (!mockMvolaStore || typeof mockMvolaStore.get !== 'function') {
+      return { error: 'Mock store non initialisé' };
+    }
+
     const mockTx = mockMvolaStore.get(serverCorrelationId);
 
     if (!mockTx) {
