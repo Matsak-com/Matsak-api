@@ -139,7 +139,8 @@ describe('PaymentService', () => {
 
       const result = await service.initiate(initiateInput);
 
-      // Le service convertit cartId et userId en Types.ObjectId
+      // FIX: le service fait new Types.ObjectId(cartId/userId), pas des strings
+      // → on vérifie le type avec expect.any(), puis la valeur séparément
       expect(paymentRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           doc: expect.objectContaining({
@@ -154,7 +155,7 @@ describe('PaymentService', () => {
         }),
       );
 
-      // Vérification des valeurs des ObjectIds
+      // Vérification des valeurs réelles des ObjectIds
       const { doc } = paymentRepo.create.mock.calls[0][0];
       expect(doc.cartId.toString()).toBe(mockCartId.toString());
       expect(doc.userId.toString()).toBe(mockUserId.toString());
@@ -216,7 +217,9 @@ describe('PaymentService', () => {
     it('marque le paiement FAILED si initMerchantPay lève une erreur', async () => {
       mvolaApiService.initMerchantPay.mockRejectedValue(new Error('API error'));
 
-      await expect(service.initiate(initiateInput)).rejects.toThrow('API error');
+      await expect(service.initiate(initiateInput)).rejects.toThrow(
+        'API error',
+      );
 
       expect(paymentRepo.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -245,7 +248,10 @@ describe('PaymentService', () => {
         makeCart({
           items: [
             { product: makeProduct(), quantity: 1 },
-            { product: makeProduct({ _id: new Types.ObjectId() }), quantity: 3 },
+            {
+              product: makeProduct({ _id: new Types.ObjectId() }),
+              quantity: 3,
+            },
           ],
         }),
       );
@@ -635,11 +641,15 @@ describe('PaymentService', () => {
         new Error('Insufficient stock'),
       );
 
+      // handlePaymentSuccess absorbe l'erreur (try/catch) — pas de throw
       await expect(
         service.handleCallback(successCallback),
       ).resolves.not.toThrow();
 
+      // La facture a été créée avant l'échec du stock
       expect(invoiceService.createInvoiceFromPayment).toHaveBeenCalled();
+
+      // Le panier ne doit PAS être soft-deleted car le stock a échoué
       expect(cartService.softDeleteCartById).not.toHaveBeenCalled();
     });
 
