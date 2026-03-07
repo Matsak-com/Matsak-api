@@ -61,10 +61,6 @@ export class PaymentController {
   @Post('mock/confirm/:serverCorrelationId')
   @HttpCode(HttpStatus.OK)
   mockConfirm(@Param('serverCorrelationId') serverCorrelationId: string) {
-    if (!mockMvolaStore) {
-      return { error: 'Store de transactions mock non disponible' };
-    }
-
     const mockTx = mockMvolaStore.get(serverCorrelationId);
 
     if (!mockTx) {
