@@ -387,11 +387,9 @@ describe('MvolaApiService', () => {
       const initResult = await service.initMerchantPay(initParams);
 
       // Update mock transaction to SUCCESS
-      if (mockMvolaStore) {
-        const mockTx = mockMvolaStore.get(initResult.serverCorrelationId);
-        if (mockTx) {
-          mockTx.status = 'SUCCESS';
-        }
+      const mockTx = mockMvolaStore.get(initResult.serverCorrelationId);
+      if (mockTx) {
+        mockTx.status = 'SUCCESS';
       }
 
       const result = await service.getTransactionStatus(
