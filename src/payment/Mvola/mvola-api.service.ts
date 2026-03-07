@@ -252,3 +252,5 @@ export class MvolaApiService {
     );
   }
 }
+
+export { mockMvolaStore };
