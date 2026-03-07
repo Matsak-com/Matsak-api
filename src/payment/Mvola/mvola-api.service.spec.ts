@@ -367,9 +367,10 @@ describe('MvolaApiService', () => {
 
       expect(result.status).toBe('pending');
       expect(result.serverCorrelationId).toBeDefined();
-      expect(mockMvolaStore.size).toBe(1);
+      expect(mockMvolaStore).toBeDefined();
+      expect(mockMvolaStore!.size).toBe(1);
 
-      const mockTx = mockMvolaStore.get(result.serverCorrelationId);
+      const mockTx = mockMvolaStore!.get(result.serverCorrelationId);
       expect(mockTx).toBeDefined();
       expect(mockTx?.amount).toBe(5000);
       expect(mockTx?.status).toBe('PENDING');
