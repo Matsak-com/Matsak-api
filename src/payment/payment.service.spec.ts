@@ -38,7 +38,7 @@ const makePayment = (overrides: any = {}) => ({
   cartId: mockCartId,
   userId: mockUserId,
   method: PaymentMethod.MVOLA,
-  amount: 15000,
+  amount: 7500,
   currency: 'Ar',
   status: PaymentStatus.WAITING,
   correlationId: 'corr-001',
@@ -139,15 +139,26 @@ describe('PaymentService', () => {
 
       const result = await service.initiate(initiateInput);
 
+      // Le service convertit cartId et userId en Types.ObjectId
       expect(paymentRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           doc: expect.objectContaining({
-            cartId: '507f1f77bcf86cd799439015', // string, pas ObjectId
-            amount: 7500,                        // montant réel calculé
-            status: 'PENDING',
-          })
-        })
+            cartId: expect.any(Types.ObjectId),
+            userId: expect.any(Types.ObjectId),
+            amount: 7500,
+            status: PaymentStatus.PENDING,
+            method: PaymentMethod.MVOLA,
+            currency: 'Ar',
+            customerPhone: '0340000001',
+          }),
+        }),
       );
+
+      // Vérification des valeurs des ObjectIds
+      const { doc } = paymentRepo.create.mock.calls[0][0];
+      expect(doc.cartId.toString()).toBe(mockCartId.toString());
+      expect(doc.userId.toString()).toBe(mockUserId.toString());
+
       expect(mvolaApiService.initMerchantPay).toHaveBeenCalled();
       expect(paymentRepo.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -205,9 +216,7 @@ describe('PaymentService', () => {
     it('marque le paiement FAILED si initMerchantPay lève une erreur', async () => {
       mvolaApiService.initMerchantPay.mockRejectedValue(new Error('API error'));
 
-      await expect(service.initiate(initiateInput)).rejects.toThrow(
-        'API error',
-      );
+      await expect(service.initiate(initiateInput)).rejects.toThrow('API error');
 
       expect(paymentRepo.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -219,15 +228,24 @@ describe('PaymentService', () => {
       );
     });
 
+    it('fonctionne sans userId (paiement anonyme)', async () => {
+      const anonymousInput = {
+        cartId: mockCartId.toString(),
+        customerPhone: '0340000001',
+      };
+
+      await service.initiate(anonymousInput);
+
+      const { doc } = paymentRepo.create.mock.calls[0][0];
+      expect(doc.userId).toBeUndefined();
+    });
+
     it('calcule le montant total en sommant tous les items', async () => {
       cartRepo.findById.mockResolvedValue(
         makeCart({
           items: [
             { product: makeProduct(), quantity: 1 },
-            {
-              product: makeProduct({ _id: new Types.ObjectId() }),
-              quantity: 3,
-            },
+            { product: makeProduct({ _id: new Types.ObjectId() }), quantity: 3 },
           ],
         }),
       );
@@ -240,6 +258,18 @@ describe('PaymentService', () => {
       expect(paymentRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           doc: expect.objectContaining({ amount: 8000 }),
+        }),
+      );
+    });
+
+    it('appelle initMerchantPay avec le bon callbackUrl', async () => {
+      await service.initiate(initiateInput);
+
+      expect(mvolaApiService.initMerchantPay).toHaveBeenCalledWith(
+        expect.objectContaining({
+          callbackUrl: 'http://localhost:3000/payments/callback',
+          amount: 7500,
+          customerPhone: '0340000001',
         }),
       );
     });
@@ -605,15 +635,11 @@ describe('PaymentService', () => {
         new Error('Insufficient stock'),
       );
 
-      // handlePaymentSuccess absorbe l'erreur (try/catch) — pas de throw
       await expect(
         service.handleCallback(successCallback),
       ).resolves.not.toThrow();
 
-      // La facture a été créée avant l'échec du stock
       expect(invoiceService.createInvoiceFromPayment).toHaveBeenCalled();
-
-      // Le panier ne doit PAS être soft-deleted car le stock a échoué
       expect(cartService.softDeleteCartById).not.toHaveBeenCalled();
     });
 
