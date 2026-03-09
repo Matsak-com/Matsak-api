@@ -164,7 +164,7 @@ export class CartService {
     });
   }
 
-  // 🧹 Vider les articles du panier
+  // 🧹 Vider panier (clear items only)
   async clearCart(sessionId?: string, userId?: Types.ObjectId) {
     const cart = await this.findCart(sessionId, userId);
     if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
