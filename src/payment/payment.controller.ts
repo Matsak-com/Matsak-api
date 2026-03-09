@@ -6,72 +6,78 @@ import {
   Param,
   HttpCode,
   HttpStatus,
+  UseGuards,
+  Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PaymentService, InitPaymentInput } from './payment.service';
-import { mockMvolaStore } from './Mvola/mvola-api.service';
 import {
-  IsNotEmpty,
+  IsEnum,
+  IsMongoId,
   IsOptional,
   IsPhoneNumber,
-  IsString,
+  ValidateIf,
 } from 'class-validator';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { MvolaWebhookGuard } from './guards/mvola-webhook.guard';
+import { DeliveryMethod } from './payment.schema';
 
 class InitPaymentDto {
-  @IsString()
-  @IsNotEmpty()
+  @IsMongoId({ message: 'cartId doit être un ObjectId valide' })
   cartId: string;
-  @IsOptional()
-  @IsString()
-  userId?: string;
-  @IsString()
-  @IsNotEmpty()
-  @IsPhoneNumber(null)
+
+  @IsPhoneNumber('MG', {
+    message: 'customerPhone doit être un numéro malgache valide',
+  })
   customerPhone: string;
+
+  @IsEnum(DeliveryMethod, {
+    message: 'deliveryMethod doit être "delivery" ou "pickup"',
+  })
+  deliveryMethod: DeliveryMethod;
+
+  @ValidateIf((o) => o.deliveryMethod === DeliveryMethod.DELIVERY)
+  @IsMongoId({ message: 'deliveryAddressId doit être un ObjectId valide' })
+  @IsOptional()
+  deliveryAddressId?: string;
 }
 
 @Controller('payments')
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
 
+  @UseGuards(JwtAuthGuard)
   @Post('initiate')
   @HttpCode(HttpStatus.CREATED)
-  async initiate(@Body() dto: InitPaymentDto) {
+  async initiate(@Body() dto: InitPaymentDto, @Request() req: any) {
     const input: InitPaymentInput = {
       cartId: dto.cartId,
-      userId: dto.userId,
+      userId: req.user?.userId,
       customerPhone: dto.customerPhone,
+      deliveryMethod: dto.deliveryMethod,
+      deliveryAddressId: dto.deliveryAddressId,
     };
 
     return this.paymentService.initiate(input);
   }
 
   @Post('callback')
+  @UseGuards(MvolaWebhookGuard)
   @HttpCode(HttpStatus.OK)
   async callback(@Body() callbackData: Record<string, any>) {
     await this.paymentService.handleCallback(callbackData);
     return { received: true };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('status/:paymentId')
-  async getStatus(@Param('paymentId') paymentId: string) {
-    return this.paymentService.pollStatus(paymentId);
-  }
+  async getStatus(@Param('paymentId') paymentId: string, @Request() req: any) {
+    const payment = await this.paymentService.pollStatus(paymentId);
 
-  // ── Route MOCK : simuler la confirmation client ──────────────────
-  @Post('mock/confirm/:serverCorrelationId')
-  @HttpCode(HttpStatus.OK)
-  mockConfirm(@Param('serverCorrelationId') serverCorrelationId: string) {
-    if (!mockMvolaStore) {
-      return { error: 'Mock store non initialisé' };
+    if (payment.userId?.toString() !== req.user?.userId) {
+      throw new ForbiddenException('Vous ne pouvez pas consulter ce paiement');
     }
 
-    const mockTx = mockMvolaStore.get(serverCorrelationId);
-    if (!mockTx) {
-      return { error: 'Transaction introuvable' };
-    }
-
-    mockTx.status = 'SUCCESS';
-    mockMvolaStore.set(serverCorrelationId, mockTx);
-    return { success: true };
+    return payment;
   }
 }

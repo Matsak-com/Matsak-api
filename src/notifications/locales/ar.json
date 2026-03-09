@@ -50,6 +50,37 @@
       "noAccount": "إذا لم تقم بإنشاء حساب، يمكنك تجاهل هذا البريد الإلكتروني بأمان.",
       "signature": "مع أطيب التحيات،<br>فريق Matsak"
     },
+    "email": {
+    "invoice": {
+      "subject": "فاتورتك {{invoiceNumber}}",
+      "greeting": "مرحباً",
+      "title": "فاتورتك",
+      "thankYou": "شكراً لطلبك. فيما يلي ملخص فاتورتك.",
+      "invoiceNumber": "رقم الفاتورة",
+      "invoiceDate": "تاريخ الفاتورة",
+      "paymentMethod": "طريقة الدفع",
+      "transactionRef": "مرجع المعاملة",
+      "phone": "الهاتف",
+      "orderedItems": "المنتجات المطلوبة",
+      "itemName": "المنتج",
+      "quantity": "الكمية",
+      "unitPrice": "سعر الوحدة",
+      "total": "الإجمالي",
+      "subtotal": "المجموع الفرعي",
+      "totalPaid": "إجمالي المدفوع",
+      "shippingAddress": "عنوان التوصيل",
+      "support": "إذا كان لديك أي استفسار حول فاتورتك، لا تتردد في التواصل مع فريقنا.",
+      "signature": "مع أطيب التحيات،<br>فريق Matsak",
+
+      "deliveryQrTitle": "رمز QR للتوصيل",
+      "deliveryQrDescription": "سيقوم المندوب بمسح رمز QR هذا عند تسليم طلبك للتحقق من الاستلام.",
+      "deliveryQrMeta": "يحتوي على: رقم الفاتورة · العنوان · المبلغ — يُقدَّم للمندوب",
+
+      "pickupQrTitle": "رموز QR للاستلام من الصيدلية",
+      "pickupQrDescription": "قدّم رمز QR الخاص بكل صيدلية عند زيارتها لاستلام أدويتك.",
+      "pickupQrMeta": "يُقدَّم في الصيدلية"
+    }
+  },
     "common": {
       "footer": "© {{year}} Matsak. جميع الحقوق محفوظة.",
       "contactUs": "اتصل بنا",

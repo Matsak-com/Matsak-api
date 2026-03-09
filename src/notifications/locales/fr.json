@@ -50,6 +50,35 @@
       "noAccount": "Si vous n'avez pas créé de compte, vous pouvez ignorer cet email en toute sécurité.",
       "signature": "Cordialement,<br>L'équipe Matsak"
     },
+    "invoice": {
+      "subject": "Votre facture {{invoiceNumber}}",
+      "greeting": "Bonjour",
+      "title": "Votre facture",
+      "thankYou": "Merci pour votre commande. Voici le récapitulatif de votre facture.",
+      "invoiceNumber": "Numéro de facture",
+      "invoiceDate": "Date de facturation",
+      "paymentMethod": "Moyen de paiement",
+      "transactionRef": "Référence transaction",
+      "phone": "Téléphone",
+      "orderedItems": "Articles commandés",
+      "itemName": "Désignation",
+      "quantity": "Qté",
+      "unitPrice": "Prix unit.",
+      "total": "Total",
+      "subtotal": "Sous-total",
+      "totalPaid": "Total payé",
+      "shippingAddress": "Adresse de livraison",
+      "support": "Pour toute question concernant votre facture, n'hésitez pas à contacter notre équipe.",
+      "signature": "Cordialement,<br>L'équipe Matsak",
+
+      "deliveryQrTitle": "QR Code de livraison",
+      "deliveryQrDescription": "Le livreur scannera ce QR code lors de la remise de votre commande pour valider la livraison.",
+      "deliveryQrMeta": "Contient : n° facture · adresse · montant — À présenter au livreur",
+
+      "pickupQrTitle": "QR Codes de retrait en pharmacie",
+      "pickupQrDescription": "Présentez le QR code correspondant à chaque pharmacie lors de votre passage pour récupérer vos médicaments.",
+      "pickupQrMeta": "À présenter à la pharmacie"
+    },
     "common": {
       "footer": "© {{year}} Matsak. Tous droits réservés.",
       "contactUs": "Nous contacter",

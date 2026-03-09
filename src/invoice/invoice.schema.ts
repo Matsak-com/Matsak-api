@@ -3,6 +3,12 @@ import { Document, Types } from 'mongoose';
 
 export type InvoiceDocument = Invoice & Document;
 
+export enum InvoiceStatus {
+  PAID = 'paid',
+  REFUNDED = 'refunded',
+  CANCELLED = 'cancelled',
+}
+
 @Schema({ timestamps: true })
 export class Invoice {
   // ══════════════════════════════════════════════════════════════
@@ -34,11 +40,11 @@ export class Invoice {
   // ══════════════════════════════════════════════════════════════
   @Prop({
     required: true,
-    enum: ['paid', 'refunded', 'cancelled'],
-    default: 'paid',
+    enum: Object.values(InvoiceStatus),
+    default: InvoiceStatus.PAID,
     index: true,
   })
-  status: 'paid' | 'refunded' | 'cancelled';
+  status: InvoiceStatus;
 
   @Prop({ required: false })
   refundedAt?: Date;

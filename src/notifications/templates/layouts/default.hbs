@@ -23,23 +23,17 @@
             overflow: hidden;
         }
 
-        /* Header with logo */
+        /* Header */
         .header {
             text-align: center;
             padding: 35px 30px 25px;
             background: linear-gradient(to right, #a3d4d8, #71e2ec);
         }
-        .logo {
-            max-width: 180px;
-            height: auto;
-        }
+        .logo { max-width: 180px; height: auto; }
 
-        /* Main content */
-        .content {
-            padding: 40px;
-        }
+        /* Content */
+        .content { padding: 40px; }
 
-        /* Title styles */
         .content h2 {
             color: #1a2b3c;
             font-size: 26px;
@@ -54,23 +48,17 @@
             font-weight: 600;
             margin: 30px 0 18px 0;
         }
-
-        /* Paragraphs styles  */
         .content p {
             color: #4a5568;
             font-size: 15.5px;
             line-height: 1.7;
         }
-
-        /* First paragraph*/
         .content .greeting {
             font-size: 16px;
             font-weight: 500;
             color: #2d3748;
             margin-bottom: 22px;
         }
-
-        /* Important paragraphs */
         .content .important {
             background-color: rgba(93, 199, 96, 0.08);
             padding: 18px 20px;
@@ -79,16 +67,12 @@
             margin: 25px 0;
             line-height: 1.7;
         }
-
-        /* Signature */
         .content .signature {
             margin-top: 30px;
             padding-top: 25px;
             border-top: 1px solid #e9ecef;
             font-size: 15px;
         }
-
-        /* Principal button */
         .button {
             display: inline-block;
             padding: 15px 32px;
@@ -101,11 +85,10 @@
             font-size: 15.5px;
             letter-spacing: 0.3px;
             text-align: center;
-            transition: all 0.2s ease;
             box-shadow: 0 3px 8px rgba(93, 199, 96, 0.2);
         }
 
-        /* Table */
+        /* Generic order table */
         .order-table {
             width: 100%;
             border-collapse: separate;
@@ -130,15 +113,8 @@
             border-bottom: 1px solid #e9ecef;
             font-size: 14.5px;
         }
-        .order-table tfoot tr:last-child {
-            background-color: #f8f9fa;
-        }
-        .order-table tfoot td {
-            font-weight: 600;
-            border-bottom: none;
-        }
-
-        /* Section order info */
+        .order-table tfoot tr:last-child { background-color: #f8f9fa; }
+        .order-table tfoot td { font-weight: 600; border-bottom: none; }
         .order-info {
             background-color: #f8f9fa;
             padding: 20px;
@@ -146,9 +122,161 @@
             margin: 25px 0;
             border-left: 3px solid #5dc760;
         }
-        .order-info p {
-            margin: 8px 0;
+        .order-info p { margin: 8px 0; }
+
+        /* ── Invoice styles ───────────────────────────────────────── */
+
+        /* Info paiement */
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0 0 28px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #e9ecef;
         }
+        .info-table td {
+            padding: 11px 16px;
+            font-size: 14px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .info-table tr:last-child td { border-bottom: none; }
+        .info-label { color: #6b7280; font-weight: 500; width: 45%; }
+        .info-value { color: #1a2b3c; font-weight: 600; }
+        .meta-mono {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+        }
+
+        /* Section title */
+        .section-title {
+            font-size: 13px !important;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #9ca3af !important;
+            font-weight: 600;
+            margin: 28px 0 12px 0 !important;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        /* Team block */
+        .team-block {
+            margin-bottom: 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .team-header {
+            background-color: #1a2b3c;
+            color: #ffffff;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        /* Items table */
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .items-table thead tr {
+            background: #f8f9fa;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .items-table th {
+            padding: 9px 14px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: #9ca3af;
+            font-weight: 600;
+            text-align: left;
+        }
+        .items-table th.col-qty,
+        .items-table th.col-price,
+        .items-table th.col-total { text-align: right; }
+
+        .items-table tbody tr { border-bottom: 1px solid #f3f4f6; }
+        .items-table tbody tr:last-child { border-bottom: none; }
+        .items-table td {
+            padding: 12px 14px;
+            font-size: 14px;
+            color: #374151;
+        }
+        .items-table td.col-qty,
+        .items-table td.col-price,
+        .items-table td.col-total {
+            text-align: right;
+            font-size: 13px;
+            color: #1a2b3c;
+            font-weight: 500;
+        }
+        .items-table .col-name { font-weight: 500; color: #1a2b3c; }
+
+        /* Sous-total team — dans tfoot du items-table */
+        .subtotal-row { background-color: #f8f9fa; border-top: 1px solid #e2e8f0; }
+        .subtotal-label {
+            padding: 10px 14px;
+            font-size: 13px;
+            color: #6b7280;
+            font-weight: 500;
+            text-align: left;
+        }
+        .subtotal-value {
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #1a2b3c;
+            text-align: right;
+        }
+
+        /* Total général */
+        .grand-total-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #1a2b3c;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 8px 0 28px 0;
+        }
+        .grand-label {
+            padding: 16px 20px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #a0aec0;
+            text-align: left;
+            width: 60%;
+        }
+        .grand-value {
+            padding: 16px 20px;
+            font-size: 22px;
+            font-weight: 700;
+            color: #ffffff;
+            text-align: right;
+        }
+
+        /* Adresse livraison */
+        .shipping-block {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+        }
+        .shipping-block .section-title { margin-top: 0 !important; border-bottom: none; padding-bottom: 4px; }
+        .shipping-info {
+            font-size: 14px !important;
+            color: #374151 !important;
+            line-height: 1.8 !important;
+            margin: 0 !important;
+        }
+
+        /* ── End invoice styles ──────────────────────────────────── */
 
         /* Footer */
         .footer {
@@ -160,19 +288,12 @@
             line-height: 1.6;
             border-top: 1px solid #eee;
         }
-        .footer-links {
-            margin: 15px 0;
-        }
+        .footer-links { margin: 15px 0; }
         .footer-link {
             color: #5dc760;
             text-decoration: none;
             margin: 0 10px;
             font-size: 12px;
-        }
-        .copyright {
-            font-size: 12px;
-            color: #888;
-            margin-top: 15px;
         }
         .contact-details {
             background-color: #f8f9fa;

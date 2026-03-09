@@ -50,6 +50,35 @@
       "noAccount": "如果您没有创建账户，可以安全地忽略此邮件。",
       "signature": "此致敬礼，<br>Matsak 团队"
     },
+    "invoice": {
+      "subject": "您的发票 {{invoiceNumber}}",
+      "greeting": "您好",
+      "title": "您的发票",
+      "thankYou": "感谢您的订单。以下是您的发票摘要。",
+      "invoiceNumber": "发票编号",
+      "invoiceDate": "发票日期",
+      "paymentMethod": "付款方式",
+      "transactionRef": "交易参考",
+      "phone": "电话",
+      "orderedItems": "已订购商品",
+      "itemName": "商品",
+      "quantity": "数量",
+      "unitPrice": "单价",
+      "total": "总计",
+      "subtotal": "小计",
+      "totalPaid": "实付金额",
+      "shippingAddress": "配送地址",
+      "support": "如果您对发票有任何疑问，请随时联系我们的团队。",
+      "signature": "此致敬礼，<br>Matsak 团队",
+
+      "deliveryQrTitle": "配送二维码",
+      "deliveryQrDescription": "快递员将在送达时扫描此二维码以确认您的订单已收到。",
+      "deliveryQrMeta": "包含：发票编号 · 地址 · 金额 — 出示给快递员",
+
+      "pickupQrTitle": "药店取货二维码",
+      "pickupQrDescription": "前往每家药店时，请出示对应的二维码以取回您的药品。",
+      "pickupQrMeta": "出示给药店"
+    },
     "common": {
       "footer": "© {{year}} Matsak. 保留所有权利。",
       "contactUs": "联系我们",

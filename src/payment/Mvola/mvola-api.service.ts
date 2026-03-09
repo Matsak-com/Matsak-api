@@ -4,7 +4,7 @@ import { HttpService } from '@nestjs/axios';
 import { v4 as uuidv4 } from 'uuid';
 import { firstValueFrom } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
-import { AxiosError, AxiosResponse } from 'axios';
+import { AxiosError } from 'axios';
 import { mockMvolaStore } from './mock/mvola-mock.store';
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -46,7 +46,6 @@ export class MvolaApiService {
   private readonly partnerName: string;
   private readonly mockMode: boolean;
 
-  // Cache du token OAuth
   private accessToken: string | null = null;
   private tokenExpiresAt: number = 0;
 
@@ -68,7 +67,11 @@ export class MvolaApiService {
       '',
     );
     this.partnerName = this.configService.get<string>('MVOLA_PARTNER_NAME', '');
-    this.mockMode = this.configService.get<string>('MVOLA_MODE') === 'mock';
+    const mvolaMode = this.configService
+      .get<string>('MVOLA_MODE', '')
+      .toLowerCase();
+    this.mockMode =
+      mvolaMode === 'mock' || mvolaMode === 'true' || mvolaMode === '1';
 
     if (this.mockMode) {
       this.logger.warn('🧪 MVola API en mode MOCK — aucune vraie transaction');
@@ -96,7 +99,7 @@ export class MvolaApiService {
     const response = await firstValueFrom(
       this.httpService
         .post<MvolaTokenResponse>(
-          `https://developer.mvola.mg/oauth2/token`,
+          `${this.baseUrl}/oauth2/token`, // ← fix Copilot appliqué
           'grant_type=client_credentials',
           {
             headers: {
@@ -106,13 +109,13 @@ export class MvolaApiService {
           },
         )
         .pipe(
-          map((res: AxiosResponse<MvolaTokenResponse>) => res.data),
+          map((res) => res.data),
           catchError((error: AxiosError) => {
             this.logger.error(
-              'Erreur OAuth Mvola',
+              'Error OAuth Mvola',
               error.response?.data || error.message,
             );
-            throw new Error("Impossible d'obtenir le token Mvola");
+            throw new Error("Impossible d'obtenir le token Mvola"); // ← fix
           }),
         ),
     );
@@ -183,7 +186,7 @@ export class MvolaApiService {
       `POST merchantpay — correlationId: ${params.correlationId}, amount: ${params.amount}`,
     );
 
-    return firstValueFrom(
+    const response = await firstValueFrom(
       this.httpService
         .post<MvolaInitPaymentResponse>(
           `${this.baseUrl}/mvola/mm/transactions/type/merchantpay/1.0.0`,
@@ -191,16 +194,18 @@ export class MvolaApiService {
           { headers },
         )
         .pipe(
-          map((res: AxiosResponse<MvolaInitPaymentResponse>) => res.data),
+          map((res) => res.data),
           catchError((error: AxiosError) => {
             this.logger.error(
-              'Erreur POST merchantpay',
+              'Error POST merchantpay',
               error.response?.data || error.message,
             );
-            throw new Error("Erreur lors de l'initiation du paiement Mvola");
+            throw new Error("Erreur lors de l'initiation du paiement Mvola"); // ← fix
           }),
         ),
     );
+
+    return response;
   }
 
   // ── 3. GET /merchantpay/{serverCorrelationId} — vérifier le statut ─
@@ -239,25 +244,27 @@ export class MvolaApiService {
 
     this.logger.log(`GET status — serverCorrelationId: ${serverCorrelationId}`);
 
-    return firstValueFrom(
+    const response = await firstValueFrom(
       this.httpService
         .get<MvolaStatusResponse>(
           `${this.baseUrl}/mvola/mm/transactions/type/merchantpay/1.0/${serverCorrelationId}`,
           { headers },
         )
         .pipe(
-          map((res: AxiosResponse<MvolaStatusResponse>) => res.data),
+          map((res) => res.data),
           catchError((error: AxiosError) => {
             this.logger.error(
-              'Erreur GET status',
+              'Error GET status',
               error.response?.data || error.message,
             );
             throw new Error(
               'Impossible de vérifier le statut de la transaction',
-            );
+            ); // ← fix
           }),
         ),
     );
+
+    return response;
   }
 }
 

@@ -46,25 +46,18 @@ export class CartService {
 
     let cart = await this.findCart(sessionId, userId);
 
-    // 🆕 Création panier
     if (!cart) {
       cart = await this.cartRepository.create({
         doc: {
           sessionId,
           userId,
-          items: [
-            {
-              product: dto.productId as any,
-              quantity,
-            },
-          ],
+          items: [{ product: dto.productId as any, quantity }],
         },
       });
 
       return cart;
     }
 
-    // 🔁 Panier existe → ajouter ou incrémenter
     const existingItem = cart.items.find(
       (item) => item.product.toString() === dto.productId,
     );
@@ -72,10 +65,7 @@ export class CartService {
     if (existingItem) {
       existingItem.quantity += quantity;
     } else {
-      cart.items.push({
-        product: dto.productId as any,
-        quantity,
-      });
+      cart.items.push({ product: dto.productId as any, quantity });
     }
 
     await this.cartRepository.update({
@@ -92,32 +82,22 @@ export class CartService {
     if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
 
     const enrichedItems = await this.enrichCartItems(cart.items);
-    return {
-      _id: cart._id,
-      items: enrichedItems,
-    };
+    return { _id: cart._id, items: enrichedItems };
   }
 
+  // 🔀 Fusionner panier session → user
   async mergeSessionCartToUser(sessionId: string, userId: Types.ObjectId) {
     const sessionCart = await this.cartRepository.findBySessionId(sessionId);
 
-    if (!sessionCart || sessionCart.items.length === 0) {
-      return null;
-    }
+    if (!sessionCart || sessionCart.items.length === 0) return null;
 
     let userCart = await this.cartRepository.findByUserId(userId);
 
     if (!userCart) {
       userCart = await this.cartRepository.create({
-        doc: {
-          userId,
-          items: sessionCart.items,
-        },
+        doc: { userId, items: sessionCart.items },
       });
-
-      await this.cartRepository.delete({
-        id: sessionCart._id as Types.ObjectId,
-      });
+      await this.cartRepository.delete({ id: sessionCart._id as Types.ObjectId });
       return userCart;
     }
 
@@ -164,13 +144,10 @@ export class CartService {
     });
 
     const enrichedItems = await this.enrichCartItems(cart.items);
-    return {
-      _id: cart._id,
-      items: enrichedItems,
-    };
+    return { _id: cart._id, items: enrichedItems };
   }
 
-  // ❌ Supprimer produit
+  // ❌ Supprimer un produit du panier
   async deleteItem(
     productId: string,
     sessionId?: string,
@@ -198,36 +175,27 @@ export class CartService {
     });
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  // ✅ NOUVELLE MÉTHODE : Soft Delete du panier après paiement
-  // ══════════════════════════════════════════════════════════════════
+  /**
+   * Soft delete avec vérification — pour les endpoints API exposés.
+   * Lève NotFoundException si le panier n'existe pas.
+   */
   async softDeleteCart(cartId: string): Promise<void> {
-    const cart = await this.cartRepository.findById({
-      id: new Types.ObjectId(cartId),
-    });
+    const objectId = new Types.ObjectId(cartId);
+    const cart = await this.cartRepository.findById({ id: objectId });
+    if (!cart) throw new NotFoundException(`Panier ${cartId} introuvable`);
 
-    if (!cart) {
-      throw new NotFoundException(`Panier ${cartId} introuvable`);
-    }
-
-    // Vider les items ET marquer comme supprimé
-    await this.cartRepository.update({
-      id: cart._id as Types.ObjectId,
-      update: {
-        deleted_at: new Date(), // Soft delete
-      },
-    });
+    // Délègue à softDeleteCartById pour éviter la duplication
+    await this.softDeleteCartById(objectId);
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  // ✅ MÉTHODE ALTERNATIVE : Soft Delete par ObjectId direct
-  // ══════════════════════════════════════════════════════════════════
+  /**
+   * Soft delete sans vérification — usage interne uniquement
+   * quand l'existence du panier est déjà garantie (ex: post-paiement).
+   */
   async softDeleteCartById(cartId: Types.ObjectId): Promise<void> {
     await this.cartRepository.update({
       id: cartId,
-      update: {
-        deleted_at: new Date(),
-      },
+      update: { deleted_at: new Date() },
     });
   }
 }

@@ -1,327 +1,403 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
+import { MvolaApiService, mockMvolaStore } from './mvola-api.service';
 import { of, throwError } from 'rxjs';
-import { MvolaApiService } from './mvola-api.service';
-import { mockMvolaStore } from './mock/mvola-mock.store';
+import { AxiosResponse, AxiosError } from 'axios';
 
-// ── Helper ─────────────────────────────────────────────────────────
-const axiosResponse = (data: any) => ({
-  data,
-  status: 200,
-  statusText: 'OK',
-  headers: {},
-  config: {} as any,
-});
-
-// ── Config ─────────────────────────────────────────────────────────
-const BASE_CONFIG: Record<string, string> = {
-  MVOLA_BASE_URL: 'https://pre-api.mvola.mg',
-  MVOLA_CONSUMER_KEY: 'test-key',
-  MVOLA_CONSUMER_SECRET: 'test-secret',
-  MVOLA_MERCHANT_PHONE: '0340000000',
-  MVOLA_PARTNER_NAME: 'TestPartner',
-  MVOLA_MODE: 'mock',
-};
-
-const makeModule = async (
-  httpService: any,
-  overrides: Record<string, string> = {},
-): Promise<MvolaApiService> => {
-  const config = { ...BASE_CONFIG, ...overrides };
-  const module: TestingModule = await Test.createTestingModule({
-    providers: [
-      MvolaApiService,
-      { provide: HttpService, useValue: httpService },
-      {
-        provide: ConfigService,
-        useValue: {
-          get: (key: string, def?: string) => config[key] ?? def ?? '',
-        },
-      },
-    ],
-  }).compile();
-  return module.get<MvolaApiService>(MvolaApiService);
-};
-
-const defaultParams = {
-  amount: 10000,
-  customerPhone: '0340000001',
-  transactionReference: 'ref-001',
-  correlationId: 'corr-001',
-  callbackUrl: 'http://localhost/callback',
-};
-
-// ══════════════════════════════════════════════════════════════════
 describe('MvolaApiService', () => {
   let service: MvolaApiService;
-  let httpService: { post: jest.Mock; get: jest.Mock };
+  let httpService: jest.Mocked<HttpService>;
+  let configService: jest.Mocked<ConfigService>;
+
+  const mockTokenResponse = {
+    access_token: 'test-access-token',
+    token_type: 'Bearer',
+    expires_in: 3600,
+  };
+
+  const mockInitPaymentResponse = {
+    serverCorrelationId: 'server-corr-id-123',
+    status: 'pending',
+    notificationMethod: 'polling',
+  };
+
+  const mockStatusResponse = {
+    serverCorrelationId: 'server-corr-id-123',
+    status: 'COMPLETED',
+  };
 
   beforeEach(async () => {
-    // FIX: suppression du guard redondant "mockMvolaStore &&"
-    // mockMvolaStore est un Map exporté statiquement, toujours défini
-    if (typeof mockMvolaStore.clear === 'function') {
-      mockMvolaStore.clear();
-    }
-    httpService = { post: jest.fn(), get: jest.fn() };
-    service = await makeModule(httpService);
+    const mockHttpService = {
+      post: jest.fn(),
+      get: jest.fn(),
+    };
+
+    const mockConfigService = {
+      get: jest.fn((key: string, defaultValue?: any) => {
+        const config = {
+          MVOLA_BASE_URL: 'https://pre-api.mvola.mg',
+          MVOLA_CONSUMER_KEY: 'test-consumer-key',
+          MVOLA_CONSUMER_SECRET: 'test-consumer-secret',
+          MVOLA_MERCHANT_PHONE: '0340000000',
+          MVOLA_PARTNER_NAME: 'TestPartner',
+          MVOLA_MODE: 'real',
+        };
+        return config[key] || defaultValue;
+      }) as any,
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        MvolaApiService,
+        {
+          provide: HttpService,
+          useValue: mockHttpService,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
+        },
+      ],
+    }).compile();
+
+    service = module.get<MvolaApiService>(MvolaApiService);
+    httpService = module.get(HttpService);
+    configService = module.get(ConfigService);
+
+    mockMvolaStore.clear();
   });
 
-  afterEach(() => jest.clearAllMocks());
+  describe('getAccessToken (real mode)', () => {
+    it('should fetch and cache access token', async () => {
+      const axiosResponse: AxiosResponse = {
+        data: mockTokenResponse,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      };
 
-  // ── MODE MOCK ────────────────────────────────────────────────────
-  describe('Mode MOCK', () => {
-    describe('initMerchantPay', () => {
-      it('retourne un serverCorrelationId et stocke la transaction', async () => {
-        const result = await service.initMerchantPay(defaultParams);
+      httpService.post.mockReturnValue(of(axiosResponse) as any);
 
-        expect(result.serverCorrelationId).toBeDefined();
-        expect(result.status).toBe('pending');
-        expect(result.notificationMethod).toBe('polling');
-        expect(mockMvolaStore.has(result.serverCorrelationId)).toBe(true);
-      });
+      const token = await service['getAccessToken']();
 
-      it('stocke les données correctes dans le store', async () => {
-        const result = await service.initMerchantPay(defaultParams);
-        const stored = mockMvolaStore.get(result.serverCorrelationId)!;
-
-        expect(stored.status).toBe('PENDING');
-        expect(stored.amount).toBe(10000);
-        expect(stored.customerPhone).toBe('0340000001');
-        expect(stored.transactionReference).toBe('ref-001');
-      });
-
-      it('génère un UUID différent pour chaque appel', async () => {
-        const r1 = await service.initMerchantPay(defaultParams);
-        const r2 = await service.initMerchantPay({
-          ...defaultParams,
-          transactionReference: 'ref-002',
-        });
-
-        expect(r1.serverCorrelationId).not.toBe(r2.serverCorrelationId);
-      });
-
-      it("n'appelle pas httpService en mode mock", async () => {
-        await service.initMerchantPay(defaultParams);
-        expect(httpService.post).not.toHaveBeenCalled();
-      });
-    });
-
-    describe('getTransactionStatus', () => {
-      it('retourne PENDING pour une transaction en attente', async () => {
-        const { serverCorrelationId } =
-          await service.initMerchantPay(defaultParams);
-        const result = await service.getTransactionStatus(
-          serverCorrelationId,
-          'corr-001',
-        );
-
-        expect(result.status).toBe('PENDING');
-        expect(result.serverCorrelationId).toBe(serverCorrelationId);
-      });
-
-      it('retourne COMPLETED quand le statut mock est SUCCESS', async () => {
-        const { serverCorrelationId } =
-          await service.initMerchantPay(defaultParams);
-
-        // FIX: suppression du ternaire redondant, accès direct après assertion
-        const tx = mockMvolaStore.get(serverCorrelationId)!;
-        tx.status = 'SUCCESS';
-        mockMvolaStore.set(serverCorrelationId, tx);
-
-        const result = await service.getTransactionStatus(
-          serverCorrelationId,
-          'corr-001',
-        );
-        expect(result.status).toBe('COMPLETED');
-      });
-
-      it('retourne FAILED inchangé quand le statut mock est FAILED', async () => {
-        const { serverCorrelationId } =
-          await service.initMerchantPay(defaultParams);
-
-        const tx = mockMvolaStore.get(serverCorrelationId)!;
-        tx.status = 'FAILED';
-        mockMvolaStore.set(serverCorrelationId, tx);
-
-        const result = await service.getTransactionStatus(
-          serverCorrelationId,
-          'corr-001',
-        );
-        expect(result.status).toBe('FAILED');
-      });
-
-      it('met à jour le statut vers SUCCESS et vérifie la transaction', async () => {
-        const initResult = await service.initMerchantPay(defaultParams);
-
-        // FIX: suppression du ternaire "mockMvolaStore ? ... : undefined"
-        // accès direct après expect().toBeDefined()
-        expect(mockMvolaStore).toBeDefined();
-        const existingTx = mockMvolaStore.get(initResult.serverCorrelationId);
-        expect(existingTx).toBeDefined();
-
-        if (existingTx) {
-          existingTx.status = 'SUCCESS';
-          mockMvolaStore.set(initResult.serverCorrelationId, existingTx);
-        }
-
-        const result = await service.getTransactionStatus(
-          initResult.serverCorrelationId,
-          'corr-001',
-        );
-        expect(result.status).toBe('COMPLETED');
-      });
-
-      it('lève une erreur si la transaction est introuvable', async () => {
-        await expect(
-          service.getTransactionStatus('unknown-id', 'corr-x'),
-        ).rejects.toThrow('Transaction mock introuvable');
-      });
-
-      it("n'appelle pas httpService en mode mock", async () => {
-        const { serverCorrelationId } =
-          await service.initMerchantPay(defaultParams);
-        await service.getTransactionStatus(serverCorrelationId, 'corr-001');
-        expect(httpService.get).not.toHaveBeenCalled();
-      });
-    });
-  });
-
-  // ── MODE RÉEL ────────────────────────────────────────────────────
-  describe('Mode RÉEL', () => {
-    let realService: MvolaApiService;
-
-    const mockTokenResponse = () =>
-      httpService.post.mockReturnValueOnce(
-        of(
-          axiosResponse({
-            access_token: 'tok-abc',
-            token_type: 'Bearer',
-            expires_in: 3600,
+      expect(token).toBe('test-access-token');
+      expect(httpService.post).toHaveBeenCalledWith(
+        'https://pre-api.mvola.mg/oauth2/token', // ← fix : URL depuis MVOLA_BASE_URL
+        'grant_type=client_credentials',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: expect.stringContaining('Basic '),
+            'Content-Type': 'application/x-www-form-urlencoded',
           }),
-        ) as any,
+        }),
+      );
+    });
+
+    it('should reuse cached token if not expired', async () => {
+      const axiosResponse: AxiosResponse = {
+        data: mockTokenResponse,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      };
+
+      httpService.post.mockReturnValue(of(axiosResponse) as any);
+
+      const token1 = await service['getAccessToken']();
+      const token2 = await service['getAccessToken']();
+
+      expect(token1).toBe(token2);
+      expect(httpService.post).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw error when OAuth fails', async () => {
+      const axiosError: AxiosError = {
+        response: {
+          data: { error: 'invalid_client' },
+          status: 401,
+          statusText: 'Unauthorized',
+          headers: {},
+          config: {} as any,
+        },
+        message: 'Request failed',
+        name: 'AxiosError',
+        config: {} as any,
+        isAxiosError: true,
+        toJSON: () => ({}),
+      };
+
+      httpService.post.mockReturnValue(throwError(() => axiosError) as any);
+
+      await expect(service['getAccessToken']()).rejects.toThrow(
+        "Impossible d'obtenir le token Mvola", // ← fix
+      );
+    });
+  });
+
+  describe('initMerchantPay (real mode)', () => {
+    const initParams = {
+      amount: 5000,
+      customerPhone: '0341234567',
+      transactionReference: 'TXN-12345',
+      correlationId: 'CORR-12345',
+      callbackUrl: 'https://example.com/callback',
+      descriptionText: 'Test payment',
+    };
+
+    beforeEach(() => {
+      const tokenResponse: AxiosResponse = {
+        data: mockTokenResponse,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      };
+      httpService.post.mockReturnValueOnce(of(tokenResponse) as any);
+    });
+
+    it('should initiate payment successfully', async () => {
+      const paymentResponse: AxiosResponse = {
+        data: mockInitPaymentResponse,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      };
+
+      httpService.post.mockReturnValueOnce(of(paymentResponse) as any);
+
+      const result = await service.initMerchantPay(initParams);
+
+      expect(result.serverCorrelationId).toBe('server-corr-id-123');
+      expect(result.status).toBe('pending');
+      expect(httpService.post).toHaveBeenCalledWith(
+        'https://pre-api.mvola.mg/mvola/mm/transactions/type/merchantpay/1.0.0',
+        expect.objectContaining({
+          amount: 5000,
+          currency: 'Ar',
+          descriptionText: 'Test payment',
+        }),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: 'Bearer test-access-token',
+            'X-CorrelationID': 'CORR-12345',
+            callbackUrl: 'https://example.com/callback',
+          }),
+        }),
+      );
+    });
+
+    it('should use default description if not provided', async () => {
+      const paymentResponse: AxiosResponse = {
+        data: mockInitPaymentResponse,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      };
+
+      httpService.post.mockReturnValueOnce(of(paymentResponse) as any);
+
+      const paramsWithoutDesc = { ...initParams };
+      delete paramsWithoutDesc.descriptionText;
+
+      await service.initMerchantPay(paramsWithoutDesc);
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          descriptionText: 'Paiement marchand',
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('should throw error when payment initiation fails', async () => {
+      const axiosError: AxiosError = {
+        response: {
+          data: { error: 'Insufficient funds' },
+          status: 400,
+          statusText: 'Bad Request',
+          headers: {},
+          config: {} as any,
+        },
+        message: 'Payment failed',
+        name: 'AxiosError',
+        config: {} as any,
+        isAxiosError: true,
+        toJSON: () => ({}),
+      };
+
+      httpService.post.mockReturnValueOnce(throwError(() => axiosError) as any);
+
+      await expect(service.initMerchantPay(initParams)).rejects.toThrow(
+        "Erreur lors de l'initiation du paiement Mvola", // ← fix
+      );
+    });
+  });
+
+  describe('getTransactionStatus (real mode)', () => {
+    const serverCorrelationId = 'server-corr-id-123';
+    const correlationId = 'CORR-12345';
+
+    beforeEach(() => {
+      const tokenResponse: AxiosResponse = {
+        data: mockTokenResponse,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      };
+      httpService.post.mockReturnValue(of(tokenResponse) as any);
+    });
+
+    it('should get transaction status successfully', async () => {
+      const statusResponse: AxiosResponse = {
+        data: mockStatusResponse,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      };
+
+      httpService.get.mockReturnValue(of(statusResponse) as any);
+
+      const result = await service.getTransactionStatus(
+        serverCorrelationId,
+        correlationId,
       );
 
+      expect(result.status).toBe('COMPLETED');
+      expect(result.serverCorrelationId).toBe('server-corr-id-123');
+      expect(httpService.get).toHaveBeenCalledWith(
+        `https://pre-api.mvola.mg/mvola/mm/transactions/type/merchantpay/1.0/${serverCorrelationId}`,
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: 'Bearer test-access-token',
+            'X-CorrelationID': correlationId,
+          }),
+        }),
+      );
+    });
+
+    it('should throw error when status check fails', async () => {
+      const axiosError: AxiosError = {
+        response: {
+          data: { error: 'Transaction not found' },
+          status: 404,
+          statusText: 'Not Found',
+          headers: {},
+          config: {} as any,
+        },
+        message: 'Not found',
+        name: 'AxiosError',
+        config: {} as any,
+        isAxiosError: true,
+        toJSON: () => ({}),
+      };
+
+      httpService.get.mockReturnValue(throwError(() => axiosError) as any);
+
+      await expect(
+        service.getTransactionStatus(serverCorrelationId, correlationId),
+      ).rejects.toThrow('Impossible de vérifier le statut de la transaction'); // ← fix
+    });
+  });
+
+  describe('Mock Mode', () => {
     beforeEach(async () => {
-      realService = await makeModule(httpService, { MVOLA_MODE: 'real' });
+      configService.get = jest.fn((key: string, defaultValue?: any) => {
+        const config = {
+          MVOLA_BASE_URL: 'https://pre-api.mvola.mg',
+          MVOLA_CONSUMER_KEY: 'test-consumer-key',
+          MVOLA_CONSUMER_SECRET: 'test-consumer-secret',
+          MVOLA_MERCHANT_PHONE: '0340000000',
+          MVOLA_PARTNER_NAME: 'TestPartner',
+          MVOLA_MODE: 'mock',
+        };
+        return config[key] || defaultValue;
+      }) as any;
+
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          MvolaApiService,
+          {
+            provide: HttpService,
+            useValue: httpService,
+          },
+          {
+            provide: ConfigService,
+            useValue: configService,
+          },
+        ],
+      }).compile();
+
+      service = module.get<MvolaApiService>(MvolaApiService);
+      mockMvolaStore.clear();
     });
 
-    describe('initMerchantPay', () => {
-      it('appelle le token OAuth puis POST merchantpay', async () => {
-        mockTokenResponse();
-        httpService.post.mockReturnValueOnce(
-          of(
-            axiosResponse({
-              serverCorrelationId: 'real-corr-001',
-              status: 'pending',
-            }),
-          ) as any,
-        );
+    it('should return mock token in mock mode', async () => {
+      const token = await service['getAccessToken']();
 
-        const result = await realService.initMerchantPay(defaultParams);
-
-        expect(result.serverCorrelationId).toBe('real-corr-001');
-        expect(httpService.post).toHaveBeenCalledTimes(2);
-      });
-
-      it('ne stocke rien dans mockMvolaStore en mode réel', async () => {
-        mockTokenResponse();
-        httpService.post.mockReturnValueOnce(
-          of(
-            axiosResponse({
-              serverCorrelationId: 'real-corr-002',
-              status: 'pending',
-            }),
-          ) as any,
-        );
-
-        await realService.initMerchantPay(defaultParams);
-        expect(mockMvolaStore.size).toBe(0);
-      });
-
-      it("lève une erreur si l'API retourne une erreur", async () => {
-        mockTokenResponse();
-        httpService.post.mockReturnValueOnce(
-          throwError(() => ({
-            message: 'Network error',
-            response: null,
-          })) as any,
-        );
-
-        await expect(
-          realService.initMerchantPay(defaultParams),
-        ).rejects.toThrow("Erreur lors de l'initiation du paiement Mvola");
-      });
-
-      it("lève une erreur si l'OAuth échoue", async () => {
-        httpService.post.mockReturnValueOnce(
-          throwError(() => ({
-            message: 'Unauthorized',
-            response: { data: 'error' },
-          })) as any,
-        );
-
-        await expect(
-          realService.initMerchantPay(defaultParams),
-        ).rejects.toThrow("Impossible d'obtenir le token Mvola");
-      });
+      expect(token).toBe('mock-token-12345');
+      expect(httpService.post).not.toHaveBeenCalled();
     });
 
-    describe('getTransactionStatus', () => {
-      it('appelle le token OAuth puis GET status', async () => {
-        mockTokenResponse();
-        httpService.get.mockReturnValueOnce(
-          of(
-            axiosResponse({
-              serverCorrelationId: 'corr-001',
-              status: 'COMPLETED',
-            }),
-          ) as any,
-        );
+    it('should create mock transaction in mock mode', async () => {
+      const initParams = {
+        amount: 5000,
+        customerPhone: '0341234567',
+        transactionReference: 'TXN-12345',
+        correlationId: 'CORR-12345',
+        callbackUrl: 'https://example.com/callback',
+      };
 
-        const result = await realService.getTransactionStatus(
-          'corr-001',
-          'x-corr-001',
-        );
+      const result = await service.initMerchantPay(initParams);
 
-        expect(result.status).toBe('COMPLETED');
-        expect(httpService.get).toHaveBeenCalledTimes(1);
-      });
+      expect(result.status).toBe('pending');
+      expect(result.serverCorrelationId).toBeDefined();
+      expect(mockMvolaStore.size).toBe(1);
 
-      it('lève une erreur si le GET status échoue', async () => {
-        mockTokenResponse();
-        httpService.get.mockReturnValueOnce(
-          throwError(() => ({ message: 'Not found', response: null })) as any,
-        );
-
-        await expect(
-          realService.getTransactionStatus('corr-001', 'x-corr-001'),
-        ).rejects.toThrow('Impossible de vérifier le statut de la transaction');
-      });
+      const mockTx = mockMvolaStore.get(result.serverCorrelationId);
+      expect(mockTx).toBeDefined();
+      expect(mockTx?.amount).toBe(5000);
+      expect(mockTx?.status).toBe('PENDING');
+      expect(httpService.post).not.toHaveBeenCalled();
     });
 
-    describe('cache du token OAuth', () => {
-      it('réutilise le token si non expiré', async () => {
-        mockTokenResponse();
-        httpService.post.mockReturnValue(
-          of(
-            axiosResponse({ serverCorrelationId: 'sc', status: 'pending' }),
-          ) as any,
-        );
+    it('should get mock transaction status in mock mode', async () => {
+      const initParams = {
+        amount: 5000,
+        customerPhone: '0341234567',
+        transactionReference: 'TXN-12345',
+        correlationId: 'CORR-12345',
+        callbackUrl: 'https://example.com/callback',
+      };
 
-        await realService.initMerchantPay(defaultParams);
-        await realService.initMerchantPay({
-          ...defaultParams,
-          transactionReference: 'ref-002',
-        });
+      const initResult = await service.initMerchantPay(initParams);
 
-        // 1 appel token + 2 appels merchantpay = 3, mais le token est caché
-        // donc token appelé 1 seule fois
-        const tokenCalls = (httpService.post as jest.Mock).mock.calls.filter(
-          (call) => String(call[0]).includes('oauth2/token'),
-        );
-        expect(tokenCalls.length).toBe(1);
-      });
+      const mockTx = mockMvolaStore.get(initResult.serverCorrelationId);
+      if (mockTx) {
+        mockTx.status = 'SUCCESS';
+      }
+
+      const result = await service.getTransactionStatus(
+        initResult.serverCorrelationId,
+        'CORR-12345',
+      );
+
+      expect(result.status).toBe('COMPLETED');
+      expect(result.serverCorrelationId).toBe(initResult.serverCorrelationId);
+      expect(httpService.get).not.toHaveBeenCalled();
+    });
+
+    it('should throw error for non-existent mock transaction', async () => {
+      await expect(
+        service.getTransactionStatus('non-existent-id', 'CORR-12345'),
+      ).rejects.toThrow('Transaction mock introuvable');
     });
   });
 });
