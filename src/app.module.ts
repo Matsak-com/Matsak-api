@@ -26,6 +26,8 @@ import { BullModule } from '@nestjs/bull';
 import { PreferenceModule } from './preference/preference.module';
 import { FaqsModule } from './faqs/faqs.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { PaymentModule } from './payment/payment.module';
+import { InvoiceModule } from './invoice/invoice.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ContactModule } from './contact/contact.module';
 import Redis from 'ioredis';
@@ -105,6 +107,8 @@ export function getRedisConfig() {
     PreferenceModule,
     FaqsModule,
     ReviewsModule,
+    PaymentModule,
+    InvoiceModule,
     ContactModule,
   ],
   controllers: [AppController],

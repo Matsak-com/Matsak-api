@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { ERRORS } from '../common/errors';
@@ -19,11 +20,25 @@ import { SearchService } from '../elasticsearch/elasticsearch.service';
 
 @Injectable()
 export class InventoryService {
+  private readonly logger = new Logger(InventoryService.name);
+
   constructor(
     private readonly inventoryRepo: InventoryRepository,
     private readonly productRepo: ProductRepository,
     private readonly searchService: SearchService,
   ) {}
+
+  // ── Indexation non-bloquante — n'interrompt jamais le flux principal ──
+  private async indexProductSafe(product: any): Promise<void> {
+    try {
+      await product.populate('detail images team');
+      await this.searchService.indexProduct(product);
+    } catch (error) {
+      this.logger.warn(
+        `Indexation échouée pour produit ${product._id} — non bloquant: ${error.message}`,
+      );
+    }
+  }
 
   async stockIn(
     stockInDto: StockInDto,
@@ -44,7 +59,6 @@ export class InventoryService {
     const previousStock = product.stockQuantity || 0;
     const newStock = previousStock + stockInDto.quantity;
 
-    // Create inventory transaction
     const transaction = await this.inventoryRepo.create({
       doc: {
         product: new Types.ObjectId(stockInDto.productId),
@@ -59,14 +73,14 @@ export class InventoryService {
       },
     });
 
-    // Update product stock
     await this.productRepo.update({
       id: stockInDto.productId,
       update: { stockQuantity: newStock },
     });
 
-    await product.populate('detail images team');
-    await this.searchService.indexProduct(product);
+    // Non-bloquant
+    this.indexProductSafe(product);
+
     return transaction;
   }
 
@@ -94,7 +108,6 @@ export class InventoryService {
 
     const newStock = previousStock - stockOutDto.quantity;
 
-    // Create inventory transaction
     const transaction = await this.inventoryRepo.create({
       doc: {
         product: new Types.ObjectId(stockOutDto.productId),
@@ -109,14 +122,14 @@ export class InventoryService {
       },
     });
 
-    // Update product stock
     await this.productRepo.update({
       id: stockOutDto.productId,
       update: { stockQuantity: newStock },
     });
 
-    await product.populate('detail images team');
-    await this.searchService.indexProduct(product);
+    // Non-bloquant
+    this.indexProductSafe(product);
+
     return transaction;
   }
 
@@ -140,7 +153,6 @@ export class InventoryService {
     const newStock = adjustmentDto.newQuantity;
     const difference = newStock - previousStock;
 
-    // Create inventory transaction
     const transaction = await this.inventoryRepo.create({
       doc: {
         product: new Types.ObjectId(adjustmentDto.productId),
@@ -155,14 +167,13 @@ export class InventoryService {
       },
     });
 
-    // Update product stock
     await this.productRepo.update({
       id: adjustmentDto.productId,
       update: { stockQuantity: newStock },
     });
 
-    await product.populate('detail images team');
-    await this.searchService.indexProduct(product);
+    // Non-bloquant
+    this.indexProductSafe(product);
 
     return transaction;
   }
@@ -260,7 +271,6 @@ export class InventoryService {
       },
     };
 
-    // Process each update
     for (const update of bulkUpdateDto.updates) {
       try {
         const product = await this.productRepo.findById({
@@ -289,7 +299,6 @@ export class InventoryService {
         const newStock = update.newQuantity;
         const difference = newStock - previousStock;
 
-        // Create inventory transaction
         await this.inventoryRepo.create({
           doc: {
             product: new Types.ObjectId(update.productId),
@@ -305,7 +314,6 @@ export class InventoryService {
           },
         });
 
-        // Update product stock
         await this.productRepo.update({
           id: update.productId,
           update: { stockQuantity: newStock },
@@ -318,8 +326,9 @@ export class InventoryService {
           difference,
           ...update,
         });
-        await product.populate('detail images team');
-        await this.searchService.indexProduct(product);
+
+        // Non-bloquant
+        this.indexProductSafe(product);
 
         results.summary.successful++;
       } catch (error) {

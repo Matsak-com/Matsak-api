@@ -5,11 +5,13 @@ export interface EmailOptions {
   context?: Record<string, any>;
   html?: string;
   text?: string;
-  locale?: 'en' | 'fr' | 'zh' | 'ar'; // Supported locales
+  locale?: 'en' | 'fr' | 'zh' | 'ar';
   attachments?: Array<{
     filename: string;
     path?: string;
     content?: string | Buffer;
+    cid?: string; // ← pour les images inline (QR codes)
+    contentType?: string; // ← 'image/png'
   }>;
 }
 
