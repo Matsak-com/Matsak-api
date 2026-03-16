@@ -74,6 +74,7 @@ services:
       MAIL_FROM: "Matsak <noreply@matsak.com>"
       REDIS_HOST: redis
       REDIS_PORT: "6379"
+      REDIS_URL: "redis://redis:6379"
       ELASTICSEARCH_NODE: "http://elasticsearch:9200"
       ELASTICSEARCH_USER: matsak_dev
       ELASTICSEARCH_PASSWORD: Matsak@2025_Dev
