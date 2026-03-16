@@ -1,0 +1,135 @@
+{{> header}}
+
+<div class="content">
+    <h2>{{t.title}}</h2>
+    <p class="greeting">{{t.greeting}}, {{customer.name}}</p>
+    <p>{{t.thankYou}}</p>
+
+    {{!-- Infos paiement --}}
+    <table class="info-table">
+        <tr>
+            <td class="info-label">{{t.invoiceNumber}}</td>
+            <td class="info-value">{{invoiceNumber}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">{{t.invoiceDate}}</td>
+            <td class="info-value">{{invoiceDate}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">{{t.paymentMethod}}</td>
+            <td class="info-value">{{payment.method}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">{{t.transactionRef}}</td>
+            <td class="info-value meta-mono">{{payment.transactionReference}}</td>
+        </tr>
+        {{#if payment.customerPhone}}
+        <tr>
+            <td class="info-label">{{t.phone}}</td>
+            <td class="info-value">{{payment.customerPhone}}</td>
+        </tr>
+        {{/if}}
+    </table>
+
+    {{!-- Articles groupés par team --}}
+    <h3 class="section-title">{{t.orderedItems}}</h3>
+
+    {{#each teams}}
+    <div class="team-block">
+        <div class="team-header">{{this.teamName}}</div>
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th class="col-name">{{../t.itemName}}</th>
+                    <th class="col-qty">{{../t.quantity}}</th>
+                    <th class="col-price">{{../t.unitPrice}}</th>
+                    <th class="col-total">{{../t.total}}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each this.items}}
+                <tr>
+                    <td class="col-name">{{this.name}}</td>
+                    <td class="col-qty">{{this.quantity}}</td>
+                    <td class="col-price">{{this.unitPrice}} {{../../payment.currency}}</td>
+                    <td class="col-total">{{this.totalPrice}} {{../../payment.currency}}</td>
+                </tr>
+                {{/each}}
+            </tbody>
+            <tfoot>
+                <tr class="subtotal-row">
+                    <td colspan="3" class="subtotal-label">{{../t.subtotal}} — {{this.teamName}}</td>
+                    <td class="subtotal-value">{{this.subtotal}} {{../payment.currency}}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    {{/each}}
+
+    {{!-- Total général --}}
+    <table class="grand-total-table">
+        <tr>
+            <td class="grand-label">{{t.totalPaid}}</td>
+            <td class="grand-value">{{payment.amount}} {{payment.currency}}</td>
+        </tr>
+    </table>
+
+    {{!-- ════════════════════════════════════ --}}
+    {{!-- MODE LIVRAISON                       --}}
+    {{!-- ════════════════════════════════════ --}}
+    {{#unless isPickup}}
+
+    {{#if deliveryAddress}}
+    <div class="shipping-block">
+        <h3 class="section-title">{{t.shippingAddress}}</h3>
+        <p class="shipping-info">
+            {{deliveryAddress.name}}<br/>
+            {{deliveryAddress.addressLine}}<br/>
+            {{deliveryAddress.city}}{{#if deliveryAddress.state}}, {{deliveryAddress.state}}{{/if}}
+            {{#if deliveryAddress.phone}}<br/>{{deliveryAddress.phone}}{{/if}}
+        </p>
+    </div>
+    {{/if}}
+
+    {{#if deliveryCid}}
+    <div class="qr-block qr-delivery">
+        <h3 class="section-title">{{t.deliveryQrTitle}}</h3>
+        <p class="qr-description">{{t.deliveryQrDescription}}</p>
+        <div class="qr-image-wrapper">
+            {{!-- CID : l'image est attachée à l'email, pas en base64 --}}
+            <img src="cid:{{deliveryCid}}" alt="QR Code livraison" width="200" height="200" class="qr-image" />
+        </div>
+        <p class="qr-meta">{{t.deliveryQrMeta}}</p>
+    </div>
+    {{/if}}
+
+    {{/unless}}
+
+    {{!-- ════════════════════════════════════ --}}
+    {{!-- MODE RETRAIT : un QR par pharmacie   --}}
+    {{!-- ════════════════════════════════════ --}}
+    {{#if isPickup}}
+
+    <h3 class="section-title">{{t.pickupQrTitle}}</h3>
+    <p>{{t.pickupQrDescription}}</p>
+
+    {{#each teams}}
+    {{#if this.qrCid}}
+    <div class="qr-block qr-pickup">
+        <div class="qr-pharmacy-name">{{this.teamName}}</div>
+        <div class="qr-image-wrapper">
+            {{!-- CID : l'image est attachée à l'email, pas en base64 --}}
+            <img src="cid:{{this.qrCid}}" alt="QR Code {{this.teamName}}" width="200" height="200" class="qr-image" />
+        </div>
+        <p class="qr-meta">{{../t.pickupQrMeta}} {{this.teamName}}</p>
+    </div>
+    {{/if}}
+    {{/each}}
+
+    {{/if}}
+
+    <p>{{t.support}}</p>
+    <p class="signature">{{{t.signature}}}</p>
+</div>
+
+{{> footer}}

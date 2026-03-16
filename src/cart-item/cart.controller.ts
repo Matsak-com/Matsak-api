@@ -9,7 +9,6 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
-import { ERRORS } from '../common/errors';
 import { CartService } from './cart.service';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import {
@@ -55,8 +54,12 @@ export class CartController {
       };
     }
 
-    console.error('❌ Aucun identifiant trouvé');
-    throw new BadRequestException(ERRORS.SESSION_ID_MISSING);
+    throw new BadRequestException({
+      message:
+        'Veuillez accepter les cookies ou vous connecter pour utiliser le panier',
+      code: 'AUTHENTICATION_OR_CONSENT_REQUIRED',
+      requiresCookieConsent: true,
+    });
   }
 
   @Get()

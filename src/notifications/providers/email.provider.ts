@@ -23,7 +23,10 @@ export class EmailProvider implements IEmailProvider {
       host: this.configService.get('MAIL_HOST', 'localhost'),
       port: parseInt(this.configService.get('MAIL_PORT', '1025')),
       secure: false,
-      ignoreTLS: true,
+      auth: {
+        user: this.configService.get('MAIL_USER'),
+        pass: this.configService.get('MAIL_PASS'),
+      },
     });
 
     this.hbs = handlebars.create();
