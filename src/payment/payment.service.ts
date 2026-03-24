@@ -312,6 +312,11 @@ export class PaymentService {
       await this.cartService.softDeleteCartById(cartId);
       this.logger.log(`✅ Panier archivé pour paiement ${paymentId}`);
 
+      // suppression différée (ex: 24h après)
+      setTimeout(async () => {
+        await this.cartService.deleteCartPermanentlyById(cartId);
+      }, 24 * 60 * 60 * 1000);
+
     } catch (error) {
       this.logger.error(`❌ Échec post-traitement pour paiement ${paymentId}`, error);
     } finally {

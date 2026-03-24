@@ -9,10 +9,25 @@ export enum InvoiceStatus {
   CANCELLED = 'cancelled',
 }
 
+// ══════════════════════════════════════════════════════════════
+// SNAPSHOT DU CART - Copie immuable au moment du paiement
+// ══════════════════════════════════════════════════════════════
+export class CartItemSnapshot {
+  product: Types.ObjectId;  // Référence conservée pour traçabilité
+  quantity: number;
+}
+
+export class CartSnapshot {
+  cartId: Types.ObjectId;        // ID original du cart supprimé
+  sessionId?: string;            // Conservé si panier anonyme
+  items: CartItemSnapshot[];
+  snapshotAt: Date;              // Moment de la copie
+}
+
 @Schema({ timestamps: true })
 export class Invoice {
   // ══════════════════════════════════════════════════════════════
-  // RÉFÉRENCES - Tout vient de Payment et Cart
+  // RÉFÉRENCES
   // ══════════════════════════════════════════════════════════════
   @Prop({
     type: Types.ObjectId,
@@ -24,10 +39,31 @@ export class Invoice {
   payment: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: false, index: true })
-  userId: Types.ObjectId;
+  userId?: Types.ObjectId;
 
   // ══════════════════════════════════════════════════════════════
-  // FACTURE - Juste le numéro pour la comptabilité
+  // SNAPSHOT DU CART (copie avant suppression)
+  // ══════════════════════════════════════════════════════════════
+  @Prop({
+    type: {
+      cartId: { type: Types.ObjectId, required: true },
+      sessionId: { type: String },
+      items: [
+        {
+          product: { type: Types.ObjectId, ref: 'Product', required: true },
+          quantity: { type: Number, required: true, min: 1 },
+          _id: false,
+        },
+      ],
+      snapshotAt: { type: Date, required: true },
+    },
+    required: true,
+    _id: false,
+  })
+  cartSnapshot: CartSnapshot;
+
+  // ══════════════════════════════════════════════════════════════
+  // FACTURE
   // ══════════════════════════════════════════════════════════════
   @Prop({ required: true, unique: true, index: true })
   invoiceNumber: string;
@@ -36,7 +72,7 @@ export class Invoice {
   invoiceDate: Date;
 
   // ══════════════════════════════════════════════════════════════
-  // STATUT - Gestion comptable
+  // STATUT
   // ══════════════════════════════════════════════════════════════
   @Prop({
     required: true,
@@ -49,14 +85,14 @@ export class Invoice {
   @Prop({ required: false })
   refundedAt?: Date;
 
-  // Soft delete
   @Prop({ required: false })
   deleted_at?: Date;
 }
 
 export const InvoiceSchema = SchemaFactory.createForClass(Invoice);
 
-// Indexes
 InvoiceSchema.index({ payment: 1 }, { unique: true });
+InvoiceSchema.index({ userId: 1, invoiceDate: -1 });
 InvoiceSchema.index({ status: 1, invoiceDate: -1 });
 InvoiceSchema.index({ invoiceNumber: 1 }, { unique: true });
+InvoiceSchema.index({ 'cartSnapshot.cartId': 1 }); // Retrouver une invoice depuis un cartId archivé

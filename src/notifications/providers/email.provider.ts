@@ -14,6 +14,7 @@ export class EmailProvider implements IEmailProvider {
   private transporter: nodemailer.Transporter;
   private hbs: typeof handlebars;
   private readonly templateDir: string;
+  private readonly LOGO_CID = 'matsak-logo';
 
   constructor(
     private readonly configService: ConfigService,
@@ -60,15 +61,20 @@ export class EmailProvider implements IEmailProvider {
         locale,
       );
 
+      // Attachment logo CID
+      const logoAttachment = this.buildLogoAttachment();
+
       const mailOptions: any = {
         to: Array.isArray(to) ? to.join(', ') : to,
         subject,
         from: this.configService.get('MAIL_FROM', 'noreply@matsak-mg.com'),
-        attachments: attachments || [],
+        attachments: [
+          ...(logoAttachment ? [logoAttachment] : []),
+          ...(attachments || []),
+        ],
       };
 
       if (template) {
-        // Compiler le template avec le layout
         const emailHtml = await this.compileEmail(template, fullContext);
         mailOptions.html = emailHtml;
 
@@ -88,6 +94,39 @@ export class EmailProvider implements IEmailProvider {
   }
 
   /**
+   * Construire l'attachment du logo en CID
+   */
+private buildLogoAttachment(): {
+  filename: string;
+  content: Buffer;
+  cid: string;
+  contentType: string;
+  contentDisposition: string;
+} | null {
+  const possibleLogoPaths = [
+    path.join(process.cwd(), 'src/assets/images/matsak-logo.png'),
+    path.join(process.cwd(), 'dist/assets/images/matsak-logo.png'),
+    path.join(__dirname, '../../../assets/images/matsak-logo.png'),
+    path.join(__dirname, '../../assets/images/matsak-logo.png'),
+  ];
+
+  for (const logoPath of possibleLogoPaths) {
+    if (fs.existsSync(logoPath)) {
+      this.logger.debug(`Logo found at: ${logoPath}`);
+      return {
+        filename: 'matsak-logo.png',
+        content: fs.readFileSync(logoPath), // ← Buffer direct, plus fiable que path
+        cid: this.LOGO_CID,
+        contentType: 'image/png',
+        contentDisposition: 'inline',
+      };
+    }
+  }
+
+  this.logger.warn('Logo file not found, email will be sent without logo');
+  return null;
+}
+  /**
    * Compiler un email avec layout et partials
    */
   private async compileEmail(
@@ -95,7 +134,6 @@ export class EmailProvider implements IEmailProvider {
     context: any,
   ): Promise<string> {
     try {
-      // 1. Lire le template email (ex: welcome.hbs)
       const templatePath = path.join(
         this.templateDir,
         'emails',
@@ -108,7 +146,6 @@ export class EmailProvider implements IEmailProvider {
       const templateContent = fs.readFileSync(templatePath, 'utf8');
       this.logger.debug(`Loaded template: ${templateName}`);
 
-      // 2. Lire le layout (default.hbs)
       const layoutPath = path.join(this.templateDir, 'layouts', 'default.hbs');
       if (!fs.existsSync(layoutPath)) {
         throw new Error(`Layout not found: ${layoutPath}`);
@@ -117,13 +154,11 @@ export class EmailProvider implements IEmailProvider {
       const layoutContent = fs.readFileSync(layoutPath, 'utf8');
       this.logger.debug(`Loaded layout: default`);
 
-      // 3. Remplacer {{{body}}} dans le layout par le contenu du template
       const combinedContent = layoutContent.replace(
         '{{{body}}}',
         templateContent,
       );
 
-      // 4. Compiler avec Handlebars
       const compiled = this.hbs.compile(combinedContent);
       const result = compiled(context);
 
@@ -142,10 +177,8 @@ export class EmailProvider implements IEmailProvider {
    */
   private configureHandlebars(): void {
     try {
-      // Enregistrer les partials
       this.registerPartial('header', 'partials/header.hbs');
       this.registerPartial('footer', 'partials/footer.hbs');
-
       this.logger.debug('Handlebars configured with partials');
     } catch (error) {
       this.logger.error(`Failed to configure Handlebars: ${error.message}`);
@@ -181,7 +214,6 @@ export class EmailProvider implements IEmailProvider {
     context: any,
     locale: string,
   ): Promise<any> {
-    // Données de la plateforme
     const platform = {
       name: this.configService.get('APP_NAME', 'Matsak'),
       url: this.configService.get('FRONTEND_URL', 'http://localhost:3000'),
@@ -193,10 +225,9 @@ export class EmailProvider implements IEmailProvider {
         'CONTACT_EMAIL',
         'contact@matsak-mg.com',
       ),
-      logoUrl: `${this.configService.get('FRONTEND_URL', 'http://localhost:3000')}/images/logos/matsak-logo.svg`,
+      logoCid: this.LOGO_CID, // ← plus d'URL, on passe le CID au template
     };
 
-    // URLs importantes
     const urls = {
       loginUrl: `${platform.url}/auth/login`,
       dashboardUrl: `${platform.url}/dashboard`,
@@ -206,7 +237,6 @@ export class EmailProvider implements IEmailProvider {
       termsUrl: `${platform.url}/terms`,
     };
 
-    // Contexte de base
     const baseContext = {
       subject,
       locale,
@@ -223,7 +253,6 @@ export class EmailProvider implements IEmailProvider {
       ...context,
     };
 
-    // Charger les traductions
     try {
       const translations = this.i18nService.getTranslations(
         `email.${templateName}`,

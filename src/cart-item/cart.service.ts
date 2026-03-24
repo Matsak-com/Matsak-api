@@ -198,4 +198,14 @@ export class CartService {
       update: { deleted_at: new Date() },
     });
   }
+
+  // Suppression définitive du panier (hard delete)
+  async deleteCartPermanently(cartId: string): Promise<void> {
+    const objectId = new Types.ObjectId(cartId);
+
+    const cart = await this.cartRepository.findById({ id: objectId });
+    if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
+
+    await this.cartRepository.delete({ id: objectId });
+  }
 }

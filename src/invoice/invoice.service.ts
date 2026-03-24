@@ -22,6 +22,8 @@ interface CidAttachment {
 export class InvoiceService {
   private readonly logger = new Logger(InvoiceService.name);
   private readonly MAX_INVOICE_RETRIES = 3;
+  paymentModel: any;
+  cartModel: any;
 
   constructor(
     private readonly invoiceRepo: InvoiceRepository,
@@ -29,49 +31,61 @@ export class InvoiceService {
   ) {}
 
   async createInvoiceFromPayment(
-    dto: CreateInvoiceFromPaymentDto,
-  ): Promise<Invoice> {
-    this.logger.log(`Création facture pour payment ${dto.paymentId}`);
+  dto: CreateInvoiceFromPaymentDto,
+): Promise<Invoice> {
+  for (let attempt = 1; attempt <= this.MAX_INVOICE_RETRIES; attempt++) {
+    try {
+      const invoiceNumber = await this.invoiceRepo.generateInvoiceNumber();
 
-    for (let attempt = 1; attempt <= this.MAX_INVOICE_RETRIES; attempt++) {
-      try {
-        const invoiceNumber = await this.invoiceRepo.generateInvoiceNumber();
+      // ── Récupérer le payment avec son cart ──────────────────────────
+      const payment = await this.paymentModel
+        .findById(dto.paymentId)
+        .populate('cartId')
+        .lean();
 
-        const invoiceDoc: any = {
-          payment: new Types.ObjectId(dto.paymentId),
-          invoiceNumber,
-          status: InvoiceStatus.PAID,
-          invoiceDate: new Date(),
-        };
+      if (!payment) throw new NotFoundException('Payment introuvable');
 
-        const invoice = await this.invoiceRepo.create({ doc: invoiceDoc });
-        this.logger.log(`✅ Facture ${invoiceNumber} créée avec succès`);
+      const cart = payment.cartId as any;
 
-        const fullInvoice = await this.findOne(invoice._id.toString());
-        this.sendInvoiceEmail(fullInvoice).catch((err) =>
-          this.logger.error(
-            `Échec envoi email facture ${invoiceNumber}`,
-            err.stack,
-          ),
-        );
+      const invoiceDoc = {
+        payment: new Types.ObjectId(dto.paymentId),
+        userId: payment.userId ?? undefined,   // ← nouveau champ direct
+        cartSnapshot: {                         // ← copie avant suppression
+          cartId: cart._id,
+          sessionId: cart.sessionId,
+          items: cart.items.map((item: any) => ({
+            product: item.product,
+            quantity: item.quantity,
+          })),
+          snapshotAt: new Date(),
+        },
+        invoiceNumber,
+        status: InvoiceStatus.PAID,
+        invoiceDate: new Date(),
+      };
 
-        return invoice;
-      } catch (error) {
-        if (error.code === 11000 && attempt < this.MAX_INVOICE_RETRIES) {
-          this.logger.warn(
-            `Collision invoiceNumber — retry ${attempt}/${this.MAX_INVOICE_RETRIES}`,
-          );
-          continue;
-        }
-        this.logger.error(
-          'Erreur lors de la création de facture',
-          error.stack || error.message,
-        );
-        throw error;
+      const invoice = await this.invoiceRepo.create({ doc: invoiceDoc });
+
+      // ── Soft delete du cart APRÈS sauvegarde ────────────────────────
+      await this.cartModel.findByIdAndUpdate(cart._id, {
+        deleted_at: new Date(),
+      });
+
+      const fullInvoice = await this.findOne(invoice._id.toString());
+      this.sendInvoiceEmail(fullInvoice).catch((err) =>
+        this.logger.error(`Échec envoi email facture ${invoiceNumber}`, err.stack),
+      );
+
+      return invoice;
+    } catch (error) {
+      if (error.code === 11000 && attempt < this.MAX_INVOICE_RETRIES) {
+        this.logger.warn(`Collision invoiceNumber — retry ${attempt}/${this.MAX_INVOICE_RETRIES}`);
+        continue;
       }
+      throw error;
     }
   }
-
+}
   // ─── Génération QR code en Buffer PNG (compatible email) ─────────────────
 
   private async generateQRCodeBuffer(data: object): Promise<Buffer> {
@@ -357,34 +371,30 @@ export class InvoiceService {
 
   async findByCustomer(customerId: string): Promise<any[]> {
     const invoices = await this.invoiceRepo.findAll({
-      filter: { deleted_at: { $exists: false } },
+      filter: {
+        userId: new Types.ObjectId(customerId),
+        deleted_at: { $exists: false },
+      },
       options: { sort: { invoiceDate: -1 }, populate: this.populateOptions },
     });
 
-    return invoices
-      .filter((invoice: any) => {
-        const payment = invoice.payment as any;
-        return payment?.userId?._id?.toString() === customerId;
-      })
-      .map((invoice) => this.formatInvoiceResponse(invoice));
+    return invoices.map((invoice) => this.formatInvoiceResponse(invoice));
   }
 
-  async remove(id: string): Promise<void> {
-    const invoice = await this.invoiceRepo.findById({ id });
-    if (!invoice) throw new NotFoundException(`Facture ${id} introuvable`);
-    await this.invoiceRepo.update({ id, update: { deleted_at: new Date() } });
-    this.logger.log(`Facture ${invoice.invoiceNumber} supprimée (soft delete)`);
-  }
+private formatInvoiceResponse(invoice: any): any {
+  const payment = invoice.payment as any;
+  const user = payment?.userId as any;
+  const defaultAddress = user?.addresses?.find((addr: any) => addr.isDefault);
 
-  private formatInvoiceResponse(invoice: any): any {
-    const payment = invoice.payment as any;
-    const cart = payment?.cartId as any;
-    const user = payment?.userId as any;
-    const defaultAddress = user?.addresses?.find((addr: any) => addr.isDefault);
+  const cartItems =
+    invoice.cartSnapshot?.items?.length
+      ? invoice.cartSnapshot.items
+      : (payment?.cartId as any)?.items ?? [];
 
-    return {
-      _id: invoice._id,
-      invoiceNumber: invoice.invoiceNumber,
+  return {
+    _id: invoice._id,
+    userId: invoice.userId?.toString() ?? payment?.userId?._id?.toString(), 
+    invoiceNumber: invoice.invoiceNumber,
       invoiceDate: invoice.invoiceDate,
       status: invoice.status,
       refundedAt: invoice.refundedAt,
@@ -408,10 +418,10 @@ export class InvoiceService {
         updatedAt: payment.updatedAt,
       },
 
-      cart: {
-        _id: cart?._id,
-        items: cart?.items || [],
-      },
+    cart: {
+      _id: invoice.cartSnapshot?.cartId ?? (payment?.cartId as any)?._id,
+      items: cartItems,
+    },
 
       customer: user
         ? {
@@ -421,5 +431,12 @@ export class InvoiceService {
           }
         : null,
     };
+  }
+
+  async remove(id: string): Promise<void> {
+    const invoice = await this.invoiceRepo.findById({ id });
+    if (!invoice) throw new NotFoundException(`Facture ${id} introuvable`);
+    await this.invoiceRepo.update({ id, update: { deleted_at: new Date() } });
+    this.logger.log(`Facture ${invoice.invoiceNumber} supprimée (soft delete)`);
   }
 }
