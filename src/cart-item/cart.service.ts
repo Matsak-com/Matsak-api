@@ -200,12 +200,11 @@ export class CartService {
   }
 
   // Suppression définitive du panier (hard delete)
-  async deleteCartPermanently(cartId: string): Promise<void> {
-    const objectId = new Types.ObjectId(cartId);
-
-    const cart = await this.cartRepository.findById({ id: objectId });
+  async deleteCartPermanently(cartId: Types.ObjectId): Promise<void> {
+  
+    const cart = await this.cartRepository.findById({ id: cartId });
     if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
 
-    await this.cartRepository.delete({ id: objectId });
+    await this.cartRepository.delete({ id: cartId });
   }
 }

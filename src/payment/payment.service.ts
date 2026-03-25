@@ -314,7 +314,7 @@ export class PaymentService {
 
       // suppression différée (ex: 24h après)
       setTimeout(async () => {
-        await this.cartService.deleteCartPermanentlyById(cartId);
+        await this.cartService.deleteCartPermanently(cartId);
       }, 24 * 60 * 60 * 1000);
 
     } catch (error) {
