@@ -91,8 +91,5 @@ export class Invoice {
 
 export const InvoiceSchema = SchemaFactory.createForClass(Invoice);
 
-InvoiceSchema.index({ payment: 1 }, { unique: true });
 InvoiceSchema.index({ userId: 1, invoiceDate: -1 });
-InvoiceSchema.index({ status: 1, invoiceDate: -1 });
-InvoiceSchema.index({ invoiceNumber: 1 }, { unique: true });
 InvoiceSchema.index({ 'cartSnapshot.cartId': 1 }); // Retrouver une invoice depuis un cartId archivé

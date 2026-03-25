@@ -1,8 +1,11 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
 import { InvoiceRepository } from './invoice.repository';
 import { Invoice, InvoiceStatus } from './invoice.schema';
-import { Types } from 'mongoose';
 import { NotificationService } from '../notifications/notification.service';
+import { Payment } from '../payment/payment.schema';
+import { Cart } from '../cart-item/cart-item.schema';
 import * as QRCode from 'qrcode';
 import { DeliveryMethod } from '../payment/payment.schema';
 
@@ -10,11 +13,10 @@ interface CreateInvoiceFromPaymentDto {
   paymentId: string;
 }
 
-// Pièce jointe CID pour Nodemailer
 interface CidAttachment {
   filename: string;
   content: Buffer;
-  cid: string; // référencé dans le HTML via cid:xxx
+  cid: string;
   contentType: string;
 }
 
@@ -22,71 +24,74 @@ interface CidAttachment {
 export class InvoiceService {
   private readonly logger = new Logger(InvoiceService.name);
   private readonly MAX_INVOICE_RETRIES = 3;
-  paymentModel: any;
-  cartModel: any;
 
   constructor(
     private readonly invoiceRepo: InvoiceRepository,
     private readonly notificationService: NotificationService,
+    @InjectModel(Payment.name) private readonly paymentModel: Model<Payment>,
+    @InjectModel(Cart.name) private readonly cartModel: Model<Cart>,
   ) {}
 
   async createInvoiceFromPayment(
-  dto: CreateInvoiceFromPaymentDto,
-): Promise<Invoice> {
-  for (let attempt = 1; attempt <= this.MAX_INVOICE_RETRIES; attempt++) {
-    try {
-      const invoiceNumber = await this.invoiceRepo.generateInvoiceNumber();
+    dto: CreateInvoiceFromPaymentDto,
+  ): Promise<Invoice> {
+    for (let attempt = 1; attempt <= this.MAX_INVOICE_RETRIES; attempt++) {
+      try {
+        const invoiceNumber = await this.invoiceRepo.generateInvoiceNumber();
 
-      // ── Récupérer le payment avec son cart ──────────────────────────
-      const payment = await this.paymentModel
-        .findById(dto.paymentId)
-        .populate('cartId')
-        .lean();
+        const payment = await this.paymentModel
+          .findById(dto.paymentId)
+          .populate('cartId')
+          .lean();
 
-      if (!payment) throw new NotFoundException('Payment introuvable');
+        if (!payment) throw new NotFoundException('Payment introuvable');
 
-      const cart = payment.cartId as any;
+        const cart = payment.cartId as any;
 
-      const invoiceDoc = {
-        payment: new Types.ObjectId(dto.paymentId),
-        userId: payment.userId ?? undefined,   // ← nouveau champ direct
-        cartSnapshot: {                         // ← copie avant suppression
-          cartId: cart._id,
-          sessionId: cart.sessionId,
-          items: cart.items.map((item: any) => ({
-            product: item.product,
-            quantity: item.quantity,
-          })),
-          snapshotAt: new Date(),
-        },
-        invoiceNumber,
-        status: InvoiceStatus.PAID,
-        invoiceDate: new Date(),
-      };
+        const invoiceDoc = {
+          payment: new Types.ObjectId(dto.paymentId),
+          userId: payment.userId ?? undefined,
+          cartSnapshot: {
+            cartId: cart._id,
+            sessionId: cart.sessionId,
+            items: cart.items.map((item: any) => ({
+              product: item.product,
+              quantity: item.quantity,
+            })),
+            snapshotAt: new Date(),
+          },
+          invoiceNumber,
+          status: InvoiceStatus.PAID,
+          invoiceDate: new Date(),
+        };
 
-      const invoice = await this.invoiceRepo.create({ doc: invoiceDoc });
+        const invoice = await this.invoiceRepo.create({ doc: invoiceDoc });
+        this.logger.log(`✅ Facture ${invoiceNumber} créée avec succès`);
 
-      // ── Soft delete du cart APRÈS sauvegarde ────────────────────────
-      await this.cartModel.findByIdAndUpdate(cart._id, {
-        deleted_at: new Date(),
-      });
+        // ── Email envoyé en fire-and-forget — ne bloque pas le post-traitement
+        const fullInvoice = await this.findOne(invoice._id.toString());
+        this.sendInvoiceEmail(fullInvoice).catch((err) =>
+          this.logger.error(`Échec envoi email facture ${invoiceNumber}`, err.stack),
+        );
 
-      const fullInvoice = await this.findOne(invoice._id.toString());
-      this.sendInvoiceEmail(fullInvoice).catch((err) =>
-        this.logger.error(`Échec envoi email facture ${invoiceNumber}`, err.stack),
-      );
-
-      return invoice;
-    } catch (error) {
-      if (error.code === 11000 && attempt < this.MAX_INVOICE_RETRIES) {
-        this.logger.warn(`Collision invoiceNumber — retry ${attempt}/${this.MAX_INVOICE_RETRIES}`);
-        continue;
+        return invoice;
+      } catch (error) {
+        if (error.code === 11000 && attempt < this.MAX_INVOICE_RETRIES) {
+          this.logger.warn(
+            `Collision invoiceNumber — retry ${attempt}/${this.MAX_INVOICE_RETRIES}`,
+          );
+          continue;
+        }
+        this.logger.error(
+          'Erreur lors de la création de facture',
+          error.stack || error.message,
+        );
+        throw error;
       }
-      throw error;
     }
   }
-}
-  // ─── Génération QR code en Buffer PNG (compatible email) ─────────────────
+
+  // ─── Génération QR code ───────────────────────────────────────────────────
 
   private async generateQRCodeBuffer(data: object): Promise<Buffer> {
     return QRCode.toBuffer(JSON.stringify(data), {
@@ -103,16 +108,13 @@ export class InvoiceService {
     const { customer, payment, cart } = invoice;
 
     if (!customer?.email) {
-      this.logger.warn(
-        `Pas d'email client pour la facture ${invoice.invoiceNumber}`,
-      );
+      this.logger.warn(`Pas d'email client pour la facture ${invoice.invoiceNumber}`);
       return;
     }
 
     const isPickup = payment.deliveryMethod === DeliveryMethod.PICKUP;
     const attachments: CidAttachment[] = [];
 
-    // ── Grouper les articles par team ──────────────────────────────────────
     const teamMap = new Map<
       string,
       {
@@ -120,7 +122,7 @@ export class InvoiceService {
         teamName: string;
         items: any[];
         subtotalRaw: number;
-        qrCid?: string; // CID référencé dans le template : cid:qr-team-xxx
+        qrCid?: string;
       }
     >();
 
@@ -151,7 +153,6 @@ export class InvoiceService {
       });
     }
 
-    // ── QR code LIVRAISON ─────────────────────────────────────────────────
     let deliveryCid: string | null = null;
     let deliveryAddress: any = null;
 
@@ -173,11 +174,7 @@ export class InvoiceService {
         paymentId: payment._id?.toString() ?? '',
         customerName: customer.name ?? 'Client',
         deliveryAddress: deliveryAddress
-          ? [
-              deliveryAddress.addressLine,
-              deliveryAddress.city,
-              deliveryAddress.state,
-            ]
+          ? [deliveryAddress.addressLine, deliveryAddress.city, deliveryAddress.state]
               .filter(Boolean)
               .join(', ')
           : '',
@@ -200,7 +197,6 @@ export class InvoiceService {
       }
     }
 
-    // ── QR codes RETRAIT (un par team) ────────────────────────────────────
     if (isPickup) {
       for (const [teamId, teamData] of teamMap.entries()) {
         const qrPayload = {
@@ -210,10 +206,7 @@ export class InvoiceService {
           teamId,
           teamName: teamData.teamName,
           customerName: customer.name ?? 'Client',
-          items: teamData.items.map((i) => ({
-            name: i.name,
-            quantity: i.quantity,
-          })),
+          items: teamData.items.map((i) => ({ name: i.name, quantity: i.quantity })),
           subtotal: teamData.subtotalRaw,
           currency: payment.currency?.toUpperCase() ?? 'Ar',
         };
@@ -235,16 +228,12 @@ export class InvoiceService {
       }
     }
 
-    // ── Construire les teams pour le template ──────────────────────────────
-    const teams = Array.from(teamMap.values()).map(
-      ({ subtotalRaw, items, ...rest }) => ({
-        ...rest,
-        subtotal: this.formatAmount(subtotalRaw),
-        items: items.map(({ ...item }) => item),
-      }),
-    );
+    const teams = Array.from(teamMap.values()).map(({ subtotalRaw, items, ...rest }) => ({
+      ...rest,
+      subtotal: this.formatAmount(subtotalRaw),
+      items: items.map(({ ...item }) => item),
+    }));
 
-    // ── Contexte template ──────────────────────────────────────────────────
     const context = {
       invoiceNumber: invoice.invoiceNumber,
       invoiceDate: new Date(invoice.invoiceDate).toLocaleDateString('fr-FR', {
@@ -252,7 +241,6 @@ export class InvoiceService {
         month: 'long',
         year: 'numeric',
       }),
-
       payment: {
         method: this.formatPaymentMethod(payment.method),
         amount: this.formatAmount(payment.amount),
@@ -260,16 +248,14 @@ export class InvoiceService {
         transactionReference: payment.transactionReference ?? '-',
         customerPhone: payment.customerPhone ?? null,
       },
-
       customer: {
         name: customer.name ?? 'Client',
         email: customer.email,
       },
-
       isPickup,
       deliveryAddress,
-      deliveryCid, // "qr-delivery-INV-..." → utilisé dans le template comme cid:{{deliveryCid}}
-      teams, // chaque team a qrCid → utilisé comme cid:{{this.qrCid}}
+      deliveryCid,
+      teams,
     };
 
     await this.notificationService.sendEmail({
@@ -278,12 +264,10 @@ export class InvoiceService {
       template: 'invoice',
       context: JSON.parse(JSON.stringify(context)),
       locale: 'fr',
-      attachments, // ← pièces jointes CID passées à Nodemailer
+      attachments,
     });
 
-    this.logger.log(
-      `📧 Email facture ${invoice.invoiceNumber} envoyé à ${customer.email}`,
-    );
+    this.logger.log(`📧 Email facture ${invoice.invoiceNumber} envoyé à ${customer.email}`);
   }
 
   // ─── Formatters ───────────────────────────────────────────────────────────
@@ -346,8 +330,7 @@ export class InvoiceService {
       filter: { invoiceNumber },
       options: { populate: this.populateOptions },
     });
-    if (!invoice)
-      throw new NotFoundException(`Facture ${invoiceNumber} introuvable`);
+    if (!invoice) throw new NotFoundException(`Facture ${invoiceNumber} introuvable`);
     return this.formatInvoiceResponse(invoice);
   }
 
@@ -381,26 +364,25 @@ export class InvoiceService {
     return invoices.map((invoice) => this.formatInvoiceResponse(invoice));
   }
 
-private formatInvoiceResponse(invoice: any): any {
-  const payment = invoice.payment as any;
-  const user = payment?.userId as any;
-  const defaultAddress = user?.addresses?.find((addr: any) => addr.isDefault);
+  private formatInvoiceResponse(invoice: any): any {
+    const payment = invoice.payment as any;
+    const user = payment?.userId as any;
+    const defaultAddress = user?.addresses?.find((addr: any) => addr.isDefault);
 
-  const cartItems =
-    invoice.cartSnapshot?.items?.length
-      ? invoice.cartSnapshot.items
-      : (payment?.cartId as any)?.items ?? [];
+    const cartItems =
+      invoice.cartSnapshot?.items?.length
+        ? invoice.cartSnapshot.items
+        : (payment?.cartId as any)?.items ?? [];
 
-  return {
-    _id: invoice._id,
-    userId: invoice.userId?.toString() ?? payment?.userId?._id?.toString(), 
-    invoiceNumber: invoice.invoiceNumber,
+    return {
+      _id: invoice._id,
+      userId: invoice.userId?.toString() ?? payment?.userId?._id?.toString(),
+      invoiceNumber: invoice.invoiceNumber,
       invoiceDate: invoice.invoiceDate,
       status: invoice.status,
       refundedAt: invoice.refundedAt,
       createdAt: invoice.createdAt,
       updatedAt: invoice.updatedAt,
-
       payment: {
         _id: payment._id,
         method: payment.method,
@@ -417,12 +399,10 @@ private formatInvoiceResponse(invoice: any): any {
         createdAt: payment.createdAt,
         updatedAt: payment.updatedAt,
       },
-
-    cart: {
-      _id: invoice.cartSnapshot?.cartId ?? (payment?.cartId as any)?._id,
-      items: cartItems,
-    },
-
+      cart: {
+        _id: invoice.cartSnapshot?.cartId ?? (payment?.cartId as any)?._id,
+        items: cartItems,
+      },
       customer: user
         ? {
             name: user.name,
