@@ -5,10 +5,19 @@ import { NotificationService } from '../notifications/notification.service';
 import { NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { InvoiceStatus } from './invoice.schema';
+import { getModelToken } from '@nestjs/mongoose';
 
 describe('InvoiceService', () => {
   let service: InvoiceService;
   let invoiceRepo: jest.Mocked<InvoiceRepository>;
+
+  const mockPaymentModel = {
+  findById: jest.fn(),
+  };
+
+  const mockCartModel = {
+    findByIdAndUpdate: jest.fn(),
+  };
 
   const mockPaymentId = new Types.ObjectId('507f1f77bcf86cd799439011');
   const mockUserId = new Types.ObjectId('507f1f77bcf86cd799439012');
@@ -125,14 +134,14 @@ describe('InvoiceService', () => {
     };
 
     beforeEach(() => {
-      service.paymentModel = {
+      (service as any).paymentModel = {
         findById: jest.fn().mockReturnValue({
           populate: jest.fn().mockReturnValue({
             lean: jest.fn().mockResolvedValue(mockPayment),
           }),
         }),
       };
-      service.cartModel = {
+      (service as any).cartModel = {
         findByIdAndUpdate: jest.fn().mockResolvedValue(null),
       };
     });
@@ -162,7 +171,7 @@ describe('InvoiceService', () => {
           invoiceDate: expect.any(Date),
         }),
       });
-      expect(service.cartModel.findByIdAndUpdate).toHaveBeenCalledWith(
+      expect((service as any).cartModel.findByIdAndUpdate).toHaveBeenCalledWith(
         mockCartId,
         { deleted_at: expect.any(Date) },
       );
@@ -170,7 +179,7 @@ describe('InvoiceService', () => {
     });
 
     it('should throw NotFoundException when payment not found', async () => {
-      service.paymentModel = {
+      (service as any).paymentModel = {
         findById: jest.fn().mockReturnValue({
           populate: jest.fn().mockReturnValue({
             lean: jest.fn().mockResolvedValue(null),
@@ -221,7 +230,7 @@ describe('InvoiceService', () => {
         service.createInvoiceFromPayment({ paymentId: mockPaymentId.toString() }),
       ).rejects.toThrow();
 
-      expect(service.cartModel.findByIdAndUpdate).not.toHaveBeenCalled();
+      expect((service as any).cartModel.findByIdAndUpdate).not.toHaveBeenCalled();
     });
   });
 

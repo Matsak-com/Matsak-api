@@ -84,7 +84,7 @@ describe('MvolaApiService', () => {
 
       expect(token).toBe('test-access-token');
       expect(httpService.post).toHaveBeenCalledWith(
-        'https://pre-api.mvola.mg/oauth2/token', // ← fix : URL depuis MVOLA_BASE_URL
+        'https://pre-api.mvola.mg/oauth2/token',
         'grant_type=client_credentials',
         expect.objectContaining({
           headers: expect.objectContaining({
@@ -132,7 +132,7 @@ describe('MvolaApiService', () => {
       httpService.post.mockReturnValue(throwError(() => axiosError) as any);
 
       await expect(service['getAccessToken']()).rejects.toThrow(
-        "Impossible d'obtenir le token Mvola", // ← fix
+        "Impossible d'obtenir le token Mvola",
       );
     });
   });
@@ -234,7 +234,7 @@ describe('MvolaApiService', () => {
       httpService.post.mockReturnValueOnce(throwError(() => axiosError) as any);
 
       await expect(service.initMerchantPay(initParams)).rejects.toThrow(
-        "Erreur lors de l'initiation du paiement Mvola", // ← fix
+        "Erreur lors de l'initiation du paiement Mvola",
       );
     });
   });
@@ -303,12 +303,16 @@ describe('MvolaApiService', () => {
 
       await expect(
         service.getTransactionStatus(serverCorrelationId, correlationId),
-      ).rejects.toThrow('Impossible de vérifier le statut de la transaction'); // ← fix
+      ).rejects.toThrow('Impossible de vérifier le statut de la transaction');
     });
   });
 
   describe('Mock Mode', () => {
     beforeEach(async () => {
+      // ── fix : remettre à zéro les compteurs d'appels des tests précédents ──
+      httpService.post.mockClear();
+      httpService.get.mockClear();
+
       configService.get = jest.fn((key: string, defaultValue?: any) => {
         const config = {
           MVOLA_BASE_URL: 'https://pre-api.mvola.mg',

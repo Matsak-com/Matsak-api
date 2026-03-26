@@ -109,7 +109,13 @@ describe('PaymentService', () => {
           },
         },
         { provide: CartRepository, useValue: { findById: jest.fn() } },
-        { provide: CartService, useValue: { softDeleteCartById: jest.fn() } },
+        {
+          provide: CartService,
+          useValue: {
+            softDeleteCartById: jest.fn(),
+            deleteCartPermanently: jest.fn().mockResolvedValue(undefined), // ← fix: méthode manquante
+          },
+        },
         { provide: ProductService, useValue: { calculatePrice: jest.fn() } },
         { provide: MvolaApiService, useValue: { initMerchantPay: jest.fn(), getTransactionStatus: jest.fn() } },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://localhost:3000') } },
@@ -475,9 +481,9 @@ describe('PaymentService', () => {
         .mockResolvedValueOnce({ ...waitingPayment, status: PaymentStatus.SUCCESS } as any);
 
       mvolaApiService.getTransactionStatus.mockResolvedValue({
-  status: 'COMPLETED',
-  serverCorrelationId: 'server-correlation-id',
-});
+        status: 'COMPLETED',
+        serverCorrelationId: 'server-correlation-id',
+      });
       paymentRepo.transitionStatus.mockResolvedValue(null as any); // déjà pris par le callback
 
       await service.pollStatus(mockPaymentId.toString());
@@ -498,9 +504,9 @@ describe('PaymentService', () => {
         .mockResolvedValueOnce({ ...waitingPayment, status: PaymentStatus.FAILED } as any);
 
       mvolaApiService.getTransactionStatus.mockResolvedValue({
-  status: 'FAILED',
-  serverCorrelationId: 'server-correlation-id',
-});
+        status: 'FAILED',
+        serverCorrelationId: 'server-correlation-id',
+      });
       paymentRepo.transitionStatus.mockResolvedValue({ ...waitingPayment, status: PaymentStatus.FAILED } as any);
 
       const result = await service.pollStatus(mockPaymentId.toString());
