@@ -315,7 +315,7 @@ export class UsersService {
 
   async update(
     query: Record<string, any>,
-    updateUserDto: Partial<CreateUserDto>,
+    updateUserDto: Partial<CreateUserDto & User>,
   ): Promise<User> {
     const user = await this.userRepository.findOne({ filter: query });
     if (!user) {

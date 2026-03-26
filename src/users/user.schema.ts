@@ -108,6 +108,19 @@ export class User extends Document {
 
   @Prop({ required: false, default: null })
   @IsString()
+  resetPasswordTokenHash?: string | null;
+
+  @Prop({ required: false, default: null })
+  resetPasswordTokenExpiresAt?: Date | null;
+
+  @Prop({ required: false, default: 0 })
+  resetPasswordRequestCount?: number;
+
+  @Prop({ required: false, default: null })
+  resetPasswordRequestWindow?: Date | null;
+
+  @Prop({ required: false, default: null })
+  @IsString()
   avatarFileKey?: string | null;
 
   @Prop({ required: false })

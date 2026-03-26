@@ -2,11 +2,12 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ERRORS } from '../common/errors';
 import { JwtService } from '@nestjs/jwt';
-import { v4 as uuidv4 } from 'uuid';
+import { createHash, randomBytes } from 'crypto';
 import { UsersService } from '../users/users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LogUserDto } from './dto/log-user.dto';
@@ -19,8 +20,14 @@ import { I18nService } from 'src/notifications/i18n.service';
 
 type SupportedLocale = 'en' | 'fr' | 'zh' | 'ar';
 
+const RESET_TOKEN_TTL_MINUTES = 30;
+const RESET_REQUEST_LIMIT = 3;
+const RESET_REQUEST_WINDOW_MS = 60 * 60 * 1000;
+
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
@@ -322,48 +329,114 @@ export class AuthService {
   }
 
   async resetUserPasswordRequest({ email }: { email: string }) {
+    return this.forgotPassword({ email });
+  }
+
+  async forgotPassword({ email }: { email: string }) {
+    const genericResponse = {
+      success: true,
+      message:
+        'If an account exists for this email, a password reset link has been sent.',
+    };
+
     try {
       const existingUser = await this.usersService.findByEmail(email);
 
       if (!existingUser) {
-        throw new HttpException(ERRORS.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
+        return genericResponse;
       }
 
-      if (existingUser.isResettingPassword === true) {
-        throw new HttpException(
-          ERRORS.RESET_ALREADY_IN_PROGRESS,
-          HttpStatus.BAD_REQUEST,
-        );
+      const now = new Date();
+      const windowStart = existingUser.resetPasswordRequestWindow
+        ? new Date(existingUser.resetPasswordRequestWindow)
+        : null;
+
+      const isWithinWindow = Boolean(
+        windowStart &&
+          now.getTime() - windowStart.getTime() < RESET_REQUEST_WINDOW_MS,
+      );
+
+      const requestCount = isWithinWindow
+        ? existingUser.resetPasswordRequestCount || 0
+        : 0;
+
+      if (requestCount >= RESET_REQUEST_LIMIT) {
+        this.logger.warn(`Reset password rate limit reached for ${email}`);
+        return genericResponse;
       }
 
-      const createdId = uuidv4();
-      await this.usersService.update(existingUser.id, {
+      const rawToken = randomBytes(32).toString('hex');
+      const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+      const expiresAt = new Date(
+        now.getTime() + RESET_TOKEN_TTL_MINUTES * 60 * 1000,
+      );
+
+      await this.usersService.update({ _id: existingUser._id }, {
         isResettingPassword: true,
-        resetPasswordToken: createdId,
+        resetPasswordToken: null,
+        resetPasswordTokenHash: tokenHash,
+        resetPasswordTokenExpiresAt: expiresAt,
+        resetPasswordRequestCount: requestCount + 1,
+        resetPasswordRequestWindow: isWithinWindow ? windowStart : now,
+      } as any);
+
+      await this.sendResetPasswordEmail({
+        user: existingUser,
+        rawToken,
       });
 
-      return {
-        error: false,
-        message: 'Please check your email to reset your password.',
-      };
+      return genericResponse;
     } catch (error) {
-      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+      this.logger.error(
+        `Failed to process forgot password for ${email}: ${error.message}`,
+      );
+      return genericResponse;
     }
+  }
+
+  private async sendResetPasswordEmail({
+    user,
+    rawToken,
+  }: {
+    user: User;
+    rawToken: string;
+  }) {
+    const locale = this.getUserLocale(user);
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const resetUrl = `${frontendUrl}/auth/reset-password?token=${rawToken}`;
+
+    const subject =
+      this.i18nService.translate('email.resetPassword.subject', locale) ||
+      'Reset your password';
+
+    await this.notificationService.sendEmail({
+      to: user.email,
+      subject,
+      template: 'reset-password',
+      locale,
+      context: {
+        user: {
+          firstName: user.firstname,
+          lastName: user.name,
+          email: user.email,
+        },
+        resetUrl,
+        minutes: RESET_TOKEN_TTL_MINUTES,
+      },
+    });
   }
 
   async verifyResetPasswordToken({ token }: { token: string }) {
     try {
+      const tokenHash = createHash('sha256').update(token).digest('hex');
       const existingUser = await this.usersService.findOne({
-        query: { resetPasswordToken: token },
+        resetPasswordTokenHash: tokenHash,
+        resetPasswordTokenExpiresAt: { $gt: new Date() },
       });
 
-      if (!existingUser) {
-        throw new HttpException(ERRORS.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
-      }
-
-      if (existingUser.isResettingPassword === false) {
+      if (!existingUser || existingUser.isResettingPassword === false) {
         throw new HttpException(
-          ERRORS.RESET_NOT_REQUESTED,
+          'Reset token is invalid or expired.',
           HttpStatus.BAD_REQUEST,
         );
       }
@@ -383,31 +456,44 @@ export class AuthService {
     resetPasswordDto: ResetUserPasswordDto;
   }) {
     try {
-      const { password, token } = resetPasswordDto;
+      const { newPassword, token } = resetPasswordDto;
+      const tokenHash = createHash('sha256').update(token).digest('hex');
+
       const existingUser = await this.usersService.findOne({
-        query: { resetPasswordToken: token },
+        resetPasswordTokenHash: tokenHash,
       });
 
       if (!existingUser) {
-        throw new HttpException(ERRORS.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
+        throw new HttpException(
+          'Reset token is invalid.',
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
-      if (existingUser.isResettingPassword === false) {
+      if (
+        !existingUser.resetPasswordTokenExpiresAt ||
+        existingUser.resetPasswordTokenExpiresAt < new Date()
+      ) {
         throw new HttpException(
-          ERRORS.RESET_NOT_REQUESTED,
+          'Reset token is invalid or expired.',
           HttpStatus.BAD_REQUEST,
         );
       }
 
       const hashedPassword = await this.hashPassword({
-        password,
+        password: newPassword,
       });
       await this.usersService.update(
-        { resetPasswordToken: token },
+        { _id: existingUser._id },
         {
           isResettingPassword: false,
           password: hashedPassword,
-        },
+          resetPasswordToken: null,
+          resetPasswordTokenHash: null,
+          resetPasswordTokenExpiresAt: null,
+          resetPasswordRequestCount: 0,
+          resetPasswordRequestWindow: null,
+        } as any,
       );
 
       return {

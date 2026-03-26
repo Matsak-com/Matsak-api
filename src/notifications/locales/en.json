@@ -17,9 +17,13 @@
       "greeting": "Hello",
       "title": "Password Reset Request",
       "instruction": "We received a request to reset your password. Click the button below to create a new password:",
-      "resetButton": "Reset Password",
-      "validFor": "This link is valid for {{hours}} hours.",
-      "noRequest": "If you didn't request a password reset, you can safely ignore this email.",
+      "resetButton": "Reset My Password",
+      "expiryTitle": "Time-sensitive link",
+      "validFor": "This link expires in {{minutes}} minutes.",
+      "singleUse": "For security, this link can only be used once.",
+      "fallbackLabel": "If the button doesn't work, copy and paste this URL into your browser:",
+      "noRequest": "If you didn't request a password reset, no action is needed — your account is safe.",
+      "contactSupport": "Need help? Reach our support team at",
       "signature": "Best regards,<br>The Matsak Team"
     },
     "orderConfirmation": {

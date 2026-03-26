@@ -19,14 +19,14 @@ export class EmailProvider implements IEmailProvider {
     private readonly configService: ConfigService,
     private readonly i18nService: I18nService,
   ) {
+    const mailUser = this.configService.get<string>('MAIL_USER');
+    const mailPass = this.configService.get<string>('MAIL_PASS');
+
     this.transporter = nodemailer.createTransport({
       host: this.configService.get('MAIL_HOST', 'localhost'),
       port: parseInt(this.configService.get('MAIL_PORT', '1025')),
-      secure: false,
-      auth: {
-        user: this.configService.get('MAIL_USER'),
-        pass: this.configService.get('MAIL_PASS'),
-      },
+      secure: this.configService.get('MAIL_SECURE', 'false') === 'true',
+      ...(mailUser && mailPass ? { auth: { user: mailUser, pass: mailPass } } : {}),
     });
 
     this.hbs = handlebars.create();
@@ -225,8 +225,13 @@ export class EmailProvider implements IEmailProvider {
 
     // Charger les traductions
     try {
+      // Convert kebab-case template name to camelCase for i18n key lookup
+      // e.g. "reset-password" → "resetPassword"
+      const i18nKey = templateName.replace(/-([a-z])/g, (_, c) =>
+        c.toUpperCase(),
+      );
       const translations = this.i18nService.getTranslations(
-        `email.${templateName}`,
+        `email.${i18nKey}`,
         locale as any,
         baseContext,
       );
