@@ -56,10 +56,7 @@ export class InvoiceController {
 
   @UseGuards(JwtAuthGuard)
   @Get('customer/:customerId')
-  findByCustomer(
-    @Param() params: CustomerParamDto,
-    @Request() req: any,
-  ) {
+  findByCustomer(@Param() params: CustomerParamDto, @Request() req: any) {
     // Un utilisateur ne peut consulter que ses propres factures
     if (params.customerId !== req.user?.userId) {
       throw new ForbiddenException(
@@ -93,7 +90,9 @@ export class InvoiceController {
     const invoice = await this.invoiceService.findOne(params.id);
 
     if (invoice.userId !== req.user?.userId) {
-      throw new ForbiddenException('Vous ne pouvez pas supprimer cette facture');
+      throw new ForbiddenException(
+        'Vous ne pouvez pas supprimer cette facture',
+      );
     }
 
     return this.invoiceService.remove(params.id);

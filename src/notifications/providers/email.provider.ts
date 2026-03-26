@@ -96,36 +96,36 @@ export class EmailProvider implements IEmailProvider {
   /**
    * Construire l'attachment du logo en CID
    */
-private buildLogoAttachment(): {
-  filename: string;
-  content: Buffer;
-  cid: string;
-  contentType: string;
-  contentDisposition: string;
-} | null {
-  const possibleLogoPaths = [
-    path.join(process.cwd(), 'src/assets/images/matsak-logo.png'),
-    path.join(process.cwd(), 'dist/assets/images/matsak-logo.png'),
-    path.join(__dirname, '../../../assets/images/matsak-logo.png'),
-    path.join(__dirname, '../../assets/images/matsak-logo.png'),
-  ];
+  private buildLogoAttachment(): {
+    filename: string;
+    content: Buffer;
+    cid: string;
+    contentType: string;
+    contentDisposition: string;
+  } | null {
+    const possibleLogoPaths = [
+      path.join(process.cwd(), 'src/assets/images/matsak-logo.png'),
+      path.join(process.cwd(), 'dist/assets/images/matsak-logo.png'),
+      path.join(__dirname, '../../../assets/images/matsak-logo.png'),
+      path.join(__dirname, '../../assets/images/matsak-logo.png'),
+    ];
 
-  for (const logoPath of possibleLogoPaths) {
-    if (fs.existsSync(logoPath)) {
-      this.logger.debug(`Logo found at: ${logoPath}`);
-      return {
-        filename: 'matsak-logo.png',
-        content: fs.readFileSync(logoPath), // ← Buffer direct, plus fiable que path
-        cid: this.LOGO_CID,
-        contentType: 'image/png',
-        contentDisposition: 'inline',
-      };
+    for (const logoPath of possibleLogoPaths) {
+      if (fs.existsSync(logoPath)) {
+        this.logger.debug(`Logo found at: ${logoPath}`);
+        return {
+          filename: 'matsak-logo.png',
+          content: fs.readFileSync(logoPath), // ← Buffer direct, plus fiable que path
+          cid: this.LOGO_CID,
+          contentType: 'image/png',
+          contentDisposition: 'inline',
+        };
+      }
     }
-  }
 
-  this.logger.warn('Logo file not found, email will be sent without logo');
-  return null;
-}
+    this.logger.warn('Logo file not found, email will be sent without logo');
+    return null;
+  }
   /**
    * Compiler un email avec layout et partials
    */

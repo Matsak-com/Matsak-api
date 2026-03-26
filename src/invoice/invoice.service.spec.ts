@@ -5,19 +5,10 @@ import { NotificationService } from '../notifications/notification.service';
 import { NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { InvoiceStatus } from './invoice.schema';
-import { getModelToken } from '@nestjs/mongoose';
 
 describe('InvoiceService', () => {
   let service: InvoiceService;
   let invoiceRepo: jest.Mocked<InvoiceRepository>;
-
-  const mockPaymentModel = {
-  findById: jest.fn(),
-  };
-
-  const mockCartModel = {
-    findByIdAndUpdate: jest.fn(),
-  };
 
   const mockPaymentId = new Types.ObjectId('507f1f77bcf86cd799439011');
   const mockUserId = new Types.ObjectId('507f1f77bcf86cd799439012');
@@ -190,7 +181,9 @@ describe('InvoiceService', () => {
       invoiceRepo.generateInvoiceNumber.mockResolvedValue('INV-2024-001');
 
       await expect(
-        service.createInvoiceFromPayment({ paymentId: mockPaymentId.toString() }),
+        service.createInvoiceFromPayment({
+          paymentId: mockPaymentId.toString(),
+        }),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -218,7 +211,9 @@ describe('InvoiceService', () => {
       invoiceRepo.create.mockRejectedValue(new Error('Database error'));
 
       await expect(
-        service.createInvoiceFromPayment({ paymentId: mockPaymentId.toString() }),
+        service.createInvoiceFromPayment({
+          paymentId: mockPaymentId.toString(),
+        }),
       ).rejects.toThrow('Database error');
     });
 
@@ -227,10 +222,14 @@ describe('InvoiceService', () => {
       invoiceRepo.create.mockRejectedValue(new Error('Database error'));
 
       await expect(
-        service.createInvoiceFromPayment({ paymentId: mockPaymentId.toString() }),
+        service.createInvoiceFromPayment({
+          paymentId: mockPaymentId.toString(),
+        }),
       ).rejects.toThrow();
 
-      expect((service as any).cartModel.findByIdAndUpdate).not.toHaveBeenCalled();
+      expect(
+        (service as any).cartModel.findByIdAndUpdate,
+      ).not.toHaveBeenCalled();
     });
   });
 
@@ -263,7 +262,9 @@ describe('InvoiceService', () => {
 
       const result = await service.findOne(mockInvoice._id.toString());
 
-      expect(result.cart.items).toEqual(mockPopulatedInvoice.cartSnapshot.items);
+      expect(result.cart.items).toEqual(
+        mockPopulatedInvoice.cartSnapshot.items,
+      );
     });
 
     it('should fallback to payment.cartId items when cartSnapshot has no items', async () => {
@@ -275,7 +276,9 @@ describe('InvoiceService', () => {
 
       const result = await service.findOne(mockInvoice._id.toString());
 
-      expect(result.cart.items).toEqual(mockPopulatedInvoice.payment.cartId.items);
+      expect(result.cart.items).toEqual(
+        mockPopulatedInvoice.payment.cartId.items,
+      );
     });
 
     it('should throw NotFoundException when invoice not found', async () => {
@@ -365,7 +368,10 @@ describe('InvoiceService', () => {
     });
 
     it('should update invoice status to cancelled without refundedAt', async () => {
-      const updatedInvoice = { ...mockInvoice, status: InvoiceStatus.CANCELLED };
+      const updatedInvoice = {
+        ...mockInvoice,
+        status: InvoiceStatus.CANCELLED,
+      };
 
       invoiceRepo.findById.mockResolvedValue(mockInvoice as any);
       invoiceRepo.update.mockResolvedValue(updatedInvoice as any);
@@ -386,7 +392,10 @@ describe('InvoiceService', () => {
       invoiceRepo.findById.mockResolvedValue(null);
 
       await expect(
-        service.updateStatus(mockInvoice._id.toString(), InvoiceStatus.REFUNDED),
+        service.updateStatus(
+          mockInvoice._id.toString(),
+          InvoiceStatus.REFUNDED,
+        ),
       ).rejects.toThrow(NotFoundException);
     });
   });

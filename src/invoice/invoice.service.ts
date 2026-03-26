@@ -71,7 +71,10 @@ export class InvoiceService {
         // ── Email envoyé en fire-and-forget — ne bloque pas le post-traitement
         const fullInvoice = await this.findOne(invoice._id.toString());
         this.sendInvoiceEmail(fullInvoice).catch((err) =>
-          this.logger.error(`Échec envoi email facture ${invoiceNumber}`, err.stack),
+          this.logger.error(
+            `Échec envoi email facture ${invoiceNumber}`,
+            err.stack,
+          ),
         );
 
         return invoice;
@@ -108,7 +111,9 @@ export class InvoiceService {
     const { customer, payment, cart } = invoice;
 
     if (!customer?.email) {
-      this.logger.warn(`Pas d'email client pour la facture ${invoice.invoiceNumber}`);
+      this.logger.warn(
+        `Pas d'email client pour la facture ${invoice.invoiceNumber}`,
+      );
       return;
     }
 
@@ -174,7 +179,11 @@ export class InvoiceService {
         paymentId: payment._id?.toString() ?? '',
         customerName: customer.name ?? 'Client',
         deliveryAddress: deliveryAddress
-          ? [deliveryAddress.addressLine, deliveryAddress.city, deliveryAddress.state]
+          ? [
+              deliveryAddress.addressLine,
+              deliveryAddress.city,
+              deliveryAddress.state,
+            ]
               .filter(Boolean)
               .join(', ')
           : '',
@@ -206,7 +215,10 @@ export class InvoiceService {
           teamId,
           teamName: teamData.teamName,
           customerName: customer.name ?? 'Client',
-          items: teamData.items.map((i) => ({ name: i.name, quantity: i.quantity })),
+          items: teamData.items.map((i) => ({
+            name: i.name,
+            quantity: i.quantity,
+          })),
           subtotal: teamData.subtotalRaw,
           currency: payment.currency?.toUpperCase() ?? 'Ar',
         };
@@ -228,11 +240,13 @@ export class InvoiceService {
       }
     }
 
-    const teams = Array.from(teamMap.values()).map(({ subtotalRaw, items, ...rest }) => ({
-      ...rest,
-      subtotal: this.formatAmount(subtotalRaw),
-      items: items.map(({ ...item }) => item),
-    }));
+    const teams = Array.from(teamMap.values()).map(
+      ({ subtotalRaw, items, ...rest }) => ({
+        ...rest,
+        subtotal: this.formatAmount(subtotalRaw),
+        items: items.map(({ ...item }) => item),
+      }),
+    );
 
     const context = {
       invoiceNumber: invoice.invoiceNumber,
@@ -267,7 +281,9 @@ export class InvoiceService {
       attachments,
     });
 
-    this.logger.log(`📧 Email facture ${invoice.invoiceNumber} envoyé à ${customer.email}`);
+    this.logger.log(
+      `📧 Email facture ${invoice.invoiceNumber} envoyé à ${customer.email}`,
+    );
   }
 
   // ─── Formatters ───────────────────────────────────────────────────────────
@@ -330,7 +346,8 @@ export class InvoiceService {
       filter: { invoiceNumber },
       options: { populate: this.populateOptions },
     });
-    if (!invoice) throw new NotFoundException(`Facture ${invoiceNumber} introuvable`);
+    if (!invoice)
+      throw new NotFoundException(`Facture ${invoiceNumber} introuvable`);
     return this.formatInvoiceResponse(invoice);
   }
 
@@ -369,10 +386,9 @@ export class InvoiceService {
     const user = payment?.userId as any;
     const defaultAddress = user?.addresses?.find((addr: any) => addr.isDefault);
 
-    const cartItems =
-      invoice.cartSnapshot?.items?.length
-        ? invoice.cartSnapshot.items
-        : (payment?.cartId as any)?.items ?? [];
+    const cartItems = invoice.cartSnapshot?.items?.length
+      ? invoice.cartSnapshot.items
+      : ((payment?.cartId as any)?.items ?? []);
 
     return {
       _id: invoice._id,

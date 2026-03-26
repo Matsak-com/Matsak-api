@@ -13,15 +13,15 @@ export enum InvoiceStatus {
 // SNAPSHOT DU CART - Copie immuable au moment du paiement
 // ══════════════════════════════════════════════════════════════
 export class CartItemSnapshot {
-  product: Types.ObjectId;  // Référence conservée pour traçabilité
+  product: Types.ObjectId; // Référence conservée pour traçabilité
   quantity: number;
 }
 
 export class CartSnapshot {
-  cartId: Types.ObjectId;        // ID original du cart supprimé
-  sessionId?: string;            // Conservé si panier anonyme
+  cartId: Types.ObjectId; // ID original du cart supprimé
+  sessionId?: string; // Conservé si panier anonyme
   items: CartItemSnapshot[];
-  snapshotAt: Date;              // Moment de la copie
+  snapshotAt: Date; // Moment de la copie
 }
 
 @Schema({ timestamps: true })

@@ -12,9 +12,7 @@ import { Request } from 'express';
 // IPs officielles de l'API Mvola (sandbox + production)
 // À mettre à jour si Mvola change son infrastructure.
 // Laisser vide ([]) pour désactiver le whitelist (non recommandé en production).
-const MVOLA_ALLOWED_IPS: string[] = (
-  process.env.MVOLA_ALLOWED_IPS || ''
-)
+const MVOLA_ALLOWED_IPS: string[] = (process.env.MVOLA_ALLOWED_IPS || '')
   .split(',')
   .map((ip) => ip.trim())
   .filter(Boolean);
@@ -49,9 +47,7 @@ export class MvolaWebhookGuard implements CanActivate {
         '';
 
       if (!MVOLA_ALLOWED_IPS.includes(clientIp)) {
-        this.logger.warn(
-          `Callback rejeté — IP non autorisée: ${clientIp}`,
-        );
+        this.logger.warn(`Callback rejeté — IP non autorisée: ${clientIp}`);
         throw new UnauthorizedException('IP non autorisée');
       }
     }

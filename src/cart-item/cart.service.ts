@@ -97,7 +97,9 @@ export class CartService {
       userCart = await this.cartRepository.create({
         doc: { userId, items: sessionCart.items },
       });
-      await this.cartRepository.delete({ id: sessionCart._id as Types.ObjectId });
+      await this.cartRepository.delete({
+        id: sessionCart._id as Types.ObjectId,
+      });
       return userCart;
     }
 
@@ -201,7 +203,6 @@ export class CartService {
 
   // Suppression définitive du panier (hard delete)
   async deleteCartPermanently(cartId: Types.ObjectId): Promise<void> {
-  
     const cart = await this.cartRepository.findById({ id: cartId });
     if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
 
