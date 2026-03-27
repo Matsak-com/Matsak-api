@@ -5,7 +5,6 @@ import { InvoiceRepository } from './invoice.repository';
 import { Invoice, InvoiceStatus } from './invoice.schema';
 import { NotificationService } from '../notifications/notification.service';
 import { Payment } from '../payment/payment.schema';
-import { Cart } from '../cart-item/cart-item.schema';
 import * as QRCode from 'qrcode';
 import { DeliveryMethod } from '../payment/payment.schema';
 
