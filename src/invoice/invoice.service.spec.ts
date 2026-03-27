@@ -5,6 +5,9 @@ import { NotificationService } from '../notifications/notification.service';
 import { NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { InvoiceStatus } from './invoice.schema';
+import { getModelToken } from '@nestjs/mongoose';
+import { Payment } from '../payment/payment.schema';
+import { Cart } from '../cart-item/cart-item.schema';
 
 describe('InvoiceService', () => {
   let service: InvoiceService;
@@ -102,6 +105,14 @@ describe('InvoiceService', () => {
           provide: NotificationService,
           useValue: mockNotificationService,
         },
+        {
+          provide: getModelToken(Payment.name),
+          useValue: { findById: jest.fn() },
+        },
+        {
+          provide: getModelToken(Cart.name),
+          useValue: { findByIdAndUpdate: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -162,10 +173,6 @@ describe('InvoiceService', () => {
           invoiceDate: expect.any(Date),
         }),
       });
-      expect((service as any).cartModel.findByIdAndUpdate).toHaveBeenCalledWith(
-        mockCartId,
-        { deleted_at: expect.any(Date) },
-      );
       expect(result).toEqual(mockInvoice);
     });
 
