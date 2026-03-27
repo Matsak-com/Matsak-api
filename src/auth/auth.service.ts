@@ -373,7 +373,6 @@ export class AuthService {
 
       await this.usersService.update({ _id: existingUser._id }, {
         isResettingPassword: true,
-        resetPasswordToken: null,
         resetPasswordTokenHash: tokenHash,
         resetPasswordTokenExpiresAt: expiresAt,
         resetPasswordRequestCount: requestCount + 1,
@@ -480,13 +479,9 @@ export class AuthService {
         );
       }
 
-      const hashedPassword = await this.hashPassword({
-        password: newPassword,
-      });
       await this.usersService.update({ _id: existingUser._id }, {
         isResettingPassword: false,
-        password: hashedPassword,
-        resetPasswordToken: null,
+        password: newPassword,
         resetPasswordTokenHash: null,
         resetPasswordTokenExpiresAt: null,
         resetPasswordRequestCount: 0,

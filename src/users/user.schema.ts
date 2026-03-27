@@ -106,7 +106,7 @@ export class User extends Document {
   @IsString()
   resetPasswordToken?: string | null;
 
-  @Prop({ required: false, default: null })
+  @Prop({ required: false, unique: true, sparse: true })
   @IsString()
   resetPasswordTokenHash?: string | null;
 
