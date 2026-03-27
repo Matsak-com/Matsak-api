@@ -16,6 +16,18 @@ export class EmailProvider implements IEmailProvider {
   private readonly templateDir: string;
   private readonly LOGO_CID = 'matsak-logo';
 
+  // ─── Cache logo : undefined = pas encore tenté, null = introuvable ───────
+  private logoAttachmentCache:
+    | {
+        filename: string;
+        content: Buffer;
+        cid: string;
+        contentType: string;
+        contentDisposition: string;
+      }
+    | null
+    | undefined = undefined;
+
   constructor(
     private readonly configService: ConfigService,
     private readonly i18nService: I18nService,
@@ -53,7 +65,6 @@ export class EmailProvider implements IEmailProvider {
         `Sending email to ${to}, template: ${template}, locale: ${locale}`,
       );
 
-      // Préparer le contexte
       const fullContext = await this.prepareFullContext(
         template || 'generic',
         subject,
@@ -61,7 +72,6 @@ export class EmailProvider implements IEmailProvider {
         locale,
       );
 
-      // Attachment logo CID
       const logoAttachment = this.buildLogoAttachment();
 
       const mailOptions: any = {
@@ -77,7 +87,6 @@ export class EmailProvider implements IEmailProvider {
       if (template) {
         const emailHtml = await this.compileEmail(template, fullContext);
         mailOptions.html = emailHtml;
-
         await this.transporter.sendMail(mailOptions);
         this.logger.log(`Email '${template}' sent to ${to}`);
       } else if (html) {
@@ -95,6 +104,7 @@ export class EmailProvider implements IEmailProvider {
 
   /**
    * Construire l'attachment du logo en CID
+   * Lazy memoization — I/O disque une seule fois, warn loggé une seule fois
    */
   private buildLogoAttachment(): {
     filename: string;
@@ -103,6 +113,11 @@ export class EmailProvider implements IEmailProvider {
     contentType: string;
     contentDisposition: string;
   } | null {
+    // Déjà tenté → retourner le cache directement sans I/O
+    if (this.logoAttachmentCache !== undefined) {
+      return this.logoAttachmentCache;
+    }
+
     const possibleLogoPaths = [
       path.join(process.cwd(), 'src/assets/images/matsak-logo.png'),
       path.join(process.cwd(), 'dist/assets/images/matsak-logo.png'),
@@ -113,19 +128,25 @@ export class EmailProvider implements IEmailProvider {
     for (const logoPath of possibleLogoPaths) {
       if (fs.existsSync(logoPath)) {
         this.logger.debug(`Logo found at: ${logoPath}`);
-        return {
+        this.logoAttachmentCache = {
           filename: 'matsak-logo.png',
-          content: fs.readFileSync(logoPath), // ← Buffer direct, plus fiable que path
+          content: fs.readFileSync(logoPath),
           cid: this.LOGO_CID,
           contentType: 'image/png',
           contentDisposition: 'inline',
         };
+        return this.logoAttachmentCache;
       }
     }
 
-    this.logger.warn('Logo file not found, email will be sent without logo');
+    // Warn une seule fois — les appels suivants retournent null directement
+    this.logger.warn(
+      'Logo file not found, emails will be sent without logo',
+    );
+    this.logoAttachmentCache = null;
     return null;
   }
+
   /**
    * Compiler un email avec layout et partials
    */
@@ -225,7 +246,7 @@ export class EmailProvider implements IEmailProvider {
         'CONTACT_EMAIL',
         'contact@matsak-mg.com',
       ),
-      logoCid: this.LOGO_CID, // ← plus d'URL, on passe le CID au template
+      logoCid: this.LOGO_CID,
     };
 
     const urls = {
