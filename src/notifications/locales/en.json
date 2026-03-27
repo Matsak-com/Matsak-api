@@ -12,6 +12,20 @@
       "createdAt": "Your account was created on",
       "date": "Date:"
     },
+    "resetPasswordConfirmation": {
+      "subject": "Your password has been changed",
+      "greeting": "Hello",
+      "title": "Password Changed Successfully",
+      "description": "Your Matsak account password has been successfully updated. You can now log in with your new password.",
+      "accountLabel": "Account",
+      "changedAt": "Changed on",
+      "noActionNeeded": "If you authorized this change, no further action is required — your account is up to date.",
+      "loginButton": "Log in to my account",
+      "notYou": "Didn't make this change?",
+      "notYouAction": "If you did not change your password, your account may have been compromised. Please contact our support team immediately to secure your account.",
+      "contactSupport": "Contact our support team immediately at",
+      "signature": "Best regards,<br>The Matsak Team"
+    },
     "resetPassword": {
       "subject": "Reset Your Password",
       "greeting": "Hello",

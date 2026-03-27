@@ -26,7 +26,9 @@ export class EmailProvider implements IEmailProvider {
       host: this.configService.get('MAIL_HOST', 'localhost'),
       port: parseInt(this.configService.get('MAIL_PORT', '1025')),
       secure: this.configService.get('MAIL_SECURE', 'false') === 'true',
-      ...(mailUser && mailPass ? { auth: { user: mailUser, pass: mailPass } } : {}),
+      ...(mailUser && mailPass
+        ? { auth: { user: mailUser, pass: mailPass } }
+        : {}),
     });
 
     this.hbs = handlebars.create();
@@ -247,7 +249,9 @@ export class EmailProvider implements IEmailProvider {
 
       return {
         ...baseContext,
-        t: translations,
+        // Caller-supplied 't' keys take priority over auto-loaded ones,
+        // ensuring pre-resolved translations are never overwritten.
+        t: { ...translations, ...(baseContext.t || {}) },
         common: commonTranslations,
       };
     } catch (i18nError) {

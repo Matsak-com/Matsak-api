@@ -353,7 +353,7 @@ export class AuthService {
 
       const isWithinWindow = Boolean(
         windowStart &&
-          now.getTime() - windowStart.getTime() < RESET_REQUEST_WINDOW_MS,
+        now.getTime() - windowStart.getTime() < RESET_REQUEST_WINDOW_MS,
       );
 
       const requestCount = isWithinWindow
@@ -483,17 +483,22 @@ export class AuthService {
       const hashedPassword = await this.hashPassword({
         password: newPassword,
       });
-      await this.usersService.update(
-        { _id: existingUser._id },
-        {
-          isResettingPassword: false,
-          password: hashedPassword,
-          resetPasswordToken: null,
-          resetPasswordTokenHash: null,
-          resetPasswordTokenExpiresAt: null,
-          resetPasswordRequestCount: 0,
-          resetPasswordRequestWindow: null,
-        } as any,
+      await this.usersService.update({ _id: existingUser._id }, {
+        isResettingPassword: false,
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordTokenHash: null,
+        resetPasswordTokenExpiresAt: null,
+        resetPasswordRequestCount: 0,
+        resetPasswordRequestWindow: null,
+      } as any);
+
+      // Send confirmation email (non-blocking)
+      this.sendPasswordChangedConfirmationEmail({ user: existingUser }).catch(
+        (err) =>
+          this.logger.warn(
+            `Failed to send password change confirmation email: ${err.message}`,
+          ),
       );
 
       return {
@@ -503,5 +508,85 @@ export class AuthService {
     } catch (error) {
       return { error: true, message: error.message };
     }
+  }
+
+  /**
+   * Send a confirmation email after a successful password reset.
+   */
+  private async sendPasswordChangedConfirmationEmail({
+    user,
+  }: {
+    user: User;
+  }): Promise<void> {
+    const locale = this.getUserLocale(user);
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const loginUrl = `${frontendUrl}/auth/login`;
+    const ns = 'email.resetPasswordConfirmation';
+
+    // Pre-resolve all translations with hard-coded fallbacks so the email
+    // renders correctly even if the i18n service hasn't finished initializing.
+    const tr = (key: string, fallback: string): string =>
+      this.i18nService.translate(`${ns}.${key}`, locale) || fallback;
+
+    const subject = tr('subject', 'Your password has been changed');
+
+    const changedAt = new Intl.DateTimeFormat(locale, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date());
+
+    const t = {
+      greeting: tr('greeting', 'Hello'),
+      title: tr('title', 'Password Changed Successfully'),
+      description: tr(
+        'description',
+        'Your Matsak account password has been successfully updated. You can now log in with your new password.',
+      ),
+      accountLabel: tr('accountLabel', 'Account'),
+      changedAt: tr('changedAt', 'Changed on'),
+      noActionNeeded: tr(
+        'noActionNeeded',
+        'If you authorized this change, no further action is required — your account is up to date.',
+      ),
+      loginButton: tr('loginButton', 'Log in to my account'),
+      notYou: tr('notYou', "Didn't make this change?"),
+      notYouAction: tr(
+        'notYouAction',
+        'If you did not change your password, your account may have been compromised. Please contact our support team immediately to secure your account.',
+      ),
+      contactSupport: tr(
+        'contactSupport',
+        'Contact our support team immediately at',
+      ),
+      signature: tr('signature', 'Best regards,<br>The Matsak Team'),
+    };
+
+    await this.notificationService.sendEmail({
+      to: user.email,
+      subject,
+      template: 'reset-password-confirmation',
+      locale,
+      context: {
+        t,
+        user: {
+          firstName: user.firstname,
+          lastName: user.name,
+          email: user.email,
+        },
+        changedAt,
+        loginUrl,
+        platform: {
+          name: process.env.APP_NAME || 'Matsak',
+          url: frontendUrl,
+          supportEmail: process.env.SUPPORT_EMAIL || 'support@matsak-mg.com',
+          contactEmail: process.env.CONTACT_EMAIL || 'contact@matsak-mg.com',
+          logoUrl: `${frontendUrl}/images/logos/matsak-logo.svg`,
+        },
+        year: new Date().getFullYear(),
+      },
+    });
   }
 }

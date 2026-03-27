@@ -12,6 +12,20 @@
       "createdAt": "Votre compte a été créé le",
       "date": "Date :"
     },
+    "resetPasswordConfirmation": {
+      "subject": "Votre mot de passe a été modifié",
+      "greeting": "Bonjour",
+      "title": "Mot de passe modifié avec succès",
+      "description": "Le mot de passe de votre compte Matsak a bien été mis à jour. Vous pouvez désormais vous connecter avec votre nouveau mot de passe.",
+      "accountLabel": "Compte",
+      "changedAt": "Modifié le",
+      "noActionNeeded": "Si vous êtes à l'origine de ce changement, aucune action supplémentaire n'est nécessaire — votre compte est à jour.",
+      "loginButton": "Me connecter à mon compte",
+      "notYou": "Vous n'êtes pas à l'origine de ce changement ?",
+      "notYouAction": "Si vous n'avez pas modifié votre mot de passe, votre compte est peut-être compromis. Veuillez contacter notre équipe de support immédiatement pour sécuriser votre compte.",
+      "contactSupport": "Contactez notre équipe de support immédiatement à",
+      "signature": "Cordialement,<br>L'équipe Matsak"
+    },
     "resetPassword": {
       "subject": "Réinitialiser votre mot de passe",
       "greeting": "Bonjour",
