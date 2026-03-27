@@ -29,7 +29,6 @@ export class InvoiceService {
     private readonly invoiceRepo: InvoiceRepository,
     private readonly notificationService: NotificationService,
     @InjectModel(Payment.name) private readonly paymentModel: Model<Payment>,
-    @InjectModel(Cart.name) private readonly cartModel: Model<Cart>,
   ) {}
 
   async createInvoiceFromPayment(
@@ -41,7 +40,16 @@ export class InvoiceService {
 
         const payment = await this.paymentModel
           .findById(dto.paymentId)
-          .populate('cartId')
+          .populate({
+            path: 'cartId',
+            populate: {
+              path: 'items.product',
+              populate: [
+                { path: 'detail', select: 'name description' },
+                { path: 'team', select: '_id name' },
+              ],
+            },
+          })
           .lean();
 
         if (!payment) throw new NotFoundException('Payment introuvable');
@@ -54,10 +62,18 @@ export class InvoiceService {
           cartSnapshot: {
             cartId: cart._id,
             sessionId: cart.sessionId,
-            items: cart.items.map((item: any) => ({
-              product: item.product,
-              quantity: item.quantity,
-            })),
+          items: cart.items.map((item: any) => ({
+            product: {
+              _id: item.product._id,
+              name: item.product.detail?.name ?? item.product.name ?? 'Produit',
+              description: item.product.detail?.description ?? null,
+              team: item.product.team
+                ? { _id: item.product.team._id, name: item.product.team.name }
+                : null,
+            },
+            quantity: item.quantity,
+            price: item.product?.basePrice ?? 0,
+          })),
             snapshotAt: new Date(),
           },
           invoiceNumber,
@@ -133,8 +149,7 @@ export class InvoiceService {
 
     for (const item of cart?.items ?? []) {
       const product = item.product;
-      const detail = product?.detail;
-      const team = product?.team;
+      const team = product?.team; // déjà { _id, name } dans le snapshot
 
       const teamId = team?._id?.toString() ?? 'sans-team';
       const teamName = team?.name ?? 'Autres produits';
@@ -143,13 +158,13 @@ export class InvoiceService {
         teamMap.set(teamId, { teamId, teamName, items: [], subtotalRaw: 0 });
       }
 
-      const unitPrice = item.price ?? product?.basePrice ?? 0;
+      const unitPrice = item.price ?? 0; // ← prix figé dans le snapshot
       const quantity = item.quantity ?? 1;
       const lineTotal = unitPrice * quantity;
 
       teamMap.get(teamId).subtotalRaw += lineTotal;
       teamMap.get(teamId).items.push({
-        name: detail?.name ?? product?.name ?? 'Produit',
+        name: product?.name ?? 'Produit', // ← name déjà dans le snapshot
         quantity,
         unitPrice: this.formatAmount(unitPrice),
         totalPrice: this.formatAmount(lineTotal),
@@ -308,28 +323,18 @@ export class InvoiceService {
   }
 
   // ─── Populate commun ──────────────────────────────────────────────────────
-
-  private get populateOptions() {
+    private get populateOptions() {
     return [
       {
         path: 'payment',
         populate: [
           { path: 'userId', select: 'name email addresses' },
-          {
-            path: 'cartId',
-            populate: {
-              path: 'items.product',
-              populate: [
-                { path: 'detail' },
-                { path: 'team', select: 'name _id' },
-              ],
-            },
-          },
+          // cartId gardé comme fallback uniquement
+          { path: 'cartId', select: '_id' },
         ],
       },
     ];
   }
-
   // ─── CRUD ─────────────────────────────────────────────────────────────────
 
   async findOne(id: string): Promise<any> {

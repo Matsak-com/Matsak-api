@@ -12,16 +12,27 @@ export enum InvoiceStatus {
 // ══════════════════════════════════════════════════════════════
 // SNAPSHOT DU CART - Copie immuable au moment du paiement
 // ══════════════════════════════════════════════════════════════
+export class CartItemProductSnapshot {
+  _id: Types.ObjectId;
+  name: string;
+  description?: string;
+  team?: {
+    _id: Types.ObjectId;
+    name: string;
+  };
+}
+
 export class CartItemSnapshot {
-  product: Types.ObjectId; // Référence conservée pour traçabilité
+  product: CartItemProductSnapshot;
   quantity: number;
+  price: number; // ← prix figé au moment du paiement
 }
 
 export class CartSnapshot {
-  cartId: Types.ObjectId; // ID original du cart supprimé
-  sessionId?: string; // Conservé si panier anonyme
+  cartId: Types.ObjectId;
+  sessionId?: string;
   items: CartItemSnapshot[];
-  snapshotAt: Date; // Moment de la copie
+  snapshotAt: Date;
 }
 
 @Schema({ timestamps: true })
@@ -45,23 +56,37 @@ export class Invoice {
   // SNAPSHOT DU CART (copie avant suppression)
   // ══════════════════════════════════════════════════════════════
   @Prop({
-    type: {
-      cartId: { type: Types.ObjectId, required: true },
-      sessionId: { type: String },
-      items: [
-        {
-          product: { type: Types.ObjectId, ref: 'Product', required: true },
-          quantity: { type: Number, required: true, min: 1 },
+  type: {
+    cartId: { type: Types.ObjectId, required: true },
+    sessionId: { type: String },
+    items: [
+      {
+        product: {
+          type: {
+            _id: { type: Types.ObjectId, required: true },
+            name: { type: String, required: true },
+            description: { type: String },
+            team: {
+              type: {
+                _id: { type: Types.ObjectId },
+                name: { type: String },
+              },
+              _id: false,
+            },
+          },
           _id: false,
         },
-      ],
-      snapshotAt: { type: Date, required: true },
-    },
-    required: true,
-    _id: false,
-  })
-  cartSnapshot: CartSnapshot;
-
+        quantity: { type: Number, required: true, min: 1 },
+        price: { type: Number, required: true, min: 0 },
+        _id: false,
+      },
+    ],
+    snapshotAt: { type: Date, required: true },
+  },
+  required: true,
+  _id: false,
+})
+cartSnapshot: CartSnapshot;
   // ══════════════════════════════════════════════════════════════
   // FACTURE
   // ══════════════════════════════════════════════════════════════

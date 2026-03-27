@@ -201,11 +201,4 @@ export class CartService {
     });
   }
 
-  // Suppression définitive du panier (hard delete)
-  async deleteCartPermanently(cartId: Types.ObjectId): Promise<void> {
-    const cart = await this.cartRepository.findById({ id: cartId });
-    if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
-
-    await this.cartRepository.delete({ id: cartId });
-  }
 }

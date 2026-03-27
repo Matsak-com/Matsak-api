@@ -113,7 +113,6 @@ describe('PaymentService', () => {
           provide: CartService,
           useValue: {
             softDeleteCartById: jest.fn(),
-            deleteCartPermanently: jest.fn().mockResolvedValue(undefined), // ← fix: méthode manquante
           },
         },
         { provide: ProductService, useValue: { calculatePrice: jest.fn() } },
