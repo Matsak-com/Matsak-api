@@ -94,16 +94,26 @@ export class AuthController {
     return this.authService.login({ loginDto });
   }
 
-  @Post('request-reset-password')
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
   @ZodValidation(resetPasswordRequestSchema)
-  async resetUserPasswordRequest(@Body('email') email: string) {
-    return await this.authService.resetUserPasswordRequest({
-      email,
+  async forgotPassword(@Body() body: { email: string }) {
+    return await this.authService.forgotPassword({
+      email: body.email,
     });
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Post('request-reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ZodValidation(resetPasswordRequestSchema)
+  async resetUserPasswordRequest(@Body() body: { email: string }) {
+    return await this.authService.resetUserPasswordRequest({
+      email: body.email,
+    });
+  }
+
   @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
   @ZodValidation(resetPasswordSchema)
   async resetUserPassword(@Body() resetPasswordDto: ResetUserPasswordDto) {
     return await this.authService.resetUserPassword({
@@ -111,8 +121,8 @@ export class AuthController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('verify-reset-password-token')
+  @HttpCode(HttpStatus.OK)
   @ZodValidation(tokenQuerySchema)
   async verifyResetPasswordToken(@Query('token') token: string) {
     return await this.authService.verifyResetPasswordToken({

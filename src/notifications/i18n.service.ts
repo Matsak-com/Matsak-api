@@ -10,55 +10,96 @@ export class I18nService {
   private readonly logger = new Logger(I18nService.name);
   private i18n: any;
   private initialized = false;
+  /** Flat map of all loaded translation files keyed by locale. */
+  private readonly resources: Record<string, any> = {};
 
   constructor() {
     this.i18n = i18next.createInstance();
-    this.initializeI18n();
+    // Load all translation files synchronously so translate() works immediately,
+    // with no async race condition.
+    this.loadResourcesSync();
+    // Also initialise i18next in the background for any consumers that use it directly.
+    this.initializeI18n().catch((err) =>
+      this.logger.error('i18next init failed', err),
+    );
+  }
+
+  /** Synchronously read every locale JSON into this.resources. */
+  private loadResourcesSync(): void {
+    const locales: SupportedLocale[] = ['en', 'fr', 'zh', 'ar'];
+    for (const locale of locales) {
+      const translationPath = join(__dirname, 'locales', `${locale}.json`);
+      try {
+        const raw = fs.readFileSync(translationPath, 'utf-8');
+        this.resources[locale] = JSON.parse(raw);
+      } catch (error) {
+        this.logger.error(
+          `Failed to load translations for ${locale}: ${error.message}`,
+        );
+        this.resources[locale] = {};
+      }
+    }
   }
 
   private async initializeI18n() {
     if (this.initialized) return;
 
-    const resources: any = {};
-    const locales: SupportedLocale[] = ['en', 'fr', 'zh', 'ar'];
-
-    // Load translation files
-    for (const locale of locales) {
-      const translationPath = join(__dirname, 'locales', `${locale}.json`);
-      try {
-        const translationContent = fs.readFileSync(translationPath, 'utf-8');
-        resources[locale] = {
-          translation: JSON.parse(translationContent),
-        };
-      } catch (error) {
-        this.logger.error(`Failed to load translations for ${locale}:`, error);
-      }
+    const i18nResources: any = {};
+    for (const locale of Object.keys(this.resources)) {
+      i18nResources[locale] = { translation: this.resources[locale] };
     }
 
     await this.i18n.init({
-      lng: 'en', // default language
+      lng: 'en',
       fallbackLng: 'en',
-      resources,
-      interpolation: {
-        escapeValue: true, // Escape values to prevent XSS in email context
-      },
+      resources: i18nResources,
+      interpolation: { escapeValue: true },
     });
 
     this.initialized = true;
   }
 
   /**
-   * Translate a key with optional interpolation values
-   * @param key - Translation key (e.g., 'email.welcome.subject')
+   * Translate a key with optional interpolation values.
+   * Walks the pre-loaded resource tree directly so it works immediately
+   * on first request without waiting for the async i18next init.
+   *
+   * @param key - Dot-separated translation key (e.g. 'email.welcome.subject')
    * @param locale - Language code (en, fr, zh, ar)
-   * @param interpolation - Optional values for interpolation
+   * @param interpolation - Optional values for {{variable}} interpolation
    */
   translate(
     key: string,
     locale: SupportedLocale = 'en',
     interpolation?: Record<string, any>,
   ): string {
-    return this.i18n.t(key, { lng: locale, ...interpolation });
+    // Walk the pre-loaded resource tree directly.
+    const value = this.resolveKey(key, locale)
+      ?? this.resolveKey(key, 'en'); // fallback to English
+
+    if (typeof value !== 'string') return '';
+
+    // Apply simple {{variable}} interpolation without depending on i18next.
+    if (interpolation) {
+      return value.replace(/\{\{(\w+)\}\}/g, (_, k) =>
+        interpolation[k] !== undefined ? String(interpolation[k]) : `{{${k}}}`,
+      );
+    }
+    return value;
+  }
+
+  /**
+   * Walk the resource tree for the given locale and return the leaf value,
+   * or undefined if the key path doesn't exist.
+   */
+  private resolveKey(key: string, locale: string): string | undefined {
+    const parts = key.split('.');
+    let node: any = this.resources[locale] ?? {};
+    for (const part of parts) {
+      if (node === null || typeof node !== 'object') return undefined;
+      node = node[part];
+    }
+    return typeof node === 'string' ? node : undefined;
   }
 
   /**
@@ -87,25 +128,24 @@ export class I18nService {
   }
 
   /**
-   * Get available keys from a namespace
+   * Get available keys from a namespace (based on the 'en' reference locale).
    */
   private getKeysFromNamespace(namespace: string): string[] {
-    const resource = this.i18n.getResourceBundle('en', 'translation');
-    const keys: string[] = [];
-
     const parts = namespace.split('.');
-    let current: any = resource;
-
+    let node: any = this.resources['en'] ?? {};
     for (const part of parts) {
-      if (current && typeof current === 'object') {
-        current = current[part];
+      if (node && typeof node === 'object') {
+        node = node[part];
+      } else {
+        node = undefined;
+        break;
       }
     }
 
-    if (current && typeof current === 'object') {
-      this.extractKeys(current, keys);
+    const keys: string[] = [];
+    if (node && typeof node === 'object') {
+      this.extractKeys(node, keys);
     }
-
     return keys;
   }
 

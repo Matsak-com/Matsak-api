@@ -12,14 +12,32 @@
       "createdAt": "Votre compte a été créé le",
       "date": "Date :"
     },
+    "resetPasswordConfirmation": {
+      "subject": "Votre mot de passe a été modifié",
+      "greeting": "Bonjour",
+      "title": "Mot de passe modifié avec succès",
+      "description": "Le mot de passe de votre compte Matsak a bien été mis à jour. Vous pouvez désormais vous connecter avec votre nouveau mot de passe.",
+      "accountLabel": "Compte",
+      "changedAt": "Modifié le",
+      "noActionNeeded": "Si vous êtes à l'origine de ce changement, aucune action supplémentaire n'est nécessaire — votre compte est à jour.",
+      "loginButton": "Me connecter à mon compte",
+      "notYou": "Vous n'êtes pas à l'origine de ce changement ?",
+      "notYouAction": "Si vous n'avez pas modifié votre mot de passe, votre compte est peut-être compromis. Veuillez contacter notre équipe de support immédiatement pour sécuriser votre compte.",
+      "contactSupport": "Contactez notre équipe de support immédiatement à",
+      "signature": "Cordialement,<br>L'équipe Matsak"
+    },
     "resetPassword": {
       "subject": "Réinitialiser votre mot de passe",
       "greeting": "Bonjour",
       "title": "Demande de réinitialisation de mot de passe",
       "instruction": "Nous avons reçu une demande de réinitialisation de votre mot de passe. Cliquez sur le bouton ci-dessous pour créer un nouveau mot de passe :",
-      "resetButton": "Réinitialiser le mot de passe",
-      "validFor": "Ce lien est valide pendant {{hours}} heures.",
-      "noRequest": "Si vous n'avez pas demandé de réinitialisation, vous pouvez ignorer cet email en toute sécurité.",
+      "resetButton": "Réinitialiser mon mot de passe",
+      "expiryTitle": "Lien à durée limitée",
+      "validFor": "Ce lien expire dans {{minutes}} minutes.",
+      "singleUse": "Pour votre sécurité, ce lien ne peut être utilisé qu'une seule fois.",
+      "fallbackLabel": "Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :",
+      "noRequest": "Si vous n'avez pas demandé de réinitialisation, aucune action n'est nécessaire — votre compte est en sécurité.",
+      "contactSupport": "Besoin d'aide ? Contactez notre équipe de support à",
       "signature": "Cordialement,<br>L'équipe Matsak"
     },
     "orderConfirmation": {

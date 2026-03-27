@@ -59,6 +59,7 @@ const mockI18nService = {
     return {};
   }),
   isSupportedLocale: jest.fn().mockReturnValue(true),
+  translate: jest.fn().mockReturnValue(''),
 };
 
 describe('AuthService', () => {
@@ -305,43 +306,144 @@ describe('AuthService', () => {
   });
 
   describe('resetUserPasswordRequest', () => {
-    it('should initiate password reset for existing user', async () => {
+    it('should return generic success response for existing user', async () => {
       const email = 'john.doe@example.com';
       const existingUser = {
-        id: 'user123',
+        _id: 'user123',
         email: 'john.doe@example.com',
-        firstName: 'John',
+        firstname: 'John',
+        name: 'Doe',
+        locale: 'en',
         isResettingPassword: false,
+        resetPasswordRequestCount: 0,
+        resetPasswordRequestWindow: null,
       };
 
       mockUsersService.findByEmail.mockResolvedValue(existingUser);
       mockUsersService.update.mockResolvedValue({});
+      mockNotificationService.sendEmail.mockResolvedValue(undefined);
 
       const result = await service.resetUserPasswordRequest({ email });
 
       expect(usersService.findByEmail).toHaveBeenCalledWith(email);
       expect(usersService.update).toHaveBeenCalledWith(
-        existingUser.id,
+        { _id: existingUser._id },
         expect.objectContaining({
           isResettingPassword: true,
-          resetPasswordToken: expect.any(String),
+          resetPasswordTokenHash: expect.any(String),
+          resetPasswordTokenExpiresAt: expect.any(Date),
+          resetPasswordRequestCount: 1,
         }),
       );
+      expect(notificationService.sendEmail).toHaveBeenCalled();
       expect(result).toEqual({
-        error: false,
-        message: 'Please check your email to reset your password.',
+        success: true,
+        message:
+          'If an account exists for this email, a password reset link has been sent.',
       });
     });
 
-    it('should throw error if user not found', async () => {
+    it('should return generic success response for non-existing user (no leak)', async () => {
       const email = 'nonexistent@example.com';
 
       mockUsersService.findByEmail.mockResolvedValue(null);
 
-      await expect(
-        service.resetUserPasswordRequest({ email }),
-      ).rejects.toThrow();
+      const result = await service.resetUserPasswordRequest({ email });
+
       expect(usersService.findByEmail).toHaveBeenCalledWith(email);
+      expect(usersService.update).not.toHaveBeenCalled();
+      expect(notificationService.sendEmail).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        success: true,
+        message:
+          'If an account exists for this email, a password reset link has been sent.',
+      });
+    });
+
+    it('should enforce rate limiting and return generic response when limit reached', async () => {
+      const email = 'john.doe@example.com';
+      const now = new Date();
+      const existingUser = {
+        _id: 'user123',
+        email,
+        firstname: 'John',
+        name: 'Doe',
+        locale: 'en',
+        isResettingPassword: false,
+        resetPasswordRequestCount: 5,
+        resetPasswordRequestWindow: now,
+      };
+
+      mockUsersService.findByEmail.mockResolvedValue(existingUser);
+
+      const result = await service.resetUserPasswordRequest({ email });
+
+      expect(usersService.update).not.toHaveBeenCalled();
+      expect(notificationService.sendEmail).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        success: true,
+        message:
+          'If an account exists for this email, a password reset link has been sent.',
+      });
+    });
+
+    it('should hash the reset token before storing it', async () => {
+      const email = 'john.doe@example.com';
+      const existingUser = {
+        _id: 'user123',
+        email,
+        firstname: 'John',
+        name: 'Doe',
+        locale: 'en',
+        isResettingPassword: false,
+        resetPasswordRequestCount: 0,
+        resetPasswordRequestWindow: null,
+      };
+
+      mockUsersService.findByEmail.mockResolvedValue(existingUser);
+      mockUsersService.update.mockResolvedValue({});
+      mockNotificationService.sendEmail.mockResolvedValue(undefined);
+
+      await service.resetUserPasswordRequest({ email });
+
+      const updateCall = mockUsersService.update.mock.calls[0];
+      const updateDto = updateCall[1];
+
+      // The stored token hash should be a SHA-256 hex string (64 chars)
+      expect(updateDto.resetPasswordTokenHash).toMatch(/^[a-f0-9]{64}$/);
+      // The reset URL sent in the email should contain the raw (unhashed) token
+      const emailCall = mockNotificationService.sendEmail.mock.calls[0][0];
+      const rawToken = emailCall.context.resetUrl.split('token=')[1];
+      expect(rawToken).not.toBe(updateDto.resetPasswordTokenHash);
+    });
+
+    it('should set a future expiry on the reset token', async () => {
+      const email = 'john.doe@example.com';
+      const existingUser = {
+        _id: 'user123',
+        email,
+        firstname: 'John',
+        name: 'Doe',
+        locale: 'en',
+        isResettingPassword: false,
+        resetPasswordRequestCount: 0,
+        resetPasswordRequestWindow: null,
+      };
+
+      mockUsersService.findByEmail.mockResolvedValue(existingUser);
+      mockUsersService.update.mockResolvedValue({});
+      mockNotificationService.sendEmail.mockResolvedValue(undefined);
+
+      const before = new Date();
+      await service.resetUserPasswordRequest({ email });
+
+      const updateCall = mockUsersService.update.mock.calls[0];
+      const updateDto = updateCall[1];
+
+      expect(updateDto.resetPasswordTokenExpiresAt).toBeInstanceOf(Date);
+      expect(updateDto.resetPasswordTokenExpiresAt.getTime()).toBeGreaterThan(
+        before.getTime(),
+      );
     });
   });
 

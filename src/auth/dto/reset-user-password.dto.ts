@@ -5,7 +5,7 @@ export class ResetUserPasswordDto {
   @MinLength(8, {
     message: 'Your password must be more than 8 characters long.',
   })
-  password: string;
+  newPassword: string;
 
   @IsString({
     message: 'You must provide a token.',

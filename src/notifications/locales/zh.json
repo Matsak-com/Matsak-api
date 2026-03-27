@@ -12,14 +12,32 @@
       "createdAt": "您的账户创建于",
       "date": "日期："
     },
+    "resetPasswordConfirmation": {
+      "subject": "您的密码已成功更改",
+      "greeting": "您好",
+      "title": "密码修改成功",
+      "description": "您的 Matsak 账户密码已成功更新。您现在可以使用新密码登录。",
+      "accountLabel": "账户",
+      "changedAt": "更改时间",
+      "noActionNeeded": "如果您授权了此次更改，则无需任何其他操作——您的账户已是最新状态。",
+      "loginButton": "登录我的账户",
+      "notYou": "不是您本人操作？",
+      "notYouAction": "如果您没有更改密码，您的账户可能已被盗用。请立即联系我们的支持团队以保护您的账户安全。",
+      "contactSupport": "请立即联系我们的支持团队：",
+      "signature": "此致敬礼，<br>Matsak 团队"
+    },
     "resetPassword": {
       "subject": "重置您的密码",
       "greeting": "您好",
       "title": "密码重置请求",
       "instruction": "我们收到了重置您密码的请求。点击下面的按钮创建新密码：",
-      "resetButton": "重置密码",
-      "validFor": "此链接有效期为 {{hours}} 小时。",
-      "noRequest": "如果您没有请求重置密码，可以安全地忽略此邮件。",
+      "resetButton": "重置我的密码",
+      "expiryTitle": "限时链接",
+      "validFor": "此链接将在 {{minutes}} 分钟后过期。",
+      "singleUse": "为了您的安全，此链接只能使用一次。",
+      "fallbackLabel": "如果按钮不起作用，请将以下链接复制并粘贴到浏览器：",
+      "noRequest": "如果您没有请求重置密码，请忽略此邮件——您的账户是安全的。",
+      "contactSupport": "需要帮助？请联系我们的支持团队：",
       "signature": "此致敬礼，<br>Matsak 团队"
     },
     "orderConfirmation": {
