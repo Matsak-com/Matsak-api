@@ -176,7 +176,7 @@ export class MvolaApiService {
       Version: '1.0',
       'X-CorrelationID': params.correlationId,
       UserLanguage: 'FR',
-      UserAccountIdentifier: `msisdn,${this.merchantPhone}`,
+      UserAccountIdentifier: `msisdn;${this.merchantPhone}`,
       partnerName: this.partnerName,
       'Cache-Control': 'no-cache',
       ...(params.callbackUrl && { callbackUrl: params.callbackUrl }),
@@ -237,7 +237,7 @@ export class MvolaApiService {
       Version: '1.0',
       'X-CorrelationID': correlationId,
       UserLanguage: 'FR',
-      UserAccountIdentifier: `msisdn,${this.merchantPhone}`,
+      UserAccountIdentifier: `msisdn;${this.merchantPhone}`,
       partnerName: this.partnerName,
       'Cache-Control': 'no-cache',
     };
