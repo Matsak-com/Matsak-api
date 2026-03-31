@@ -97,7 +97,9 @@ export class CartService {
       userCart = await this.cartRepository.create({
         doc: { userId, items: sessionCart.items },
       });
-      await this.cartRepository.delete({ id: sessionCart._id as Types.ObjectId });
+      await this.cartRepository.delete({
+        id: sessionCart._id as Types.ObjectId,
+      });
       return userCart;
     }
 
@@ -198,4 +200,5 @@ export class CartService {
       update: { deleted_at: new Date() },
     });
   }
+
 }

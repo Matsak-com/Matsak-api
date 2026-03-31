@@ -99,7 +99,7 @@ export class MvolaApiService {
     const response = await firstValueFrom(
       this.httpService
         .post<MvolaTokenResponse>(
-          `${this.baseUrl}/oauth2/token`, // ← fix Copilot appliqué
+          `${this.baseUrl}/oauth2/token`,
           'grant_type=client_credentials',
           {
             headers: {
@@ -115,7 +115,7 @@ export class MvolaApiService {
               'Error OAuth Mvola',
               error.response?.data || error.message,
             );
-            throw new Error("Impossible d'obtenir le token Mvola"); // ← fix
+            throw new Error("Impossible d'obtenir le token Mvola");
           }),
         ),
     );
@@ -200,7 +200,7 @@ export class MvolaApiService {
               'Error POST merchantpay',
               error.response?.data || error.message,
             );
-            throw new Error("Erreur lors de l'initiation du paiement Mvola"); // ← fix
+            throw new Error("Erreur lors de l'initiation du paiement Mvola");
           }),
         ),
     );
@@ -259,7 +259,7 @@ export class MvolaApiService {
             );
             throw new Error(
               'Impossible de vérifier le statut de la transaction',
-            ); // ← fix
+            );
           }),
         ),
     );

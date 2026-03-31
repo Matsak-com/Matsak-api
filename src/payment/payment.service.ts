@@ -59,7 +59,8 @@ export class PaymentService {
 
   // ── 1. Initier un paiement Mvola ───────────────────────────────────────────
   async initiate(input: InitPaymentInput): Promise<Payment> {
-    const { cartId, userId, customerPhone, deliveryMethod, deliveryAddressId } = input;
+    const { cartId, userId, customerPhone, deliveryMethod, deliveryAddressId } =
+      input;
     let paymentId: string | null = null;
 
     try {
@@ -68,7 +69,8 @@ export class PaymentService {
         options: { populate: [{ path: 'items.product' }] },
       });
 
-      if (!cart || cart.deleted_at) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
+      if (!cart || cart.deleted_at)
+        throw new NotFoundException(ERRORS.CART_NOT_FOUND);
       if (!cart.items?.length) throw new BadRequestException(ERRORS.CART_EMPTY);
 
       if (deliveryMethod === DeliveryMethod.DELIVERY && !deliveryAddressId) {
@@ -78,11 +80,15 @@ export class PaymentService {
       let totalAmount = 0;
       for (const item of cart.items) {
         const product = item.product as any;
-        const pricing = this.productService.calculatePrice(product, item.quantity);
+        const pricing = this.productService.calculatePrice(
+          product,
+          item.quantity,
+        );
         totalAmount += pricing.totalPrice;
       }
 
-      if (totalAmount <= 0) throw new BadRequestException(ERRORS.INVALID_AMOUNT);
+      if (totalAmount <= 0)
+        throw new BadRequestException(ERRORS.INVALID_AMOUNT);
 
       const existingActive = await this.paymentRepo.findOne({
         filter: {
@@ -91,7 +97,8 @@ export class PaymentService {
         },
       });
 
-      if (existingActive) throw new BadRequestException(ERRORS.PAYMENT_ALREADY_IN_PROGRESS);
+      if (existingActive)
+        throw new BadRequestException(ERRORS.PAYMENT_ALREADY_IN_PROGRESS);
 
       const correlationId = uuidv4();
       const transactionReference = uuidv4();
@@ -140,15 +147,23 @@ export class PaymentService {
         try {
           await this.paymentRepo.update({
             id: paymentId,
-            update: { status: PaymentStatus.FAILED, failureReason: error.message },
+            update: {
+              status: PaymentStatus.FAILED,
+              failureReason: error.message,
+            },
           });
         } catch (cleanupError) {
-          this.logger.error(`Failed to rollback payment ${paymentId}`, cleanupError);
+          this.logger.error(
+            `Failed to rollback payment ${paymentId}`,
+            cleanupError,
+          );
         }
       }
 
       if ((error as any).code === 11000) {
-        const keyValue = (error as any)?.keyValue as Record<string, unknown> | undefined;
+        const keyValue = (error as any)?.keyValue as
+          | Record<string, unknown>
+          | undefined;
         const duplicateField = keyValue ? Object.keys(keyValue)[0] : 'unknown';
         const duplicateValue = keyValue?.[duplicateField];
 
@@ -159,7 +174,8 @@ export class PaymentService {
         );
 
         // Message client : précis selon le champ, sans exposer l'architecture interne
-        const clientMessage = this.resolveDuplicateClientMessage(duplicateField);
+        const clientMessage =
+          this.resolveDuplicateClientMessage(duplicateField);
         throw new BadRequestException(clientMessage);
       }
 
@@ -179,22 +195,34 @@ export class PaymentService {
       return;
     }
 
-    const payment = await this.paymentRepo.findOne({ filter: { serverCorrelationId } });
+    const payment = await this.paymentRepo.findOne({
+      filter: { serverCorrelationId },
+    });
 
     if (!payment) {
-      this.logger.warn(`Callback pour serverCorrelationId inconnu: ${serverCorrelationId}`);
+      this.logger.warn(
+        `Callback pour serverCorrelationId inconnu: ${serverCorrelationId}`,
+      );
       return;
     }
 
-    if ([PaymentStatus.SUCCESS, PaymentStatus.FAILED].includes(payment.status)) {
-      this.logger.warn(`Callback dupliqué ignoré — statut déjà: ${payment.status}`);
+    if (
+      [PaymentStatus.SUCCESS, PaymentStatus.FAILED].includes(payment.status)
+    ) {
+      this.logger.warn(
+        `Callback dupliqué ignoré — statut déjà: ${payment.status}`,
+      );
       return;
     }
 
     if (status !== 'COMPLETED') {
       await this.paymentRepo.update({
         id: payment._id.toString(),
-        update: { status: PaymentStatus.FAILED, mvolaResponse: callbackData, failureReason: status },
+        update: {
+          status: PaymentStatus.FAILED,
+          mvolaResponse: callbackData,
+          failureReason: status,
+        },
       });
       return;
     }
@@ -207,12 +235,18 @@ export class PaymentService {
     });
 
     if (!transitioned) {
-      this.logger.warn(`Payment ${payment._id} already transitioned (callback), skipping`);
+      this.logger.warn(
+        `Payment ${payment._id} already transitioned (callback), skipping`,
+      );
       return;
     }
 
     // transitionStatus a réussi → ce processus est le seul propriétaire
-    await this.runPostPaymentProcessing(payment._id.toString(), payment.cartId, payment.userId?.toString());
+    await this.runPostPaymentProcessing(
+      payment._id.toString(),
+      payment.cartId,
+      payment.userId?.toString(),
+    );
   }
 
   // ── 3. Polling ─────────────────────────────────────────────────────────────
@@ -221,7 +255,13 @@ export class PaymentService {
 
     if (!payment) throw new NotFoundException(ERRORS.PAYMENT_NOT_FOUND);
 
-    if ([PaymentStatus.SUCCESS, PaymentStatus.FAILED, PaymentStatus.EXPIRED].includes(payment.status)) {
+    if (
+      [
+        PaymentStatus.SUCCESS,
+        PaymentStatus.FAILED,
+        PaymentStatus.EXPIRED,
+      ].includes(payment.status)
+    ) {
       return payment;
     }
 
@@ -249,18 +289,26 @@ export class PaymentService {
         toStatus: newStatus,
         update: {
           mvolaResponse: mvolaStatus,
-          ...(newStatus === PaymentStatus.FAILED && { failureReason: mvolaStatus.status }),
+          ...(newStatus === PaymentStatus.FAILED && {
+            failureReason: mvolaStatus.status,
+          }),
         },
       });
 
       if (!transitioned) {
         // Un autre processus (callback) a déjà transitionné — pas de post-traitement ici
-        this.logger.warn(`Payment ${paymentId} already transitioned (poll), skipping`);
+        this.logger.warn(
+          `Payment ${paymentId} already transitioned (poll), skipping`,
+        );
         return this.paymentRepo.findById({ id: paymentId });
       }
 
       if (newStatus === PaymentStatus.SUCCESS) {
-        await this.runPostPaymentProcessing(paymentId, payment.cartId, payment.userId?.toString());
+        await this.runPostPaymentProcessing(
+          paymentId,
+          payment.cartId,
+          payment.userId?.toString(),
+        );
       }
     }
 
@@ -278,7 +326,7 @@ export class PaymentService {
 
       // Index partiel unique_active_payment_per_cart — un paiement
       // PENDING/WAITING existe déjà pour ce panier
-      'cartId_1_status_1': ERRORS.PAYMENT_ALREADY_IN_PROGRESS,
+      cartId_1_status_1: ERRORS.PAYMENT_ALREADY_IN_PROGRESS,
     };
 
     return messages[duplicateField] ?? ERRORS.PAYMENT_DUPLICATE;
@@ -294,7 +342,9 @@ export class PaymentService {
     userId?: string,
   ): Promise<void> {
     if (this.processingLocks.has(paymentId)) {
-      this.logger.warn(`Post-traitement déjà en cours pour ${paymentId} — ignoré`);
+      this.logger.warn(
+        `Post-traitement déjà en cours pour ${paymentId} — ignoré`,
+      );
       return;
     }
 
@@ -313,7 +363,10 @@ export class PaymentService {
       this.logger.log(`✅ Panier archivé pour paiement ${paymentId}`);
 
     } catch (error) {
-      this.logger.error(`❌ Échec post-traitement pour paiement ${paymentId}`, error);
+      this.logger.error(
+        `❌ Échec post-traitement pour paiement ${paymentId}`,
+        error,
+      );
     } finally {
       // Libérer le verrou après un délai court pour absorber
       // d'éventuels appels en double arrivant avec ≤ 500ms d'écart
@@ -327,11 +380,18 @@ export class PaymentService {
 
     if (!payment) throw new NotFoundException(ERRORS.PAYMENT_NOT_FOUND);
 
-    if (![PaymentStatus.PENDING, PaymentStatus.WAITING].includes(payment.status)) {
-      throw new BadRequestException('Seul un paiement en cours peut être marqué comme expiré');
+    if (
+      ![PaymentStatus.PENDING, PaymentStatus.WAITING].includes(payment.status)
+    ) {
+      throw new BadRequestException(
+        'Seul un paiement en cours peut être marqué comme expiré',
+      );
     }
 
-    await this.paymentRepo.update({ id: paymentId, update: { status: PaymentStatus.EXPIRED } });
+    await this.paymentRepo.update({
+      id: paymentId,
+      update: { status: PaymentStatus.EXPIRED },
+    });
     return this.paymentRepo.findById({ id: paymentId });
   }
 
@@ -352,13 +412,17 @@ export class PaymentService {
   async regenerateInvoice(paymentId: string): Promise<void> {
     const payment = await this.paymentRepo.findById({ id: paymentId });
 
-    if (!payment) throw new NotFoundException(`Paiement ${paymentId} introuvable`);
+    if (!payment)
+      throw new NotFoundException(`Paiement ${paymentId} introuvable`);
 
     if (payment.status !== PaymentStatus.SUCCESS) {
-      throw new BadRequestException('Impossible de créer une facture pour un paiement non réussi');
+      throw new BadRequestException(
+        'Impossible de créer une facture pour un paiement non réussi',
+      );
     }
 
-    const existingInvoice = await this.invoiceService.findByPaymentId(paymentId);
+    const existingInvoice =
+      await this.invoiceService.findByPaymentId(paymentId);
     if (existingInvoice) {
       throw new BadRequestException(
         `Une facture existe déjà pour ce paiement: ${existingInvoice.invoiceNumber}`,
@@ -369,7 +433,10 @@ export class PaymentService {
   }
 
   // ── Déduire le stock ──────────────────────────────────────────────────────
-  private async deductStockFromCart(cartId: Types.ObjectId, userId?: string): Promise<void> {
+  private async deductStockFromCart(
+    cartId: Types.ObjectId,
+    userId?: string,
+  ): Promise<void> {
     const cart = await this.cartRepo.findById({
       id: cartId,
       options: { populate: [{ path: 'items.product' }] },
@@ -392,7 +459,9 @@ export class PaymentService {
           userId,
         );
       } catch (error) {
-        this.logger.error(`❌ Échec déduction stock produit ${product._id}: ${error.message}`);
+        this.logger.error(
+          `❌ Échec déduction stock produit ${product._id}: ${error.message}`,
+        );
       }
     }
   }

@@ -47,7 +47,7 @@ export class InvoiceController {
     const invoice = await this.invoiceService.findOne(params.id);
 
     // Ownership : seul le propriétaire de la facture peut la consulter
-    if (invoice.customerId?.toString() !== req.user?.userId) {
+    if (invoice.userId !== req.user?.userId) {
       throw new ForbiddenException('Accès non autorisé à cette facture');
     }
 
@@ -56,10 +56,7 @@ export class InvoiceController {
 
   @UseGuards(JwtAuthGuard)
   @Get('customer/:customerId')
-  findByCustomer(
-    @Param() params: CustomerParamDto,
-    @Request() req: any,
-  ) {
+  findByCustomer(@Param() params: CustomerParamDto, @Request() req: any) {
     // Un utilisateur ne peut consulter que ses propres factures
     if (params.customerId !== req.user?.userId) {
       throw new ForbiddenException(
@@ -79,10 +76,8 @@ export class InvoiceController {
   ) {
     const invoice = await this.invoiceService.findOne(params.id);
 
-    if (invoice.customerId?.toString() !== req.user?.userId) {
-      throw new ForbiddenException(
-        'Vous ne pouvez pas modifier cette facture',
-      );
+    if (invoice.userId !== req.user?.userId) {
+      throw new ForbiddenException('Vous ne pouvez pas modifier cette facture');
     }
 
     // dto.status est typé InvoiceStatus — pas de cast `as any` nécessaire
@@ -94,7 +89,7 @@ export class InvoiceController {
   async remove(@Param() params: InvoiceParamDto, @Request() req: any) {
     const invoice = await this.invoiceService.findOne(params.id);
 
-    if (invoice.customerId?.toString() !== req.user?.userId) {
+    if (invoice.userId !== req.user?.userId) {
       throw new ForbiddenException(
         'Vous ne pouvez pas supprimer cette facture',
       );

@@ -28,9 +28,7 @@ export class PaymentMockController {
 
   @Post('confirm/:serverCorrelationId')
   @HttpCode(HttpStatus.OK)
-  mockConfirm(
-    @Param('serverCorrelationId') serverCorrelationId: string,
-  ) {
+  mockConfirm(@Param('serverCorrelationId') serverCorrelationId: string) {
     // Double vérification au cas où le module serait accidentellement chargé
     if (process.env.NODE_ENV === 'production') {
       throw new ForbiddenException('Route non disponible en production');

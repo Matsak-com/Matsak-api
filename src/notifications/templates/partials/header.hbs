@@ -1,3 +1,5 @@
 <div class="header">
-    <img src="{{platform.logoUrl}}" alt="Matsak" class="logo">
+  {{#if platform.logoCid}}
+    <img src="cid:{{platform.logoCid}}" alt="Matsak" class="logo">
+  {{/if}}
 </div>

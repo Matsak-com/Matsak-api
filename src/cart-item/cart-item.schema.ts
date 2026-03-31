@@ -99,3 +99,12 @@ CartSchema.index(
     expireAfterSeconds: 2592000,
   },
 );
+
+// ✅ Suppression automatique 24h après le soft delete
+CartSchema.index(
+  { deleted_at: 1 },
+  {
+    sparse: true, // ignore les documents où deleted_at n'existe pas
+    expireAfterSeconds: 86400, // 24h = 24 * 60 * 60
+  },
+);
