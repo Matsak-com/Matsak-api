@@ -47,7 +47,15 @@ export class InvoiceController {
 
   @UseGuards(JwtAuthGuard)
   @Get('team/:teamId')
-  findByTeam(@Param() params: TeamParamDto) {
+  findByTeam(@Param() params: TeamParamDto, @Request() req: any) {
+    const isAdmin =
+      req.user?.role === 'admin' || req.user?.roles?.includes('admin');
+
+    if (!isAdmin) {
+      throw new ForbiddenException(
+        "Vous n'êtes pas autorisé à consulter les factures de cette équipe",
+      );
+    }
     return this.invoiceService.findByTeam(params.teamId);
   }
 
