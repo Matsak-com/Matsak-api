@@ -106,6 +106,17 @@
       "privacy": "隐私政策",
       "terms": "服务条款",
       "autoEmailNotice": "此邮件为自动发送，请勿直接回复。"
+    },
+    "invoiceDeleted": {
+      "title": "发票已删除",
+      "greeting": "您好",
+      "body": "我们通知您以下发票已从我们的系统中删除。",
+      "invoiceNumber": "发票编号",
+      "amount": "金额",
+      "deletedOn": "删除日期",
+      "contact": "如果您认为这是一个错误，请联系我们的支持团队：",
+      "regards": "此致敬礼，"
     }
+
   }
 }

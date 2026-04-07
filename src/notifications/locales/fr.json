@@ -106,6 +106,16 @@
       "privacy": "Confidentialité",
       "terms": "Conditions",
       "autoEmailNotice": "Cet email a été envoyé automatiquement. Merci de ne pas y répondre."
+    },
+    "invoiceDeleted": {
+      "title": "Facture supprimée",
+      "greeting": "Bonjour",
+      "body": "Nous vous informons que la facture suivante a été supprimée de notre système.",
+      "invoiceNumber": "N° de facture",
+      "amount": "Montant",
+      "deletedOn": "Supprimée le",
+      "contact": "Si vous pensez qu'il s'agit d'une erreur, contactez notre support à",
+      "regards": "Cordialement,"
     }
   }
 }

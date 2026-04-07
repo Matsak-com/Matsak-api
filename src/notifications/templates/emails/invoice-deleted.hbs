@@ -1,0 +1,40 @@
+{{> header}}
+
+<div class="content">
+  <h2>{{t.title}}</h2>
+
+  <p class="greeting">{{t.greeting}} <strong>{{user.name}}</strong>,</p>
+
+  <p>{{t.body}}</p>
+
+  <!-- Bloc récapitulatif facture supprimée -->
+  <div class="important" style="border-left-color: #e74c3c; background-color: rgba(231,76,60,0.06);">
+    <table class="info-table" style="margin: 0;">
+      <tr>
+        <td class="info-label">{{t.invoiceNumber}}</td>
+        <td class="info-value meta-mono">{{invoice.number}}</td>
+      </tr>
+      <tr>
+        <td class="info-label">{{t.amount}}</td>
+        <td class="info-value">{{invoice.amount}} {{invoice.currency}}</td>
+      </tr>
+      <tr>
+        <td class="info-label">{{t.deletedOn}}</td>
+        <td class="info-value">{{invoice.deletedAt}}</td>
+      </tr>
+    </table>
+  </div>
+
+  <p>{{t.contact}}
+    <a href="mailto:{{platform.supportEmail}}" style="color:#e74c3c;">
+      {{platform.supportEmail}}
+    </a>.
+  </p>
+
+  <div class="signature">
+    <p>{{t.regards}}<br/><strong>{{platform.name}}</strong></p>
+  </div>
+</div>
+
+
+{{> footer}}

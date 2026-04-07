@@ -58,21 +58,26 @@ export class InvoiceService {
         const invoiceDoc = {
           payment: new Types.ObjectId(dto.paymentId),
           userId: payment.userId ?? undefined,
+          deliveryMethod: payment.deliveryMethod ?? DeliveryMethod.DELIVERY,
+          deliveryAddressId: payment.deliveryAddressId
+            ? new Types.ObjectId(payment.deliveryAddressId.toString())
+            : undefined,
           cartSnapshot: {
             cartId: cart._id,
             sessionId: cart.sessionId,
-          items: cart.items.map((item: any) => ({
-            product: {
-              _id: item.product._id,
-              name: item.product.detail?.name ?? item.product.name ?? 'Produit',
-              description: item.product.detail?.description ?? null,
-              team: item.product.team
-                ? { _id: item.product.team._id, name: item.product.team.name }
-                : null,
-            },
-            quantity: item.quantity,
-            price: item.product?.basePrice ?? 0,
-          })),
+            items: cart.items.map((item: any) => ({
+              product: {
+                _id: item.product._id,
+                name:
+                  item.product.detail?.name ?? item.product.name ?? 'Produit',
+                description: item.product.detail?.description ?? null,
+                team: item.product.team
+                  ? { _id: item.product.team._id, name: item.product.team.name }
+                  : null,
+              },
+              quantity: item.quantity,
+              price: item.product?.basePrice ?? 0,
+            })),
             snapshotAt: new Date(),
           },
           invoiceNumber,
@@ -322,7 +327,7 @@ export class InvoiceService {
   }
 
   // ─── Populate commun ──────────────────────────────────────────────────────
-    private get populateOptions() {
+  private get populateOptions() {
     return [
       {
         path: 'payment',
@@ -385,6 +390,20 @@ export class InvoiceService {
     return invoices.map((invoice) => this.formatInvoiceResponse(invoice));
   }
 
+  async findByTeam(teamId: string): Promise<any[]> {
+    const invoices = await this.invoiceRepo.findAll({
+      filter: {
+        'cartSnapshot.items.product.team._id': new Types.ObjectId(teamId),
+        deleted_at: { $exists: false },
+      },
+      options: { sort: { invoiceDate: -1 }, populate: this.populateOptions },
+    });
+
+    return invoices.map((invoice) =>
+      this.formatInvoiceResponseForTeam(invoice, teamId),
+    );
+  }
+
   private formatInvoiceResponse(invoice: any): any {
     const payment = invoice.payment as any;
     const user = payment?.userId as any;
@@ -400,6 +419,8 @@ export class InvoiceService {
       invoiceNumber: invoice.invoiceNumber,
       invoiceDate: invoice.invoiceDate,
       status: invoice.status,
+      deliveryMethod: invoice.deliveryMethod,
+      deliveryAddressId: invoice.deliveryAddressId,
       refundedAt: invoice.refundedAt,
       createdAt: invoice.createdAt,
       updatedAt: invoice.updatedAt,
@@ -433,10 +454,74 @@ export class InvoiceService {
     };
   }
 
+  private formatInvoiceResponseForTeam(invoice: any, teamId: string): any {
+    const base = this.formatInvoiceResponse(invoice);
+
+    const teamItems = (base.cart?.items ?? []).filter(
+      (item: any) => item.product?.team?._id?.toString() === teamId,
+    );
+
+    const subtotalRaw = teamItems.reduce(
+      (sum: number, item: any) =>
+        sum + (item.price ?? 0) * (item.quantity ?? 1),
+      0,
+    );
+
+    return {
+      ...base,
+      cart: {
+        ...base.cart,
+        items: teamItems,
+      },
+      teamSummary: {
+        teamId,
+        itemCount: teamItems.length,
+        subtotal: this.formatAmount(subtotalRaw),
+        subtotalRaw,
+      },
+    };
+  }
+
   async remove(id: string): Promise<void> {
-    const invoice = await this.invoiceRepo.findById({ id });
-    if (!invoice) throw new NotFoundException(`Facture ${id} introuvable`);
+    // Récupérer le document formaté AVANT le soft-delete
+    const fullInvoice = await this.findOne(id);
+
     await this.invoiceRepo.update({ id, update: { deleted_at: new Date() } });
-    this.logger.log(`Facture ${invoice.invoiceNumber} supprimée (soft delete)`);
+    this.logger.log(
+      `Facture ${fullInvoice.invoiceNumber} supprimée (soft delete)`,
+    );
+
+    const customerEmail = fullInvoice.customer?.email;
+    if (customerEmail) {
+      const deletedAt = new Date();
+      this.notificationService
+        .sendEmail({
+          to: customerEmail,
+          subject: `Suppression de la facture ${fullInvoice.invoiceNumber}`,
+          template: 'invoice-deleted',
+          locale: 'fr',
+          context: {
+            user: {
+              name: fullInvoice.customer?.name ?? 'Client',
+              email: customerEmail,
+            },
+            invoice: {
+              number: fullInvoice.invoiceNumber,
+              amount: this.formatAmount(fullInvoice.payment?.amount ?? 0),
+              currency: fullInvoice.payment?.currency?.toUpperCase() ?? 'MGA',
+              deletedAt: deletedAt.toLocaleDateString('fr-FR', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              }),
+            },
+          },
+        })
+        .catch((err) =>
+          this.logger.warn(
+            `Email suppression non envoyé pour ${fullInvoice.invoiceNumber}: ${err.message}`,
+          ),
+        );
+    }
   }
 }

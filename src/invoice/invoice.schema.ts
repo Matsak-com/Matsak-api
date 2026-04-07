@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { DeliveryMethod } from '../payment/payment.schema';
 
 export type InvoiceDocument = Invoice & Document;
 
@@ -9,9 +10,6 @@ export enum InvoiceStatus {
   CANCELLED = 'cancelled',
 }
 
-// ══════════════════════════════════════════════════════════════
-// SNAPSHOT DU CART - Copie immuable au moment du paiement
-// ══════════════════════════════════════════════════════════════
 export class CartItemProductSnapshot {
   _id: Types.ObjectId;
   name: string;
@@ -25,7 +23,7 @@ export class CartItemProductSnapshot {
 export class CartItemSnapshot {
   product: CartItemProductSnapshot;
   quantity: number;
-  price: number; // ← prix figé au moment du paiement
+  price: number;
 }
 
 export class CartSnapshot {
@@ -37,9 +35,6 @@ export class CartSnapshot {
 
 @Schema({ timestamps: true })
 export class Invoice {
-  // ══════════════════════════════════════════════════════════════
-  // RÉFÉRENCES
-  // ══════════════════════════════════════════════════════════════
   @Prop({
     type: Types.ObjectId,
     ref: 'Payment',
@@ -52,53 +47,55 @@ export class Invoice {
   @Prop({ type: Types.ObjectId, ref: 'User', required: false, index: true })
   userId?: Types.ObjectId;
 
-  // ══════════════════════════════════════════════════════════════
-  // SNAPSHOT DU CART (copie avant suppression)
-  // ══════════════════════════════════════════════════════════════
   @Prop({
-  type: {
-    cartId: { type: Types.ObjectId, required: true },
-    sessionId: { type: String },
-    items: [
-      {
-        product: {
-          type: {
-            _id: { type: Types.ObjectId, required: true },
-            name: { type: String, required: true },
-            description: { type: String },
-            team: {
-              type: {
-                _id: { type: Types.ObjectId },
-                name: { type: String },
+    type: {
+      cartId: { type: Types.ObjectId, required: true },
+      sessionId: { type: String },
+      items: [
+        {
+          product: {
+            type: {
+              _id: { type: Types.ObjectId, required: true },
+              name: { type: String, required: true },
+              description: { type: String },
+              team: {
+                type: {
+                  _id: { type: Types.ObjectId },
+                  name: { type: String },
+                },
               },
-              _id: false,
             },
           },
+          quantity: { type: Number, required: true, min: 1 },
+          price: { type: Number, required: true, min: 0 },
           _id: false,
         },
-        quantity: { type: Number, required: true, min: 1 },
-        price: { type: Number, required: true, min: 0 },
-        _id: false,
-      },
-    ],
-    snapshotAt: { type: Date, required: true },
-  },
-  required: true,
-  _id: false,
-})
-cartSnapshot: CartSnapshot;
-  // ══════════════════════════════════════════════════════════════
-  // FACTURE
-  // ══════════════════════════════════════════════════════════════
+      ],
+      snapshotAt: { type: Date, required: true },
+    },
+    required: true,
+    _id: false,
+  })
+  cartSnapshot: CartSnapshot;
+
   @Prop({ required: true, unique: true, index: true })
   invoiceNumber: string;
 
   @Prop({ required: true, default: () => new Date() })
   invoiceDate: Date;
 
-  // ══════════════════════════════════════════════════════════════
-  // STATUT
-  // ══════════════════════════════════════════════════════════════
+  // ── Livraison — copié depuis Payment au moment de la création ─────────────
+  @Prop({
+    type: String,
+    required: true,
+    enum: Object.values(DeliveryMethod),
+    default: DeliveryMethod.DELIVERY,
+  })
+  deliveryMethod: DeliveryMethod;
+
+  @Prop({ type: Types.ObjectId, ref: 'Address', required: false })
+  deliveryAddressId?: Types.ObjectId;
+
   @Prop({
     required: true,
     enum: Object.values(InvoiceStatus),
@@ -117,4 +114,5 @@ cartSnapshot: CartSnapshot;
 export const InvoiceSchema = SchemaFactory.createForClass(Invoice);
 
 InvoiceSchema.index({ userId: 1, invoiceDate: -1 });
-InvoiceSchema.index({ 'cartSnapshot.cartId': 1 }); // Retrouver une invoice depuis un cartId archivé
+InvoiceSchema.index({ 'cartSnapshot.cartId': 1 });
+InvoiceSchema.index({ 'cartSnapshot.items.product.team._id': 1 });

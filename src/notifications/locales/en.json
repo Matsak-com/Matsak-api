@@ -106,6 +106,16 @@
       "privacy": "Privacy",
       "terms": "Terms",
       "autoEmailNotice": "This email was sent from an automated system. Please do not reply."
+    }, 
+    "invoiceDeleted": {
+      "title": "Invoice deleted",
+      "greeting": "Hello",
+      "body": "We are letting you know that the following invoice has been deleted from our system.",
+      "invoiceNumber": "Invoice no.",
+      "amount": "Amount",
+      "deletedOn": "Deleted on",
+      "contact": "If you believe this is an error, please contact our support at",
+      "regards": "Best regards,"
     }
   }
 }

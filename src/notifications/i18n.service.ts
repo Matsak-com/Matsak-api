@@ -74,8 +74,7 @@ export class I18nService {
     interpolation?: Record<string, any>,
   ): string {
     // Walk the pre-loaded resource tree directly.
-    const value = this.resolveKey(key, locale)
-      ?? this.resolveKey(key, 'en'); // fallback to English
+    const value = this.resolveKey(key, locale) ?? this.resolveKey(key, 'en'); // fallback to English
 
     if (typeof value !== 'string') return '';
 
