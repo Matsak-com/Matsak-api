@@ -47,9 +47,7 @@ export class InvoiceController {
 
   @UseGuards(JwtAuthGuard)
   @Get('team/:teamId')
-  findByTeam(@Param() params: TeamParamDto, @Request() req: any) {
-    // TODO: vérifier que req.user appartient bien à cette team
-    // ex: if (!req.user.teams.includes(params.teamId)) throw new ForbiddenException(...)
+  findByTeam(@Param() params: TeamParamDto) {
     return this.invoiceService.findByTeam(params.teamId);
   }
 

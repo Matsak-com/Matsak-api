@@ -361,7 +361,6 @@ export class PaymentService {
 
       await this.cartService.softDeleteCartById(cartId);
       this.logger.log(`✅ Panier archivé pour paiement ${paymentId}`);
-
     } catch (error) {
       this.logger.error(
         `❌ Échec post-traitement pour paiement ${paymentId}`,

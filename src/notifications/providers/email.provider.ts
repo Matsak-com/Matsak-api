@@ -142,9 +142,7 @@ export class EmailProvider implements IEmailProvider {
     }
 
     // Warn une seule fois — les appels suivants retournent null directement
-    this.logger.warn(
-      'Logo file not found, emails will be sent without logo',
-    );
+    this.logger.warn('Logo file not found, emails will be sent without logo');
     this.logoAttachmentCache = null;
     return null;
   }

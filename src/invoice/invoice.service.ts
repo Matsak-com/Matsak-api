@@ -56,33 +56,34 @@ export class InvoiceService {
         const cart = payment.cartId as any;
 
         const invoiceDoc = {
-        payment: new Types.ObjectId(dto.paymentId),
-        userId: payment.userId ?? undefined,
-        deliveryMethod: payment.deliveryMethod ?? DeliveryMethod.DELIVERY,
-        deliveryAddressId: payment.deliveryAddressId
-          ? new Types.ObjectId(payment.deliveryAddressId.toString())
-          : undefined,
-        cartSnapshot: {
-          cartId: cart._id,
-          sessionId: cart.sessionId,
-          items: cart.items.map((item: any) => ({
-            product: {
-              _id: item.product._id,
-              name: item.product.detail?.name ?? item.product.name ?? 'Produit',
-              description: item.product.detail?.description ?? null,
-              team: item.product.team
-                ? { _id: item.product.team._id, name: item.product.team.name }
-                : null,
-            },
-            quantity: item.quantity,
-            price: item.product?.basePrice ?? 0,
-          })),
-          snapshotAt: new Date(),
-        },
-        invoiceNumber,
-        status: InvoiceStatus.PAID,
-        invoiceDate: new Date(),
-      };
+          payment: new Types.ObjectId(dto.paymentId),
+          userId: payment.userId ?? undefined,
+          deliveryMethod: payment.deliveryMethod ?? DeliveryMethod.DELIVERY,
+          deliveryAddressId: payment.deliveryAddressId
+            ? new Types.ObjectId(payment.deliveryAddressId.toString())
+            : undefined,
+          cartSnapshot: {
+            cartId: cart._id,
+            sessionId: cart.sessionId,
+            items: cart.items.map((item: any) => ({
+              product: {
+                _id: item.product._id,
+                name:
+                  item.product.detail?.name ?? item.product.name ?? 'Produit',
+                description: item.product.detail?.description ?? null,
+                team: item.product.team
+                  ? { _id: item.product.team._id, name: item.product.team.name }
+                  : null,
+              },
+              quantity: item.quantity,
+              price: item.product?.basePrice ?? 0,
+            })),
+            snapshotAt: new Date(),
+          },
+          invoiceNumber,
+          status: InvoiceStatus.PAID,
+          invoiceDate: new Date(),
+        };
 
         const invoice = await this.invoiceRepo.create({ doc: invoiceDoc });
         this.logger.log(`✅ Facture ${invoiceNumber} créée avec succès`);
@@ -326,7 +327,7 @@ export class InvoiceService {
   }
 
   // ─── Populate commun ──────────────────────────────────────────────────────
-    private get populateOptions() {
+  private get populateOptions() {
     return [
       {
         path: 'payment',
@@ -412,45 +413,45 @@ export class InvoiceService {
       ? invoice.cartSnapshot.items
       : ((payment?.cartId as any)?.items ?? []);
 
-      return {
-        _id: invoice._id,
-        userId: invoice.userId?.toString() ?? payment?.userId?._id?.toString(),
-        invoiceNumber: invoice.invoiceNumber,
-        invoiceDate: invoice.invoiceDate,
-        status: invoice.status,
-        deliveryMethod: invoice.deliveryMethod,         
-        deliveryAddressId: invoice.deliveryAddressId,   
-        refundedAt: invoice.refundedAt,
-        createdAt: invoice.createdAt,
-        updatedAt: invoice.updatedAt,
-        payment: {
-          _id: payment._id,
-          method: payment.method,
-          amount: payment.amount,
-          currency: payment.currency,
-          status: payment.status,
-          deliveryMethod: payment.deliveryMethod,
-          deliveryAddressId: payment.deliveryAddressId,
-          correlationId: payment.correlationId,
-          customerPhone: payment.customerPhone,
-          transactionReference: payment.transactionReference,
-          serverCorrelationId: payment.serverCorrelationId,
-          mvolaResponse: payment.mvolaResponse,
-          createdAt: payment.createdAt,
-          updatedAt: payment.updatedAt,
-        },
-        cart: {
-          _id: invoice.cartSnapshot?.cartId ?? (payment?.cartId as any)?._id,
-          items: cartItems,
-        },
-        customer: user
-          ? {
-              name: user.name,
-              email: user.email,
-              defaultShippingAddress: defaultAddress || null,
-            }
-          : null,
-      };
+    return {
+      _id: invoice._id,
+      userId: invoice.userId?.toString() ?? payment?.userId?._id?.toString(),
+      invoiceNumber: invoice.invoiceNumber,
+      invoiceDate: invoice.invoiceDate,
+      status: invoice.status,
+      deliveryMethod: invoice.deliveryMethod,
+      deliveryAddressId: invoice.deliveryAddressId,
+      refundedAt: invoice.refundedAt,
+      createdAt: invoice.createdAt,
+      updatedAt: invoice.updatedAt,
+      payment: {
+        _id: payment._id,
+        method: payment.method,
+        amount: payment.amount,
+        currency: payment.currency,
+        status: payment.status,
+        deliveryMethod: payment.deliveryMethod,
+        deliveryAddressId: payment.deliveryAddressId,
+        correlationId: payment.correlationId,
+        customerPhone: payment.customerPhone,
+        transactionReference: payment.transactionReference,
+        serverCorrelationId: payment.serverCorrelationId,
+        mvolaResponse: payment.mvolaResponse,
+        createdAt: payment.createdAt,
+        updatedAt: payment.updatedAt,
+      },
+      cart: {
+        _id: invoice.cartSnapshot?.cartId ?? (payment?.cartId as any)?._id,
+        items: cartItems,
+      },
+      customer: user
+        ? {
+            name: user.name,
+            email: user.email,
+            defaultShippingAddress: defaultAddress || null,
+          }
+        : null,
+    };
   }
 
   private formatInvoiceResponseForTeam(invoice: any, teamId: string): any {
@@ -461,7 +462,8 @@ export class InvoiceService {
     );
 
     const subtotalRaw = teamItems.reduce(
-      (sum: number, item: any) => sum + (item.price ?? 0) * (item.quantity ?? 1),
+      (sum: number, item: any) =>
+        sum + (item.price ?? 0) * (item.quantity ?? 1),
       0,
     );
 
@@ -479,13 +481,15 @@ export class InvoiceService {
       },
     };
   }
-  
+
   async remove(id: string): Promise<void> {
     // Récupérer le document formaté AVANT le soft-delete
     const fullInvoice = await this.findOne(id);
 
     await this.invoiceRepo.update({ id, update: { deleted_at: new Date() } });
-    this.logger.log(`Facture ${fullInvoice.invoiceNumber} supprimée (soft delete)`);
+    this.logger.log(
+      `Facture ${fullInvoice.invoiceNumber} supprimée (soft delete)`,
+    );
 
     const customerEmail = fullInvoice.customer?.email;
     if (customerEmail) {
