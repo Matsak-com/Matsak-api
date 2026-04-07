@@ -12,6 +12,7 @@ import { Cart } from '../cart-item/cart-item.schema';
 describe('InvoiceService', () => {
   let service: InvoiceService;
   let invoiceRepo: jest.Mocked<InvoiceRepository>;
+  let notificationService: jest.Mocked<NotificationService>;
 
   const mockPaymentId = new Types.ObjectId('507f1f77bcf86cd799439011');
   const mockUserId = new Types.ObjectId('507f1f77bcf86cd799439012');
@@ -118,6 +119,7 @@ describe('InvoiceService', () => {
 
     service = module.get<InvoiceService>(InvoiceService);
     invoiceRepo = module.get(InvoiceRepository);
+    notificationService = module.get(NotificationService);
   });
 
   // ─── createInvoiceFromPayment ─────────────────────────────────────────────
@@ -445,9 +447,9 @@ describe('InvoiceService', () => {
 
   describe('remove', () => {
     it('should soft delete invoice', async () => {
-      invoiceRepo.findById.mockResolvedValue(mockInvoice as any);
+      invoiceRepo.findById.mockResolvedValue(mockPopulatedInvoice as any);
       invoiceRepo.update.mockResolvedValue({
-        ...mockInvoice,
+        ...mockPopulatedInvoice,
         deleted_at: new Date(),
       } as any);
 
@@ -455,6 +457,7 @@ describe('InvoiceService', () => {
 
       expect(invoiceRepo.findById).toHaveBeenCalledWith({
         id: mockInvoice._id.toString(),
+        options: expect.objectContaining({ populate: expect.any(Array) }),
       });
       expect(invoiceRepo.update).toHaveBeenCalledWith({
         id: mockInvoice._id.toString(),
@@ -468,6 +471,62 @@ describe('InvoiceService', () => {
       await expect(service.remove(mockInvoice._id.toString())).rejects.toThrow(
         NotFoundException,
       );
+    });
+
+    it('should send deletion email when customer has email', async () => {
+      invoiceRepo.findById.mockResolvedValue(mockPopulatedInvoice as any);
+      invoiceRepo.update.mockResolvedValue({
+        ...mockPopulatedInvoice,
+        deleted_at: new Date(),
+      } as any);
+
+      await service.remove(mockInvoice._id.toString());
+
+      // L'email est fire-and-forget, on attend la résolution des promises pendantes
+      await Promise.resolve();
+
+      expect(notificationService.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'john@example.com',
+          template: 'invoice-deleted',
+          locale: 'fr',
+          context: expect.objectContaining({
+            user: expect.objectContaining({
+              name: 'John Doe',
+              email: 'john@example.com',
+            }),
+            invoice: expect.objectContaining({
+              number: 'INV-2024-001',
+              currency: 'MGA',
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('should not send email when customer has no email', async () => {
+      const invoiceWithoutEmail = {
+        ...mockPopulatedInvoice,
+        payment: {
+          ...mockPopulatedInvoice.payment,
+          userId: {
+            ...mockPopulatedInvoice.payment.userId,
+            email: null,
+          },
+        },
+      };
+
+      invoiceRepo.findById.mockResolvedValue(invoiceWithoutEmail as any);
+      invoiceRepo.update.mockResolvedValue({
+        ...invoiceWithoutEmail,
+        deleted_at: new Date(),
+      } as any);
+
+      await service.remove(mockInvoice._id.toString());
+
+      await Promise.resolve();
+
+      expect(notificationService.sendEmail).not.toHaveBeenCalled();
     });
   });
 });

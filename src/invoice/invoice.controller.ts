@@ -33,38 +33,45 @@ class CustomerParamDto {
   customerId: string;
 }
 
-// ValidationPipe activé au niveau controller pour valider DTOs et params.
-// Si vous avez déjà un ValidationPipe global dans main.ts, ce decorator
-// est redondant mais inoffensif — vous pouvez le retirer.
+class TeamParamDto {
+  @IsMongoId({ message: 'teamId doit être un ObjectId valide' })
+  teamId: string;
+}
+
 @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
 @Controller('invoices')
 export class InvoiceController {
   constructor(private readonly invoiceService: InvoiceService) {}
 
+  // ⚠️ Routes statiques AVANT les routes dynamiques `:id`
+
   @UseGuards(JwtAuthGuard)
-  @Get(':id')
-  async findOne(@Param() params: InvoiceParamDto, @Request() req: any) {
-    const invoice = await this.invoiceService.findOne(params.id);
-
-    // Ownership : seul le propriétaire de la facture peut la consulter
-    if (invoice.userId !== req.user?.userId) {
-      throw new ForbiddenException('Accès non autorisé à cette facture');
-    }
-
-    return invoice;
+  @Get('team/:teamId')
+  findByTeam(@Param() params: TeamParamDto, @Request() req: any) {
+    // TODO: vérifier que req.user appartient bien à cette team
+    // ex: if (!req.user.teams.includes(params.teamId)) throw new ForbiddenException(...)
+    return this.invoiceService.findByTeam(params.teamId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('customer/:customerId')
   findByCustomer(@Param() params: CustomerParamDto, @Request() req: any) {
-    // Un utilisateur ne peut consulter que ses propres factures
     if (params.customerId !== req.user?.userId) {
       throw new ForbiddenException(
         'Vous ne pouvez consulter que vos propres factures',
       );
     }
-
     return this.invoiceService.findByCustomer(params.customerId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id')
+  async findOne(@Param() params: InvoiceParamDto, @Request() req: any) {
+    const invoice = await this.invoiceService.findOne(params.id);
+    if (invoice.userId !== req.user?.userId) {
+      throw new ForbiddenException('Accès non autorisé à cette facture');
+    }
+    return invoice;
   }
 
   @UseGuards(JwtAuthGuard)
@@ -75,24 +82,25 @@ export class InvoiceController {
     @Request() req: any,
   ) {
     const invoice = await this.invoiceService.findOne(params.id);
-
     if (invoice.userId !== req.user?.userId) {
       throw new ForbiddenException('Vous ne pouvez pas modifier cette facture');
     }
-
-    // dto.status est typé InvoiceStatus — pas de cast `as any` nécessaire
     return this.invoiceService.updateStatus(params.id, dto.status);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async remove(@Param() params: InvoiceParamDto, @Request() req: any) {
-    const invoice = await this.invoiceService.findOne(params.id);
+    const isAdmin =
+      req.user?.role === 'admin' || req.user?.roles?.includes('admin');
 
-    if (invoice.userId !== req.user?.userId) {
-      throw new ForbiddenException(
-        'Vous ne pouvez pas supprimer cette facture',
-      );
+    if (!isAdmin) {
+      const invoice = await this.invoiceService.findOne(params.id);
+      if (invoice.userId !== req.user?.userId) {
+        throw new ForbiddenException(
+          'Vous ne pouvez pas supprimer cette facture',
+        );
+      }
     }
 
     return this.invoiceService.remove(params.id);
