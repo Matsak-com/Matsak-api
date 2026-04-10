@@ -7,9 +7,14 @@ import { NotificationService } from '../notifications/notification.service';
 import { Payment } from '../payment/payment.schema';
 import * as QRCode from 'qrcode';
 import { DeliveryMethod } from '../payment/payment.schema';
+import { PricingService, DEFAULT_CURRENCY } from '../pricing/pricing.service';
 
 interface CreateInvoiceFromPaymentDto {
   paymentId: string;
+  /** Optional promo code to apply */
+  promoCode?: string;
+  /** Target display currency — defaults to MGA */
+  currency?: string;
 }
 
 interface CidAttachment {
@@ -28,6 +33,7 @@ export class InvoiceService {
     private readonly invoiceRepo: InvoiceRepository,
     private readonly notificationService: NotificationService,
     @InjectModel(Payment.name) private readonly paymentModel: Model<Payment>,
+    private readonly pricingService: PricingService,
   ) {}
 
   async createInvoiceFromPayment(
@@ -55,6 +61,40 @@ export class InvoiceService {
 
         const cart = payment.cartId as any;
 
+        // Compute cart subtotal in EUR (sum of basePrice × qty)
+        const cartSubtotalEur = (cart.items as any[]).reduce(
+          (sum: number, item: any) =>
+            sum + (item.product?.basePrice ?? 0) * (item.quantity ?? 1),
+          0,
+        );
+
+        // Determine team from first item (all items belong to same team typically)
+        const teamId: string | null =
+          cart.items?.[0]?.product?.team?._id?.toString() ?? null;
+
+        const currency = dto.currency ?? DEFAULT_CURRENCY;
+
+        // Calculate full pricing summary (rates, surcharges, promo)
+        const pricing = await this.pricingService.calculateTotal({
+          cartSubtotalEur,
+          teamId,
+          promoCode: dto.promoCode ?? null,
+          currency,
+          deliveryMethod: payment.deliveryMethod ?? 'delivery',
+        });
+
+        // Redeem promo code atomically (fire only if provided and valid)
+        if (dto.promoCode && pricing.promoCodeSnapshot) {
+          await this.pricingService
+            .redeemPromoCode(dto.promoCode, cartSubtotalEur, teamId ?? undefined)
+            .catch((err) =>
+              this.logger.error(
+                `Promo redemption failed for ${dto.promoCode}`,
+                err.message,
+              ),
+            );
+        }
+
         const invoiceDoc = {
           payment: new Types.ObjectId(dto.paymentId),
           userId: payment.userId ?? undefined,
@@ -78,6 +118,20 @@ export class InvoiceService {
           invoiceNumber,
           status: InvoiceStatus.PAID,
           invoiceDate: new Date(),
+          // ── Pricing snapshot ───────────────────────────────────
+          currency: pricing.currency,
+          exchangeRate: pricing.exchangeRate,
+          exchangeRateSnapshotAt: pricing.exchangeRateSnapshotAt,
+          subtotalEur: pricing.subtotalEur,
+          subtotalLocal: pricing.subtotalLocal,
+          pricingLines: pricing.pricingLines,
+          surchargesTotalEur: pricing.surchargesTotalEur,
+          surchargesTotalLocal: pricing.surchargesTotalLocal,
+          discountEur: pricing.discountEur,
+          discountLocal: pricing.discountLocal,
+          promoCodeSnapshot: pricing.promoCodeSnapshot,
+          totalEur: pricing.totalEur,
+          totalLocal: pricing.totalLocal,
         };
 
         const invoice = await this.invoiceRepo.create({ doc: invoiceDoc });

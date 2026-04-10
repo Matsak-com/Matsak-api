@@ -9,6 +9,7 @@ import { Counter, CounterSchema } from './counter.schema';
 import { NotificationModule } from '../notifications/notification.module';
 import { Cart, CartSchema } from 'src/cart-item/cart-item.schema';
 import { Payment, PaymentSchema } from 'src/payment/payment.schema';
+import { PricingModule } from '../pricing/pricing.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { Payment, PaymentSchema } from 'src/payment/payment.schema';
     ]),
     ProductModule,
     NotificationModule,
+    PricingModule,
   ],
   controllers: [InvoiceController],
   providers: [InvoiceService, InvoiceRepository],

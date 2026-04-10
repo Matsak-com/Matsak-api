@@ -31,6 +31,8 @@ import { InvoiceModule } from './invoice/invoice.module';
 import { CookieConsentController } from './cookie-consent/cookie-consent.controller';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ContactModule } from './contact/contact.module';
+import { PricingModule } from './pricing/pricing.module';
+import { CurrencyModule } from './currency/currency.module';
 import Redis from 'ioredis';
 import { ThrottlerStorageRedisService } from './throttler/throttler.storage';
 import { RedisService } from './common/providers/redis.provider';
@@ -111,6 +113,8 @@ export function getRedisConfig() {
     PaymentModule,
     InvoiceModule,
     ContactModule,
+    PricingModule,
+    CurrencyModule,
   ],
   controllers: [AppController, CookieConsentController],
   providers: [
