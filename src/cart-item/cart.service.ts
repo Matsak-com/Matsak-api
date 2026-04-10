@@ -200,5 +200,4 @@ export class CartService {
       update: { deleted_at: new Date() },
     });
   }
-
 }

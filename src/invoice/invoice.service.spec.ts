@@ -12,6 +12,7 @@ import { Cart } from '../cart-item/cart-item.schema';
 describe('InvoiceService', () => {
   let service: InvoiceService;
   let invoiceRepo: jest.Mocked<InvoiceRepository>;
+  let notificationService: jest.Mocked<NotificationService>;
 
   const mockPaymentId = new Types.ObjectId('507f1f77bcf86cd799439011');
   const mockUserId = new Types.ObjectId('507f1f77bcf86cd799439012');
@@ -118,6 +119,7 @@ describe('InvoiceService', () => {
 
     service = module.get<InvoiceService>(InvoiceService);
     invoiceRepo = module.get(InvoiceRepository);
+    notificationService = module.get(NotificationService);
   });
 
   // ─── createInvoiceFromPayment ─────────────────────────────────────────────
@@ -445,9 +447,9 @@ describe('InvoiceService', () => {
 
   describe('remove', () => {
     it('should soft delete invoice', async () => {
-      invoiceRepo.findById.mockResolvedValue(mockInvoice as any);
+      invoiceRepo.findById.mockResolvedValue(mockPopulatedInvoice as any);
       invoiceRepo.update.mockResolvedValue({
-        ...mockInvoice,
+        ...mockPopulatedInvoice,
         deleted_at: new Date(),
       } as any);
 
@@ -455,6 +457,7 @@ describe('InvoiceService', () => {
 
       expect(invoiceRepo.findById).toHaveBeenCalledWith({
         id: mockInvoice._id.toString(),
+        options: expect.objectContaining({ populate: expect.any(Array) }),
       });
       expect(invoiceRepo.update).toHaveBeenCalledWith({
         id: mockInvoice._id.toString(),
@@ -468,6 +471,185 @@ describe('InvoiceService', () => {
       await expect(service.remove(mockInvoice._id.toString())).rejects.toThrow(
         NotFoundException,
       );
+    });
+
+    it('should send deletion email when customer has email', async () => {
+      invoiceRepo.findById.mockResolvedValue(mockPopulatedInvoice as any);
+      invoiceRepo.update.mockResolvedValue({
+        ...mockPopulatedInvoice,
+        deleted_at: new Date(),
+      } as any);
+
+      await service.remove(mockInvoice._id.toString());
+
+      // L'email est fire-and-forget, on attend la résolution des promises pendantes
+      await Promise.resolve();
+
+      expect(notificationService.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'john@example.com',
+          template: 'invoice-deleted',
+          locale: 'fr',
+          context: expect.objectContaining({
+            user: expect.objectContaining({
+              name: 'John Doe',
+              email: 'john@example.com',
+            }),
+            invoice: expect.objectContaining({
+              number: 'INV-2024-001',
+              currency: 'MGA',
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('should not send email when customer has no email', async () => {
+      const invoiceWithoutEmail = {
+        ...mockPopulatedInvoice,
+        payment: {
+          ...mockPopulatedInvoice.payment,
+          userId: {
+            ...mockPopulatedInvoice.payment.userId,
+            email: null,
+          },
+        },
+      };
+
+      invoiceRepo.findById.mockResolvedValue(invoiceWithoutEmail as any);
+      invoiceRepo.update.mockResolvedValue({
+        ...invoiceWithoutEmail,
+        deleted_at: new Date(),
+      } as any);
+
+      await service.remove(mockInvoice._id.toString());
+
+      await Promise.resolve();
+
+      expect(notificationService.sendEmail).not.toHaveBeenCalled();
+    });
+  });
+  
+  // ─── findByTeam ───────────────────────────────────────────────────────────
+  describe('findByTeam', () => {
+    const mockTeamId = new Types.ObjectId('507f1f77bcf86cd799439099');
+
+    const mockInvoiceWithTeam = {
+      ...mockPopulatedInvoice,
+      cartSnapshot: {
+        cartId: mockCartId,
+        sessionId: 'session-123',
+        snapshotAt: new Date('2024-01-15'),
+        items: [
+          {
+            product: {
+              _id: new Types.ObjectId(),
+              name: 'Produit équipe A',
+              description: 'Desc A',
+              team: { _id: mockTeamId, name: 'Équipe A' },
+            },
+            quantity: 2,
+            price: 15000,
+          },
+          {
+            product: {
+              _id: new Types.ObjectId(),
+              name: 'Produit autre équipe',
+              description: 'Desc B',
+              team: { _id: new Types.ObjectId(), name: 'Équipe B' },
+            },
+            quantity: 1,
+            price: 10000,
+          },
+        ],
+      },
+    };
+
+    it('should query repository with correct team filter and exclude soft-deleted', async () => {
+      invoiceRepo.findAll.mockResolvedValue([mockInvoiceWithTeam] as any);
+
+      await service.findByTeam(mockTeamId.toString());
+
+      expect(invoiceRepo.findAll).toHaveBeenCalledWith({
+        filter: {
+          'cartSnapshot.items.product.team._id': expect.any(Types.ObjectId),
+          deleted_at: { $exists: false },
+        },
+        options: expect.objectContaining({
+          sort: { invoiceDate: -1 },
+          populate: expect.any(Array),
+        }),
+      });
+
+      const callFilter = invoiceRepo.findAll.mock.calls[0][0].filter;
+      expect(
+        callFilter['cartSnapshot.items.product.team._id'].toString(),
+      ).toBe(mockTeamId.toString());
+    });
+
+    it('should return only items belonging to the requested team', async () => {
+      invoiceRepo.findAll.mockResolvedValue([mockInvoiceWithTeam] as any);
+
+      const result = await service.findByTeam(mockTeamId.toString());
+
+      expect(result).toHaveLength(1);
+      const teamItems = result[0].cart.items;
+      expect(teamItems).toHaveLength(1);
+      expect(teamItems[0].product.team._id.toString()).toBe(
+        mockTeamId.toString(),
+      );
+      expect(teamItems[0].product.name).toBe('Produit équipe A');
+    });
+
+    it('should include a correct teamSummary with subtotal and itemCount', async () => {
+      invoiceRepo.findAll.mockResolvedValue([mockInvoiceWithTeam] as any);
+
+      const result = await service.findByTeam(mockTeamId.toString());
+
+      expect(result[0].teamSummary).toBeDefined();
+      expect(result[0].teamSummary.teamId).toBe(mockTeamId.toString());
+      // 2 items × 15 000 Ar = 30 000 Ar
+      expect(result[0].teamSummary.subtotalRaw).toBe(30000);
+      expect(result[0].teamSummary.itemCount).toBe(1);
+      expect(result[0].teamSummary.subtotal).toBe('30\u202f000'); // formatage fr-FR
+    });
+
+    it('should return empty array when no invoices match the team', async () => {
+      invoiceRepo.findAll.mockResolvedValue([]);
+
+      const result = await service.findByTeam(mockTeamId.toString());
+
+      expect(result).toEqual([]);
+    });
+
+    it('should return teamSummary with zero subtotal when team has no matching items', async () => {
+      // Facture dont aucun item n'appartient à mockTeamId (cas incohérent en prod,
+      // mais le service doit le gérer proprement)
+      const invoiceNoMatchingItems = {
+        ...mockPopulatedInvoice,
+        cartSnapshot: {
+          ...mockPopulatedInvoice.cartSnapshot,
+          items: [
+            {
+              product: {
+                _id: new Types.ObjectId(),
+                name: 'Produit autre équipe',
+                team: { _id: new Types.ObjectId(), name: 'Équipe B' },
+              },
+              quantity: 3,
+              price: 5000,
+            },
+          ],
+        },
+      };
+
+      invoiceRepo.findAll.mockResolvedValue([invoiceNoMatchingItems] as any);
+
+      const result = await service.findByTeam(mockTeamId.toString());
+
+      expect(result[0].teamSummary.itemCount).toBe(0);
+      expect(result[0].teamSummary.subtotalRaw).toBe(0);
+      expect(result[0].cart.items).toHaveLength(0);
     });
   });
 });
