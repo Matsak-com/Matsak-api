@@ -9,7 +9,6 @@ import {
   IsMongoId,
   Matches,
   Min,
-  Max,
 } from 'class-validator';
 import { DiscountType } from '../schemas/promo-code.schema';
 

@@ -9,7 +9,6 @@ import {
   IsMongoId,
   Min,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
 import { PricingRuleType } from '../schemas/pricing-rule.schema';
 
 export class CreatePricingRuleDto {
