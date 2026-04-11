@@ -17,6 +17,7 @@ import {
 } from '@nestjs/common';
 import { IsMongoId } from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Public } from '../auth/decorator/public.decorator';
 import { UserRole } from '../users/user.schema';
 import { PricingService } from './pricing.service';
 import {
@@ -136,11 +137,13 @@ export class PricingController {
   // TOTAL PREVIEW (for frontend cart summary)
   // ══════════════════════════════════════════════════════════
 
+  @Public()
   @Post('calculate')
   calculateTotal(
     @Body()
     body: {
       cartSubtotalEur: number;
+      currentCurrency?: string;
       teamId?: string;
       promoCode?: string;
       currency?: string;

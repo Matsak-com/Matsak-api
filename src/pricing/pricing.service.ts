@@ -122,10 +122,7 @@ export class PricingService {
     return this.pricingRuleRepo.findAll({
       filter: teamId
         ? {
-            $or: [
-              { teamId: new Types.ObjectId(teamId) },
-              { teamId: null },
-            ],
+            $or: [{ teamId: new Types.ObjectId(teamId) }, { teamId: null }],
           }
         : {},
       options: { sort: { type: 1, createdAt: -1 } },
@@ -180,12 +177,12 @@ export class PricingService {
     const update: Record<string, any> = {};
     if (dto.description !== undefined) update.description = dto.description;
     if (dto.discountType !== undefined) update.discountType = dto.discountType;
-    if (dto.discountValue !== undefined) update.discountValue = dto.discountValue;
+    if (dto.discountValue !== undefined)
+      update.discountValue = dto.discountValue;
     if (dto.minOrderAmountEur !== undefined)
       update.minOrderAmountEur = dto.minOrderAmountEur;
     if (dto.maxUses !== undefined) update.maxUses = dto.maxUses;
-    if (dto.validFrom !== undefined)
-      update.validFrom = new Date(dto.validFrom);
+    if (dto.validFrom !== undefined) update.validFrom = new Date(dto.validFrom);
     if (dto.validUntil !== undefined)
       update.validUntil = new Date(dto.validUntil);
     if (dto.isActive !== undefined) update.isActive = dto.isActive;
@@ -203,10 +200,7 @@ export class PricingService {
     return this.promoCodeRepo.findAll({
       filter: teamId
         ? {
-            $or: [
-              { teamId: new Types.ObjectId(teamId) },
-              { teamId: null },
-            ],
+            $or: [{ teamId: new Types.ObjectId(teamId) }, { teamId: null }],
           }
         : {},
       options: { sort: { createdAt: -1 }, populate: { path: 'teamId' } },
@@ -217,7 +211,9 @@ export class PricingService {
    * Validate a promo code without redeeming it.
    * Returns the promo or throws with a descriptive error.
    */
-  async validatePromoCode(dto: ValidatePromoCodeDto): Promise<PromoCodeDocument> {
+  async validatePromoCode(
+    dto: ValidatePromoCodeDto,
+  ): Promise<PromoCodeDocument> {
     const promo = await this.promoCodeRepo.findByCode(dto.code);
     if (!promo) throw new NotFoundException(`Promo code not found`);
 
@@ -239,7 +235,9 @@ export class PricingService {
 
     this.assertPromoUsable(promo, orderSubtotalEur, teamId);
 
-    const updated = await this.promoCodeRepo.incrementUsedCount(promo._id as Types.ObjectId);
+    const updated = await this.promoCodeRepo.incrementUsedCount(
+      promo._id as Types.ObjectId,
+    );
     if (!updated) {
       throw new BadRequestException(
         'Promo code is no longer valid or has reached its usage limit',
@@ -255,7 +253,11 @@ export class PricingService {
   /**
    * Calculate the full pricing summary for an order.
    *
-   * @param cartSubtotalEur  Products subtotal already in EUR
+   * @param cartSubtotalEur  Products subtotal. If `currentCurrency` matches
+   *                         `currency`, the value is treated as already in the
+   *                         target currency (no conversion applied).
+   * @param currentCurrency  Currency the incoming `cartSubtotalEur` value is in.
+   *                         When equal to `currency`, the subtotal is used as-is.
    * @param teamId           Team used to look up team-specific rules
    * @param promoCode        Optional promo code string
    * @param currency         Target display currency (default = MGA)
@@ -263,6 +265,7 @@ export class PricingService {
    */
   async calculateTotal(params: {
     cartSubtotalEur: number;
+    currentCurrency?: string | null;
     teamId?: string | null;
     promoCode?: string | null;
     currency?: string;
@@ -270,6 +273,7 @@ export class PricingService {
   }): Promise<PricingSummary> {
     const {
       cartSubtotalEur,
+      currentCurrency = null,
       teamId = null,
       promoCode = null,
       currency = DEFAULT_CURRENCY,
@@ -281,6 +285,21 @@ export class PricingService {
       this.pricingRuleRepo.findActiveForTeam(teamId),
     ]);
     const snapshotAt = new Date();
+
+    // If the caller indicates the subtotal is already expressed in the target
+    // currency, use it directly as the local value and back-calculate EUR.
+    // Otherwise treat it as EUR (existing behaviour).
+    const alreadyLocal =
+      currentCurrency != null &&
+      currentCurrency.toUpperCase() === currency.toUpperCase();
+
+    const subtotalLocal = alreadyLocal
+      ? cartSubtotalEur
+      : Math.round(cartSubtotalEur * exchangeRate * 100) / 100;
+
+    const subtotalEurNormalised = alreadyLocal
+      ? Math.round((cartSubtotalEur / exchangeRate) * 100) / 100
+      : cartSubtotalEur;
 
     // Build pricing lines (skip DELIVERY for pickup)
     const pricingLines: PricingLine[] = [];
@@ -314,14 +333,19 @@ export class PricingService {
       try {
         const promo = await this.promoCodeRepo.findByCode(promoCode);
         if (promo) {
-          this.assertPromoUsable(promo, cartSubtotalEur, teamId ?? undefined);
+          this.assertPromoUsable(
+            promo,
+            subtotalEurNormalised,
+            teamId ?? undefined,
+          );
 
           if (promo.discountType === DiscountType.PERCENTAGE) {
             discountEur =
-              Math.round(cartSubtotalEur * (promo.discountValue / 100) * 100) /
-              100;
+              Math.round(
+                subtotalEurNormalised * (promo.discountValue / 100) * 100,
+              ) / 100;
           } else {
-            discountEur = Math.min(promo.discountValue, cartSubtotalEur);
+            discountEur = Math.min(promo.discountValue, subtotalEurNormalised);
           }
 
           promoSnapshot = {
@@ -333,16 +357,17 @@ export class PricingService {
       } catch {
         // Invalid promo is silently ignored at calculation stage;
         // actual redemption (`redeemPromoCode`) will throw properly.
-        this.logger.warn(`Promo code "${promoCode}" skipped during calculation`);
+        this.logger.warn(
+          `Promo code "${promoCode}" skipped during calculation`,
+        );
       }
     }
 
     const discountLocal = Math.round(discountEur * exchangeRate * 100) / 100;
-    const subtotalLocal = Math.round(cartSubtotalEur * exchangeRate * 100) / 100;
 
     const totalEur =
       Math.round(
-        (cartSubtotalEur + surchargesTotalEur - discountEur) * 100,
+        (subtotalEurNormalised + surchargesTotalEur - discountEur) * 100,
       ) / 100;
     const totalLocal = Math.round(totalEur * exchangeRate * 100) / 100;
 
@@ -350,7 +375,7 @@ export class PricingService {
       currency,
       exchangeRate,
       exchangeRateSnapshotAt: snapshotAt,
-      subtotalEur: cartSubtotalEur,
+      subtotalEur: subtotalEurNormalised,
       subtotalLocal,
       pricingLines,
       surchargesTotalEur,
@@ -397,9 +422,7 @@ export class PricingService {
       const promoTeamId = promo.teamId.toString();
       const orderTeamId = teamId?.toString();
       if (promoTeamId !== orderTeamId) {
-        throw new BadRequestException(
-          'Promo code is not valid for this team',
-        );
+        throw new BadRequestException('Promo code is not valid for this team');
       }
     }
   }

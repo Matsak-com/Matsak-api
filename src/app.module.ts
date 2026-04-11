@@ -23,6 +23,7 @@ import { AddressModule } from './client/address.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { NotificationModule } from './notifications/notification.module';
 import { BullModule } from '@nestjs/bull';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PreferenceModule } from './preference/preference.module';
 import { FaqsModule } from './faqs/faqs.module';
 import { ReviewsModule } from './reviews/reviews.module';
@@ -78,6 +79,7 @@ export function getRedisConfig() {
     BullModule.forRoot({
       redis: getRedisConfig(),
     }),
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRootAsync({
       useFactory: () => {
         const config = getRedisConfig();

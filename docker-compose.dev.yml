@@ -78,6 +78,7 @@ services:
       ELASTICSEARCH_NODE: "http://elasticsearch:9200"
       ELASTICSEARCH_USER: matsak_dev
       ELASTICSEARCH_PASSWORD: Matsak@2025_Dev
+      EXCHANGERATE_API_KEY: "${EXCHANGERATE_API_KEY}"
     depends_on:
       - mongodb
       - mailhog

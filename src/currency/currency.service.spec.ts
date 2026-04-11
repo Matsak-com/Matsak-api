@@ -1,14 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { HttpService } from '@nestjs/axios';
-import { of, throwError } from 'rxjs';
 import { InternalServerErrorException } from '@nestjs/common';
-import { CurrencyService } from './currency.service';
+import { CurrencyService, ExchangeRates } from './currency.service';
+import { ExchangeRateFetcher } from './exchange-rate.fetcher';
 import { RedisService } from '../common/providers/redis.provider';
 
-const mockRates = {
+const mockRates: ExchangeRates = {
   base: 'EUR',
-  date: '2026-04-10',
+  date: 'Fri, 10 Apr 2026 00:00:00 +0000',
+  fetchedAt: Date.now(),
   rates: {
+    EUR: 1,
     USD: 1.08,
     MGA: 4800,
     GBP: 0.86,
@@ -16,47 +17,34 @@ const mockRates = {
   },
 };
 
-const mockAxiosResponse = {
-  data: mockRates,
-  status: 200,
-  statusText: 'OK',
-  headers: {},
-  config: {},
-};
-
 describe('CurrencyService', () => {
   let service: CurrencyService;
-  let httpService: jest.Mocked<HttpService>;
+  let fetcherMock: jest.Mocked<ExchangeRateFetcher>;
   let redisGetMock: jest.Mock;
-  let redisSetMock: jest.Mock;
 
   beforeEach(async () => {
     redisGetMock = jest.fn().mockResolvedValue(null);
-    redisSetMock = jest.fn().mockResolvedValue('OK');
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CurrencyService,
         {
-          provide: HttpService,
+          provide: ExchangeRateFetcher,
           useValue: {
-            get: jest.fn().mockReturnValue(of(mockAxiosResponse)),
+            fetchAndStore: jest.fn().mockResolvedValue(mockRates),
           },
         },
         {
           provide: RedisService,
           useValue: {
-            getClient: () => ({
-              get: redisGetMock,
-              set: redisSetMock,
-            }),
+            getClient: () => ({ get: redisGetMock }),
           },
         },
       ],
     }).compile();
 
     service = module.get<CurrencyService>(CurrencyService);
-    httpService = module.get(HttpService);
+    fetcherMock = module.get(ExchangeRateFetcher);
 
     // Reset in-process memory cache between tests
     (service as any).memoryCache = null;
@@ -65,36 +53,44 @@ describe('CurrencyService', () => {
   // ── getRates ──────────────────────────────────────────────────────────────
 
   describe('getRates', () => {
-    it('fetches from API when no cache exists', async () => {
+    it('returns in-memory cache when fresh, without hitting Redis or fetcher', async () => {
+      (service as any).memoryCache = { ...mockRates, fetchedAt: Date.now() };
+
       const rates = await service.getRates();
       expect(rates.base).toBe('EUR');
-      expect(rates.rates.MGA).toBe(4800);
-      expect(httpService.get).toHaveBeenCalledTimes(1);
+      expect(redisGetMock).not.toHaveBeenCalled();
+      expect(fetcherMock.fetchAndStore).not.toHaveBeenCalled();
     });
 
-    it('returns in-memory cache without hitting Redis or API', async () => {
-      // Warm up memory cache (1 fetch)
-      await service.getRates();
-      // Force  fresh timestamp so memory cache is still valid
-      (service as any).memoryCache.fetchedAt = Date.now();
-
-      await service.getRates();
-      expect(httpService.get).toHaveBeenCalledTimes(1);
-      expect(redisGetMock).toHaveBeenCalledTimes(1); // only on first call
-    });
-
-    it('returns Redis cache when available', async () => {
-      const cached = JSON.stringify({ ...mockRates, fetchedAt: Date.now() });
-      redisGetMock.mockResolvedValueOnce(cached);
+    it('reads from Redis when memory cache is stale', async () => {
+      (service as any).memoryCache = { ...mockRates, fetchedAt: 0 }; // stale
+      redisGetMock.mockResolvedValueOnce(JSON.stringify(mockRates));
 
       const rates = await service.getRates();
       expect(rates.rates.USD).toBe(1.08);
-      expect(httpService.get).not.toHaveBeenCalled();
+      expect(fetcherMock.fetchAndStore).not.toHaveBeenCalled();
     });
 
-    it('throws when API is unavailable and no cache', async () => {
-      (httpService.get as jest.Mock).mockReturnValueOnce(
-        throwError(() => new Error('Network Error')),
+    it('calls fetcher as fallback when Redis is empty (cold start)', async () => {
+      redisGetMock.mockResolvedValue(null);
+
+      const rates = await service.getRates();
+      expect(rates.base).toBe('EUR');
+      expect(fetcherMock.fetchAndStore).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls fetcher as fallback when Redis throws', async () => {
+      redisGetMock.mockRejectedValueOnce(new Error('Redis down'));
+
+      const rates = await service.getRates();
+      expect(rates.base).toBe('EUR');
+      expect(fetcherMock.fetchAndStore).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws when fetcher also fails', async () => {
+      redisGetMock.mockResolvedValue(null);
+      fetcherMock.fetchAndStore.mockRejectedValueOnce(
+        new InternalServerErrorException('API down'),
       );
 
       await expect(service.getRates()).rejects.toThrow(
@@ -102,40 +98,51 @@ describe('CurrencyService', () => {
       );
     });
 
-    it('falls back to API when Redis throws', async () => {
-      redisGetMock.mockRejectedValueOnce(new Error('Redis down'));
-      const rates = await service.getRates();
-      expect(rates.base).toBe('EUR');
+    it('populates memory cache from Redis result', async () => {
+      redisGetMock.mockResolvedValueOnce(JSON.stringify(mockRates));
+      await service.getRates();
+      expect((service as any).memoryCache).not.toBeNull();
     });
   });
 
   // ── convert ───────────────────────────────────────────────────────────────
 
   describe('convert', () => {
+    beforeEach(() => {
+      (service as any).memoryCache = { ...mockRates, fetchedAt: Date.now() };
+    });
+
     it('returns same amount when from === to', async () => {
-      const result = await service.convert(100, 'EUR', 'EUR');
-      expect(result).toBe(100);
+      expect(await service.convert(100, 'EUR', 'EUR')).toBe(100);
     });
 
     it('converts EUR → MGA correctly', async () => {
       // 100 EUR × 4800 = 480 000 MGA
-      const result = await service.convert(100, 'EUR', 'MGA');
-      expect(result).toBe(480000);
+      expect(await service.convert(100, 'EUR', 'MGA')).toBe(480000);
+    });
+
+    it('converts MGA → EUR correctly', async () => {
+      // 480 000 MGA / 4800 = 100 EUR
+      expect(await service.convert(480000, 'MGA', 'EUR')).toBe(100);
     });
 
     it('converts USD → MGA via EUR pivot', async () => {
-      // 100 USD / 1.08 EUR ≈ 92.59 EUR × 4800 ≈ 444 444.44
+      // 100 USD / 1.08 ≈ 92.5926 EUR × 4800 ≈ 444 444.44
       const result = await service.convert(100, 'USD', 'MGA');
       expect(result).toBeCloseTo(444444.44, 0);
     });
 
-    it('throws for unknown source currency', async () => {
+    it('is case-insensitive for currency codes', async () => {
+      expect(await service.convert(100, 'eur', 'mga')).toBe(480000);
+    });
+
+    it('throws InternalServerErrorException for unknown source currency', async () => {
       await expect(service.convert(100, 'XYZ', 'EUR')).rejects.toThrow(
         InternalServerErrorException,
       );
     });
 
-    it('throws for unknown target currency', async () => {
+    it('throws InternalServerErrorException for unknown target currency', async () => {
       await expect(service.convert(100, 'EUR', 'XYZ')).rejects.toThrow(
         InternalServerErrorException,
       );
@@ -145,8 +152,13 @@ describe('CurrencyService', () => {
   // ── getEurRate ────────────────────────────────────────────────────────────
 
   describe('getEurRate', () => {
-    it('returns 1 for EUR', async () => {
+    beforeEach(() => {
+      (service as any).memoryCache = { ...mockRates, fetchedAt: Date.now() };
+    });
+
+    it('returns 1 for EUR without fetching rates', async () => {
       expect(await service.getEurRate('EUR')).toBe(1);
+      expect(fetcherMock.fetchAndStore).not.toHaveBeenCalled();
     });
 
     it('returns correct rate for MGA', async () => {
@@ -156,15 +168,22 @@ describe('CurrencyService', () => {
     it('is case-insensitive', async () => {
       expect(await service.getEurRate('mga')).toBe(4800);
     });
+
+    it('throws for unknown currency', async () => {
+      await expect(service.getEurRate('ZZZ')).rejects.toThrow(
+        InternalServerErrorException,
+      );
+    });
   });
 
   // ── listCurrencies ────────────────────────────────────────────────────────
 
   describe('listCurrencies', () => {
-    it('includes EUR and all fetched currencies sorted', async () => {
+    it('returns all currencies sorted alphabetically', async () => {
+      (service as any).memoryCache = { ...mockRates, fetchedAt: Date.now() };
       const list = await service.listCurrencies();
-      expect(list).toContain('EUR');
       expect(list).toContain('MGA');
+      expect(list).toContain('USD');
       expect(list).toEqual([...list].sort());
     });
   });
