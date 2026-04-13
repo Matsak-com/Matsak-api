@@ -21,6 +21,7 @@ import {
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { MvolaWebhookGuard } from './guards/mvola-webhook.guard';
 import { DeliveryMethod } from './payment.schema';
+import { ERRORS } from '../common/errors';
 
 class InitPaymentDto {
   @IsMongoId({ message: 'cartId doit être un ObjectId valide' })
@@ -75,7 +76,7 @@ export class PaymentController {
     const payment = await this.paymentService.pollStatus(paymentId);
 
     if (payment.userId?.toString() !== req.user?.userId) {
-      throw new ForbiddenException('Vous ne pouvez pas consulter ce paiement');
+      throw new ForbiddenException(ERRORS.FORBIDDEN_PAYMENT_ACCESS);
     }
 
     return payment;

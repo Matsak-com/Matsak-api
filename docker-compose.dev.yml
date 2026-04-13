@@ -72,6 +72,11 @@ services:
       MAIL_PORT: "1025"
       MAIL_SECURE: "false"
       MAIL_FROM: "Matsak <noreply@matsak.com>"
+      APP_NAME: "Matsak"
+      APP_API_URL: "${APP_API_URL:-http://localhost:8080}"
+      FRONTEND_URL: "${FRONTEND_URL:-http://localhost:3000}"
+      SUPPORT_EMAIL: "support@matsak-mg.com"
+      CONTACT_EMAIL: "contact@matsak-mg.com"
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_URL: "redis://redis:6379"
