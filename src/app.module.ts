@@ -36,7 +36,7 @@ import { PricingModule } from './pricing/pricing.module';
 import { CurrencyModule } from './currency/currency.module';
 import Redis from 'ioredis';
 import { ThrottlerStorageRedisService } from './throttler/throttler.storage';
-import { RedisService } from './common/providers/redis.provider';
+import { RedisModule } from './common/redis.module';
 
 /**
  * Parse and validate Redis configuration
@@ -117,11 +117,11 @@ export function getRedisConfig() {
     ContactModule,
     PricingModule,
     CurrencyModule,
+    RedisModule,
   ],
   controllers: [AppController, CookieConsentController],
   providers: [
     AppService,
-    RedisService,
     {
       provide: APP_FILTER,
       useClass: GlobalExceptionFilter,

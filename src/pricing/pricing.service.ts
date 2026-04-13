@@ -174,7 +174,45 @@ export class PricingService {
     const code = await this.promoCodeRepo.findById({ id });
     if (!code) throw new NotFoundException(`Promo code ${id} not found`);
 
+    // Check for code uniqueness if renaming
+    if (dto.code !== undefined) {
+      const upperCode = dto.code.toUpperCase();
+      if (upperCode !== code.code) {
+        const existing = await this.promoCodeRepo.findByCode(upperCode);
+        if (existing) {
+          throw new ConflictException(
+            `Promo code "${upperCode}" already exists`,
+          );
+        }
+      }
+    }
+
+    // Validate merged invariants before persisting
+    const effectiveDiscountType = dto.discountType ?? code.discountType;
+    const effectiveDiscountValue =
+      dto.discountValue !== undefined ? dto.discountValue : code.discountValue;
+    const effectiveValidFrom = dto.validFrom
+      ? new Date(dto.validFrom)
+      : code.validFrom;
+    const effectiveValidUntil = dto.validUntil
+      ? new Date(dto.validUntil)
+      : code.validUntil;
+
+    if (
+      effectiveDiscountType === DiscountType.PERCENTAGE &&
+      effectiveDiscountValue > 100
+    ) {
+      throw new BadRequestException('Percentage discount cannot exceed 100%');
+    }
+
+    if (effectiveValidFrom >= effectiveValidUntil) {
+      throw new BadRequestException('validFrom must be before validUntil');
+    }
+
     const update: Record<string, any> = {};
+    if (dto.code !== undefined) update.code = dto.code.toUpperCase();
+    if (dto.teamId !== undefined)
+      update.teamId = dto.teamId ? new Types.ObjectId(dto.teamId) : null;
     if (dto.description !== undefined) update.description = dto.description;
     if (dto.discountType !== undefined) update.discountType = dto.discountType;
     if (dto.discountValue !== undefined)
@@ -286,20 +324,45 @@ export class PricingService {
     ]);
     const snapshotAt = new Date();
 
-    // If the caller indicates the subtotal is already expressed in the target
-    // currency, use it directly as the local value and back-calculate EUR.
-    // Otherwise treat it as EUR (existing behaviour).
+    // Normalise the incoming subtotal to EUR.
+    //
+    // Three cases:
+    //  1. currentCurrency matches the target currency → subtotal is already in
+    //     local currency; back-calculate EUR from it.
+    //  2. currentCurrency is null / not provided → caller guarantees EUR (legacy
+    //     behaviour; kept for backward compatibility).
+    //  3. currentCurrency is some other currency (e.g. MGA when target is EUR) →
+    //     convert to EUR first using CurrencyService, then derive local.
+    const EUR = 'EUR';
     const alreadyLocal =
       currentCurrency != null &&
       currentCurrency.toUpperCase() === currency.toUpperCase();
 
-    const subtotalLocal = alreadyLocal
-      ? cartSubtotalEur
-      : Math.round(cartSubtotalEur * exchangeRate * 100) / 100;
+    let subtotalEurNormalised: number;
+    let subtotalLocal: number;
 
-    const subtotalEurNormalised = alreadyLocal
-      ? Math.round((cartSubtotalEur / exchangeRate) * 100) / 100
-      : cartSubtotalEur;
+    if (alreadyLocal) {
+      // Case 1: value is already expressed in the target (local) currency
+      subtotalLocal = cartSubtotalEur;
+      subtotalEurNormalised =
+        Math.round((cartSubtotalEur / exchangeRate) * 100) / 100;
+    } else if (
+      currentCurrency != null &&
+      currentCurrency.toUpperCase() !== EUR
+    ) {
+      // Case 3: value is in a non-EUR, non-target currency → convert to EUR first
+      subtotalEurNormalised = await this.currencyService.convert(
+        cartSubtotalEur,
+        currentCurrency,
+        EUR,
+      );
+      subtotalLocal =
+        Math.round(subtotalEurNormalised * exchangeRate * 100) / 100;
+    } else {
+      // Case 2: treat as EUR (currentCurrency is null, or already EUR)
+      subtotalEurNormalised = cartSubtotalEur;
+      subtotalLocal = Math.round(cartSubtotalEur * exchangeRate * 100) / 100;
+    }
 
     // Build pricing lines (skip DELIVERY for pickup)
     const pricingLines: PricingLine[] = [];
@@ -390,6 +453,20 @@ export class PricingService {
 
   // ─── Private helpers ──────────────────────────────────────────────────────
 
+  /**
+   * Extracts the string representation of an ObjectId that may be either a
+   * plain `Types.ObjectId` or a populated Mongoose document with an `_id` field.
+   */
+  private static toObjectIdString(
+    value: Types.ObjectId | { _id: Types.ObjectId } | null | undefined,
+  ): string | undefined {
+    if (!value) return undefined;
+    if (typeof value === 'object' && '_id' in value) {
+      return (value as { _id: Types.ObjectId })._id?.toString();
+    }
+    return (value as Types.ObjectId).toString();
+  }
+
   private assertPromoUsable(
     promo: PromoCodeDocument,
     orderSubtotalEur: number,
@@ -419,7 +496,9 @@ export class PricingService {
     }
     // Team scope check: promo with a teamId is only valid for that team
     if (promo.teamId !== null) {
-      const promoTeamId = promo.teamId.toString();
+      const promoTeamId = PricingService.toObjectIdString(
+        promo.teamId as Types.ObjectId | { _id: Types.ObjectId },
+      );
       const orderTeamId = teamId?.toString();
       if (promoTeamId !== orderTeamId) {
         throw new BadRequestException('Promo code is not valid for this team');

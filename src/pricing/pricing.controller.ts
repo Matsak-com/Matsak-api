@@ -45,7 +45,14 @@ function assertAdmin(req: RequestWithUser): void {
   }
 }
 
-@UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
+@UsePipes(
+  new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+    transformOptions: { enableImplicitConversion: true },
+  }),
+)
 @UseGuards(JwtAuthGuard)
 @Controller('pricing')
 export class PricingController {

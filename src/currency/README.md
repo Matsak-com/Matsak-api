@@ -25,7 +25,7 @@ ExchangeRateFetcher.fetchAndStore()
 
 ### Files
 
-| File | Responsibility |t
+| File | Responsibility |
 |---|---|
 | `exchange-rate.fetcher.ts` | HTTP call → ExchangeRate-API, Redis write |
 | `exchange-rate-refresh.job.ts` | `@Cron` trigger + bootstrap warm-up |
