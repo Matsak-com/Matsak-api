@@ -37,10 +37,14 @@ export class PromoCodeRepository extends BaseRepository<PromoCodeDocument> {
         isActive: true,
         validFrom: { $lte: now },
         validUntil: { $gte: now },
-        deleted_at: null,
-        $or: [
-          { maxUses: null },
-          { $expr: { $lt: ['$usedCount', '$maxUses'] } },
+        $and: [
+          { $or: [{ deleted_at: { $exists: false } }, { deleted_at: null }] },
+          {
+            $or: [
+              { maxUses: null },
+              { $expr: { $lt: ['$usedCount', '$maxUses'] } },
+            ],
+          },
         ],
       },
       { $inc: { usedCount: 1 } },

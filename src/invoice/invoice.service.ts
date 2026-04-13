@@ -61,8 +61,11 @@ export class InvoiceService {
 
         const cart = payment.cartId as any;
 
-        // Compute cart subtotal in EUR (sum of basePrice × qty)
-        const cartSubtotalEur = (cart.items as any[]).reduce(
+        // Compute cart subtotal in the products' own currency (basePrice is
+        // stored in the product's `currency` field, which defaults to 'MGA').
+        const productCurrency: string =
+          cart.items?.[0]?.product?.currency ?? 'MGA';
+        const cartSubtotal = (cart.items as any[]).reduce(
           (sum: number, item: any) =>
             sum + (item.product?.basePrice ?? 0) * (item.quantity ?? 1),
           0,
@@ -76,7 +79,8 @@ export class InvoiceService {
 
         // Calculate full pricing summary (rates, surcharges, promo)
         const pricing = await this.pricingService.calculateTotal({
-          cartSubtotalEur,
+          cartSubtotalEur: cartSubtotal,
+          currentCurrency: productCurrency,
           teamId,
           promoCode: dto.promoCode ?? null,
           currency,
@@ -86,7 +90,11 @@ export class InvoiceService {
         // Redeem promo code atomically (fire only if provided and valid)
         if (dto.promoCode && pricing.promoCodeSnapshot) {
           await this.pricingService
-            .redeemPromoCode(dto.promoCode, cartSubtotalEur, teamId ?? undefined)
+            .redeemPromoCode(
+              dto.promoCode,
+              pricing.subtotalEur,
+              teamId ?? undefined,
+            )
             .catch((err) =>
               this.logger.error(
                 `Promo redemption failed for ${dto.promoCode}`,
