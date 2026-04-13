@@ -48,6 +48,7 @@
     "@nestjs/mongoose": "^10.1.0",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^10.0.0",
+    "@nestjs/schedule": "^6.1.1",
     "@nestjs/swagger": "^11.2.0",
     "@nestjs/throttler": "^6.5.0",
     "@types/multer": "^1.4.12",
@@ -136,8 +137,8 @@
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
     "moduleNameMapper": {
-        "^src/(.*)$": "<rootDir>/$1",
-        "^bcrypt$": "bcryptjs"
+      "^src/(.*)$": "<rootDir>/$1",
+      "^bcrypt$": "bcryptjs"
     }
   },
   "pnpm": {

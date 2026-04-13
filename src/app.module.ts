@@ -23,6 +23,7 @@ import { AddressModule } from './client/address.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { NotificationModule } from './notifications/notification.module';
 import { BullModule } from '@nestjs/bull';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PreferenceModule } from './preference/preference.module';
 import { FaqsModule } from './faqs/faqs.module';
 import { ReviewsModule } from './reviews/reviews.module';
@@ -31,9 +32,11 @@ import { InvoiceModule } from './invoice/invoice.module';
 import { CookieConsentController } from './cookie-consent/cookie-consent.controller';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ContactModule } from './contact/contact.module';
+import { PricingModule } from './pricing/pricing.module';
+import { CurrencyModule } from './currency/currency.module';
 import Redis from 'ioredis';
 import { ThrottlerStorageRedisService } from './throttler/throttler.storage';
-import { RedisService } from './common/providers/redis.provider';
+import { RedisModule } from './common/redis.module';
 
 /**
  * Parse and validate Redis configuration
@@ -76,6 +79,7 @@ export function getRedisConfig() {
     BullModule.forRoot({
       redis: getRedisConfig(),
     }),
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRootAsync({
       useFactory: () => {
         const config = getRedisConfig();
@@ -111,11 +115,13 @@ export function getRedisConfig() {
     PaymentModule,
     InvoiceModule,
     ContactModule,
+    PricingModule,
+    CurrencyModule,
+    RedisModule,
   ],
   controllers: [AppController, CookieConsentController],
   providers: [
     AppService,
-    RedisService,
     {
       provide: APP_FILTER,
       useClass: GlobalExceptionFilter,

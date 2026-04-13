@@ -8,6 +8,7 @@ import { InvoiceStatus } from './invoice.schema';
 import { getModelToken } from '@nestjs/mongoose';
 import { Payment } from '../payment/payment.schema';
 import { Cart } from '../cart-item/cart-item.schema';
+import { PricingService } from '../pricing/pricing.service';
 
 describe('InvoiceService', () => {
   let service: InvoiceService;
@@ -95,6 +96,25 @@ describe('InvoiceService', () => {
       sendEmail: jest.fn().mockResolvedValue(undefined),
     };
 
+    const mockPricingService = {
+      calculateTotal: jest.fn().mockResolvedValue({
+        currency: 'MGA',
+        exchangeRate: 4800,
+        exchangeRateSnapshotAt: new Date(),
+        subtotalEur: 0,
+        subtotalLocal: 0,
+        pricingLines: [],
+        surchargesTotalEur: 0,
+        surchargesTotalLocal: 0,
+        discountEur: 0,
+        discountLocal: 0,
+        promoCodeSnapshot: null,
+        totalEur: 0,
+        totalLocal: 0,
+      }),
+      redeemPromoCode: jest.fn().mockResolvedValue(null),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InvoiceService,
@@ -113,6 +133,10 @@ describe('InvoiceService', () => {
         {
           provide: getModelToken(Cart.name),
           useValue: { findByIdAndUpdate: jest.fn() },
+        },
+        {
+          provide: PricingService,
+          useValue: mockPricingService,
         },
       ],
     }).compile();
