@@ -1,0 +1,258 @@
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { PrescriptionService } from './prescription.service';
+import { PrescriptionRepository } from './prescription.repository';
+import { PrescriptionStatus } from './prescription.schema';
+import * as fs from 'fs';
+import * as path from 'path';
+
+// ── Mock fs ──────────────────────────────────────────────────────────────────
+jest.mock('fs', () => ({
+  existsSync: jest.fn(),
+  unlinkSync: jest.fn(),
+}));
+
+// ── Fixtures ─────────────────────────────────────────────────────────────────
+const mockPrescription = {
+  _id: 'prescription-id-1',
+  fileName: 'ordo.pdf',
+  storagePath: 'uploads/prescriptions/123-ordo.pdf',
+  fileUrl: 'http://localhost:8080/uploads/prescriptions/123-ordo.pdf',
+  mimeType: 'application/pdf',
+  size: 12345,
+  cartId: 'cart-id-1',
+  status: PrescriptionStatus.AWAIT,
+};
+
+const mockRepository = {
+  create: jest.fn(),
+  findAll: jest.fn(),
+  findById: jest.fn(),
+  update: jest.fn(),
+  delete: jest.fn(),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('PrescriptionService', () => {
+  let service: PrescriptionService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        PrescriptionService,
+        { provide: PrescriptionRepository, useValue: mockRepository },
+      ],
+    }).compile();
+
+    service = module.get<PrescriptionService>(PrescriptionService);
+    jest.clearAllMocks();
+  });
+
+  // ── create ────────────────────────────────────────────────────────────────
+
+  describe('create', () => {
+    it('devrait créer une prescription avec le status AWAIT par défaut', async () => {
+      mockRepository.create.mockResolvedValue(mockPrescription);
+
+      const dto = {
+        fileName: 'ordo.pdf',
+        storagePath: 'uploads/prescriptions/123-ordo.pdf',
+        fileUrl: 'http://localhost:8080/uploads/prescriptions/123-ordo.pdf',
+        mimeType: 'application/pdf',
+        size: 12345,
+        cartId: 'cart-id-1',
+      };
+
+      const result = await service.create(dto as any);
+
+      expect(mockRepository.create).toHaveBeenCalledWith({
+        doc: { ...dto, status: PrescriptionStatus.AWAIT },
+      });
+      expect(result).toEqual(mockPrescription);
+    });
+
+    it('devrait conserver le status fourni dans le DTO', async () => {
+      mockRepository.create.mockResolvedValue(mockPrescription);
+
+      const dto = {
+        fileName: 'ordo.pdf',
+        storagePath: 'uploads/prescriptions/123-ordo.pdf',
+        fileUrl: 'http://localhost:8080/uploads/prescriptions/123-ordo.pdf',
+        mimeType: 'application/pdf',
+        size: 12345,
+        status: PrescriptionStatus.VALIDATE,
+      };
+
+      await service.create(dto as any);
+
+      expect(mockRepository.create).toHaveBeenCalledWith({
+        doc: expect.objectContaining({ status: PrescriptionStatus.VALIDATE }),
+      });
+    });
+  });
+
+  // ── findAll ───────────────────────────────────────────────────────────────
+
+  describe('findAll', () => {
+    it('devrait retourner toutes les prescriptions', async () => {
+      mockRepository.findAll.mockResolvedValue([mockPrescription]);
+
+      const result = await service.findAll();
+
+      expect(mockRepository.findAll).toHaveBeenCalledTimes(1);
+      expect(result).toEqual([mockPrescription]);
+    });
+  });
+
+  // ── findOne ───────────────────────────────────────────────────────────────
+
+  describe('findOne', () => {
+    it('devrait retourner la prescription si elle existe', async () => {
+      mockRepository.findById.mockResolvedValue(mockPrescription);
+
+      const result = await service.findOne('prescription-id-1');
+
+      expect(mockRepository.findById).toHaveBeenCalledWith({
+        id: 'prescription-id-1',
+      });
+      expect(result).toEqual(mockPrescription);
+    });
+
+    it('devrait lever NotFoundException si la prescription est introuvable', async () => {
+      mockRepository.findById.mockResolvedValue(null);
+
+      await expect(service.findOne('inexistant-id')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  // ── update ────────────────────────────────────────────────────────────────
+
+  describe('update', () => {
+    it('devrait mettre à jour une prescription', async () => {
+      const updated = {
+        ...mockPrescription,
+        status: PrescriptionStatus.VALIDATE,
+      };
+      mockRepository.update.mockResolvedValue(updated);
+
+      const result = await service.update('prescription-id-1', {
+        status: PrescriptionStatus.VALIDATE,
+        invoiceId: 'invoice-id-1',
+      });
+
+      expect(mockRepository.update).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'prescription-id-1' }),
+      );
+      expect(result.status).toBe(PrescriptionStatus.VALIDATE);
+    });
+
+    it('devrait lever BadRequestException si status VALIDATE sans invoiceId', async () => {
+      await expect(
+        service.update('prescription-id-1', {
+          status: PrescriptionStatus.VALIDATE,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('devrait définir cartId à null et validatedAt lors de la validation', async () => {
+      const updated = {
+        ...mockPrescription,
+        cartId: null,
+        validatedAt: new Date(),
+      };
+      mockRepository.update.mockResolvedValue(updated);
+
+      await service.update('prescription-id-1', {
+        status: PrescriptionStatus.VALIDATE,
+        invoiceId: 'invoice-id-1',
+      });
+
+      expect(mockRepository.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({
+            cartId: null,
+            validatedAt: expect.any(Date),
+          }),
+        }),
+      );
+    });
+
+    it('devrait lever NotFoundException si la prescription est introuvable', async () => {
+      mockRepository.update.mockResolvedValue(null);
+
+      await expect(
+        service.update('inexistant-id', { status: PrescriptionStatus.AWAIT }),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ── validate ──────────────────────────────────────────────────────────────
+
+  describe('validate', () => {
+    it('devrait valider une prescription avec un invoiceId', async () => {
+      const validated = {
+        ...mockPrescription,
+        status: PrescriptionStatus.VALIDATE,
+      };
+      mockRepository.update.mockResolvedValue(validated);
+
+      const result = await service.validate(
+        'prescription-id-1',
+        'invoice-id-1',
+      );
+
+      expect(result.status).toBe(PrescriptionStatus.VALIDATE);
+    });
+
+    it('devrait lever BadRequestException si invoiceId est absent', async () => {
+      await expect(service.validate('prescription-id-1', '')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+  });
+
+  // ── delete ────────────────────────────────────────────────────────────────
+
+  describe('delete', () => {
+    it('devrait supprimer le fichier physique et la prescription en DB', async () => {
+      mockRepository.findById.mockResolvedValue(mockPrescription);
+      mockRepository.delete.mockResolvedValue({ deleted: true });
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+
+      await service.delete('prescription-id-1');
+
+      const expectedPath = path.resolve(mockPrescription.storagePath);
+      expect(fs.existsSync).toHaveBeenCalledWith(expectedPath);
+      expect(fs.unlinkSync).toHaveBeenCalledWith(expectedPath);
+      expect(mockRepository.delete).toHaveBeenCalledWith({
+        id: 'prescription-id-1',
+      });
+    });
+
+    it('ne devrait pas appeler unlinkSync si le fichier est absent du disque', async () => {
+      mockRepository.findById.mockResolvedValue(mockPrescription);
+      mockRepository.delete.mockResolvedValue({ deleted: true });
+      (fs.existsSync as jest.Mock).mockReturnValue(false);
+
+      await service.delete('prescription-id-1');
+
+      expect(fs.unlinkSync).not.toHaveBeenCalled();
+      expect(mockRepository.delete).toHaveBeenCalledWith({
+        id: 'prescription-id-1',
+      });
+    });
+
+    it('devrait lever NotFoundException si la prescription est introuvable', async () => {
+      mockRepository.findById.mockResolvedValue(null);
+
+      await expect(service.delete('inexistant-id')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(fs.unlinkSync).not.toHaveBeenCalled();
+      expect(mockRepository.delete).not.toHaveBeenCalled();
+    });
+  });
+});

@@ -3,6 +3,7 @@
 /node_modules
 /build
 
+
 # Logs
 logs
 *.log
@@ -58,6 +59,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # Uploaded product images
 /uploads/
+/uploads/prescriptions
 /uploads/image-products
 /uploads/subcategories
 /uploads/categories
