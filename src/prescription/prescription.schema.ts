@@ -40,8 +40,7 @@ export class Prescription {
     type: Types.ObjectId,
     ref: 'Invoice',
     required: false,
-    sparse: true,
-    index: true,
+    index: { partialFilterExpression: { invoiceId: { $type: 'objectId' } } },
     default: null,
   })
   invoiceId?: Types.ObjectId | string | null;
