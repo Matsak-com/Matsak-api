@@ -116,6 +116,38 @@
       "deletedOn": "Supprimée le",
       "contact": "Si vous pensez qu'il s'agit d'une erreur, contactez notre support à",
       "regards": "Cordialement,"
+    },
+    "invoiceStatusUpdate": {
+      "subject": "Mise à jour de votre facture {{invoiceNumber}}",
+      "title": "Votre facture a été mise à jour",
+      "greeting": "Bonjour",
+      "intro": "Nous vous informons que le statut de votre facture a été mis à jour.",
+      "invoiceNumber": "N° de facture",
+      "invoiceDate": "Date de facturation",
+      "paymentMethod": "Moyen de paiement",
+      "amount": "Montant total",
+      "newStatus": "Nouveau statut",
+      "support": "Pour toute question concernant votre facture, notre équipe de support est disponible pour vous aider.",
+      "signature": "Cordialement,<br>L'équipe Matsak"
+    },
+    "invoiceStatusUpdateAdmin": {
+      "subject": "[Admin] Changement de statut — Facture {{invoiceNumber}}",
+      "title": "Notification de statut de facture",
+      "greeting": "Bonjour",
+      "intro": "Une facture sur la plateforme Matsak vient de changer de statut. Voici le récapitulatif.",
+      "statusChanged": "Nouveau statut",
+      "invoiceDetails": "Détails de la facture",
+      "invoiceNumber": "N° de facture",
+      "invoiceDate": "Date de facturation",
+      "paymentMethod": "Moyen de paiement",
+      "amount": "Montant",
+      "newStatus": "Statut",
+      "customerInfo": "Informations client",
+      "customerName": "Nom",
+      "customerEmail": "Email",
+      "teamsLabel": "Pharmacies concernées",
+      "autoNotice": "Vous recevez cet email en tant qu'administrateur de la plateforme Matsak. Aucune action n'est requise de votre part sauf mention contraire.",
+      "signature": "Cordialement,<br>L'équipe Matsak"
     }
   }
 }

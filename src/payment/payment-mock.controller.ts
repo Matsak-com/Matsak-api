@@ -11,6 +11,7 @@ import {
 import { PaymentService } from './payment.service';
 import { mockMvolaStore } from './Mvola/mvola-api.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { ERRORS } from '../common/errors';
 
 /**
  * Controller de simulation MVola — chargé UNIQUEMENT en développement/test.
@@ -31,7 +32,7 @@ export class PaymentMockController {
   mockConfirm(@Param('serverCorrelationId') serverCorrelationId: string) {
     // Double vérification au cas où le module serait accidentellement chargé
     if (process.env.NODE_ENV === 'production') {
-      throw new ForbiddenException('Route non disponible en production');
+      throw new ForbiddenException(ERRORS.FORBIDDEN_IN_PRODUCTION);
     }
 
     const mockTx = mockMvolaStore.get(serverCorrelationId);

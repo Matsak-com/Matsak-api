@@ -116,7 +116,38 @@
       "deletedOn": "删除日期",
       "contact": "如果您认为这是一个错误，请联系我们的支持团队：",
       "regards": "此致敬礼，"
+    },
+    "invoiceStatusUpdate": {
+      "subject": "您的发票 {{invoiceNumber}} 状态已更新",
+      "title": "您的发票已更新",
+      "greeting": "您好",
+      "intro": "我们通知您，您的发票状态已更新。",
+      "invoiceNumber": "发票编号",
+      "invoiceDate": "发票日期",
+      "paymentMethod": "付款方式",
+      "amount": "总金额",
+      "newStatus": "新状态",
+      "support": "如果您对发票有任何疑问，我们的支持团队随时为您提供帮助。",
+      "signature": "此致敬礼，<br>Matsak 团队"
+    },
+    "invoiceStatusUpdateAdmin": {
+      "subject": "[管理] 状态变更 — 发票 {{invoiceNumber}}",
+      "title": "发票状态通知",
+      "greeting": "您好",
+      "intro": "Matsak 平台上有一张发票的状态已变更，以下是摘要信息。",
+      "statusChanged": "新状态",
+      "invoiceDetails": "发票详情",
+      "invoiceNumber": "发票编号",
+      "invoiceDate": "发票日期",
+      "paymentMethod": "付款方式",
+      "amount": "金额",
+      "newStatus": "状态",
+      "customerInfo": "客户信息",
+      "customerName": "姓名",
+      "customerEmail": "邮箱",
+      "teamsLabel": "相关药店",
+      "autoNotice": "您收到此邮件是因为您是 Matsak 平台的管理员。除非另有说明，否则无需采取任何操作。",
+      "signature": "此致敬礼，<br>Matsak 团队"
     }
-
   }
 }

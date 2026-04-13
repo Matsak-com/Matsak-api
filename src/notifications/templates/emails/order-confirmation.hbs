@@ -19,22 +19,22 @@
         <tr>
           <td>{{this.name}}</td>
           <td style="text-align: center;">{{this.quantity}}</td>
-          <td style="text-align: right;">${{this.price}}</td>
+          <td style="text-align: right;">{{this.price}} {{../../currency}}</td>
         </tr>
         {{/each}}
       </tbody>
       <tfoot>
         <tr>
           <td colspan="2" style="text-align: right;"><strong>{{../t.subtotal}}:</strong></td>
-          <td style="text-align: right;">${{subtotal}}</td>
+          <td style="text-align: right;">{{subtotal}} {{currency}}</td>
         </tr>
         <tr>
           <td colspan="2" style="text-align: right;"><strong>{{../t.tax}}:</strong></td>
-          <td style="text-align: right;">${{tax}}</td>
+          <td style="text-align: right;">{{tax}} {{currency}}</td>
         </tr>
         <tr>
           <td colspan="2" style="text-align: right;"><strong>{{../t.total}}:</strong></td>
-          <td style="text-align: right;"><strong>${{total}}</strong></td>
+          <td style="text-align: right;"><strong>{{total}} {{currency}}</strong></td>
         </tr>
       </tfoot>
     </table>

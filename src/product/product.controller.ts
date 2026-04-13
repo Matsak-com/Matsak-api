@@ -101,9 +101,7 @@ export class ProductController {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new BadRequestException(
-        `Failed to create product: ${error.message}`,
-      );
+      throw new BadRequestException(ERRORS.PRODUCT_CREATION_FAILED);
     }
   }
 
@@ -153,14 +151,14 @@ export class ProductController {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new BadRequestException('Failed to update product');
+      throw new BadRequestException(ERRORS.PRODUCT_UPDATE_FAILED);
     }
   }
 
   @Get('search')
   async search(@Query('q') keyword: string) {
     if (!keyword || keyword.trim().length === 0) {
-      throw new BadRequestException('Search keyword is required');
+      throw new BadRequestException(ERRORS.SEARCH_KEYWORD_REQUIRED);
     }
     return this.productService.search(keyword.trim());
   }
@@ -216,9 +214,7 @@ export class ProductController {
       });
       return results;
     } catch (error) {
-      throw new BadRequestException(
-        `Failed to fetch products: ${error.message}`,
-      );
+      throw new BadRequestException(ERRORS.PRODUCT_FETCH_FAILED);
     }
   }
 

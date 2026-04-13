@@ -22,6 +22,7 @@ import {
 } from '../common/schemas/cart.schemas';
 import { Request } from 'express';
 import { Types } from 'mongoose';
+import { ERRORS } from '../common/errors';
 
 interface CartRequest extends Request {
   headers: {
@@ -55,9 +56,8 @@ export class CartController {
     }
 
     throw new BadRequestException({
-      message:
-        'Veuillez accepter les cookies ou vous connecter pour utiliser le panier',
-      code: 'AUTHENTICATION_OR_CONSENT_REQUIRED',
+      message: ERRORS.CART_SESSION_REQUIRED,
+      code: ERRORS.CART_SESSION_REQUIRED,
       requiresCookieConsent: true,
     });
   }
@@ -88,7 +88,7 @@ export class CartController {
 
     // Vérifier userId valide
     if (!userIdFromHeader || !Types.ObjectId.isValid(userIdFromHeader)) {
-      throw new BadRequestException('userId invalide pour la fusion');
+      throw new BadRequestException(ERRORS.INVALID_OBJECT_ID);
     }
 
     const userId = new Types.ObjectId(userIdFromHeader);

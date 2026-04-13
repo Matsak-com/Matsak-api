@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   UploadedFile,
   ForbiddenException,
+  UnauthorizedException,
   Delete,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -36,6 +37,7 @@ import {
 } from '../common/schemas/address.schemas';
 import { CreateAddressDto } from './dto/create-address.dto';
 import { UpdateAddressDto } from './dto/update-address.dto';
+import { ERRORS } from '../common/errors';
 
 @Controller('users')
 export class UserController {
@@ -73,9 +75,10 @@ export class UserController {
         switchTeamDto.teamId,
       );
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
-        error.message || 'Error switching team',
-        error.status || HttpStatus.BAD_REQUEST,
+        ERRORS.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -89,9 +92,7 @@ export class UserController {
   ) {
     // Users can only access their own data unless they're admin
     if (user.userId !== params.userId && user.role !== UserRole.ADMIN) {
-      throw new ForbiddenException(
-        'You can only access your own user information',
-      );
+      throw new ForbiddenException(ERRORS.FORBIDDEN_USER_ACCESS);
     }
     return this.usersService.getUser(params.userId);
   }
@@ -111,7 +112,7 @@ export class UserController {
   ) {
     // Users can only update their own data unless they're admin
     if (user.userId !== params.userId && user.role !== UserRole.ADMIN) {
-      throw new ForbiddenException('You can only update your own information');
+      throw new ForbiddenException(ERRORS.FORBIDDEN_USER_UPDATE);
     }
 
     try {
@@ -121,9 +122,10 @@ export class UserController {
         file,
       );
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
-        error.message || 'Error updating user',
-        error.status || HttpStatus.BAD_REQUEST,
+        ERRORS.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -151,9 +153,10 @@ export class UserController {
         addresses: updatedUser.addresses,
       };
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
-        error.message,
-        error.status || HttpStatus.BAD_REQUEST,
+        ERRORS.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -168,9 +171,10 @@ export class UserController {
     try {
       return await this.usersService.getAddresses(user.userId);
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
-        error.message,
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+        ERRORS.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -189,10 +193,8 @@ export class UserController {
     try {
       return await this.usersService.getAddress(user.userId, addressId);
     } catch (error) {
-      throw new HttpException(
-        error.message,
-        error.status || HttpStatus.NOT_FOUND,
-      );
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(ERRORS.ADDRESS_NOT_FOUND, HttpStatus.NOT_FOUND);
     }
   }
 
@@ -213,10 +215,7 @@ export class UserController {
   ) {
     // Vérifie qu'on a bien les infos nécessaires
     if (!user || !user.userId) {
-      throw new HttpException(
-        'User payload is missing. Make sure you are authenticated.',
-        HttpStatus.UNAUTHORIZED,
-      );
+      throw new UnauthorizedException(ERRORS.USER_PAYLOAD_MISSING);
     }
 
     try {
@@ -231,14 +230,10 @@ export class UserController {
         addresses: updatedUser.addresses,
       };
     } catch (error) {
-      console.error('❌ Erreur complète:', error);
-
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
-        {
-          message: error.message || 'Error updating address',
-          details: error.response || error,
-        },
-        error.status || HttpStatus.BAD_REQUEST,
+        ERRORS.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -264,9 +259,10 @@ export class UserController {
         addresses: updatedUser.addresses,
       };
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
-        error.message,
-        error.status || HttpStatus.BAD_REQUEST,
+        ERRORS.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -292,9 +288,10 @@ export class UserController {
         addresses: updatedUser.addresses,
       };
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
-        error.message,
-        error.status || HttpStatus.BAD_REQUEST,
+        ERRORS.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
