@@ -63,9 +63,24 @@ export class InvoiceService {
 
         // Compute cart subtotal in the products' own currency (basePrice is
         // stored in the product's `currency` field, which defaults to 'MGA').
-        const productCurrency: string =
-          cart.items?.[0]?.product?.currency ?? 'MGA';
-        const cartSubtotal = (cart.items as any[]).reduce(
+        const cartItems = cart.items as any[];
+        const currencies = [
+          ...new Set(
+            cartItems
+              .map((item: any) => item.product?.currency)
+              .filter(Boolean),
+          ),
+        ] as string[];
+
+        if (currencies.length > 1) {
+          this.logger.warn(
+            `Cart contains items in mixed currencies (${currencies.join(', ')}); ` +
+              `defaulting to MGA for subtotal calculation`,
+          );
+        }
+
+        const productCurrency: string = currencies[0] ?? 'MGA';
+        const cartSubtotal = cartItems.reduce(
           (sum: number, item: any) =>
             sum + (item.product?.basePrice ?? 0) * (item.quantity ?? 1),
           0,

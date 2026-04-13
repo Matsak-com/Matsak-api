@@ -453,6 +453,20 @@ export class PricingService {
 
   // ─── Private helpers ──────────────────────────────────────────────────────
 
+  /**
+   * Extracts the string representation of an ObjectId that may be either a
+   * plain `Types.ObjectId` or a populated Mongoose document with an `_id` field.
+   */
+  private static toObjectIdString(
+    value: Types.ObjectId | { _id: Types.ObjectId } | null | undefined,
+  ): string | undefined {
+    if (!value) return undefined;
+    if (typeof value === 'object' && '_id' in value) {
+      return (value as { _id: Types.ObjectId })._id?.toString();
+    }
+    return (value as Types.ObjectId).toString();
+  }
+
   private assertPromoUsable(
     promo: PromoCodeDocument,
     orderSubtotalEur: number,
@@ -482,9 +496,9 @@ export class PricingService {
     }
     // Team scope check: promo with a teamId is only valid for that team
     if (promo.teamId !== null) {
-      const promoTeamId = (
-        (promo.teamId as any)?._id ?? promo.teamId
-      )?.toString();
+      const promoTeamId = PricingService.toObjectIdString(
+        promo.teamId as Types.ObjectId | { _id: Types.ObjectId },
+      );
       const orderTeamId = teamId?.toString();
       if (promoTeamId !== orderTeamId) {
         throw new BadRequestException('Promo code is not valid for this team');
