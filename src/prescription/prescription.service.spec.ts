@@ -3,13 +3,16 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PrescriptionService } from './prescription.service';
 import { PrescriptionRepository } from './prescription.repository';
 import { PrescriptionStatus } from './prescription.schema';
+import { Types } from 'mongoose';
 import * as fs from 'fs';
 import * as path from 'path';
 
 // ── Mock fs ──────────────────────────────────────────────────────────────────
 jest.mock('fs', () => ({
-  existsSync: jest.fn(),
-  unlinkSync: jest.fn(),
+  promises: {
+    access: jest.fn(),
+    unlink: jest.fn(),
+  },
 }));
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -20,8 +23,8 @@ const mockPrescription = {
   fileUrl: 'http://localhost:8080/uploads/prescriptions/123-ordo.pdf',
   mimeType: 'application/pdf',
   size: 12345,
-  cartId: 'cart-id-1',
-  status: PrescriptionStatus.AWAIT,
+  cartId: new Types.ObjectId(),
+  status: PrescriptionStatus.PENDING,
 };
 
 const mockRepository = {
@@ -52,7 +55,7 @@ describe('PrescriptionService', () => {
   // ── create ────────────────────────────────────────────────────────────────
 
   describe('create', () => {
-    it('devrait créer une prescription avec le status AWAIT par défaut', async () => {
+    it('devrait créer une prescription avec le status PENDING par défaut', async () => {
       mockRepository.create.mockResolvedValue(mockPrescription);
 
       const dto = {
@@ -61,13 +64,13 @@ describe('PrescriptionService', () => {
         fileUrl: 'http://localhost:8080/uploads/prescriptions/123-ordo.pdf',
         mimeType: 'application/pdf',
         size: 12345,
-        cartId: 'cart-id-1',
+        cartId: new Types.ObjectId(),
       };
 
       const result = await service.create(dto as any);
 
       expect(mockRepository.create).toHaveBeenCalledWith({
-        doc: { ...dto, status: PrescriptionStatus.AWAIT },
+        doc: { ...dto, status: PrescriptionStatus.PENDING },
       });
       expect(result).toEqual(mockPrescription);
     });
@@ -81,13 +84,13 @@ describe('PrescriptionService', () => {
         fileUrl: 'http://localhost:8080/uploads/prescriptions/123-ordo.pdf',
         mimeType: 'application/pdf',
         size: 12345,
-        status: PrescriptionStatus.VALIDATE,
+        status: PrescriptionStatus.VALIDATED,
       };
 
       await service.create(dto as any);
 
       expect(mockRepository.create).toHaveBeenCalledWith({
-        doc: expect.objectContaining({ status: PrescriptionStatus.VALIDATE }),
+        doc: expect.objectContaining({ status: PrescriptionStatus.VALIDATED }),
       });
     });
   });
@@ -113,18 +116,14 @@ describe('PrescriptionService', () => {
 
       const result = await service.findOne('prescription-id-1');
 
-      expect(mockRepository.findById).toHaveBeenCalledWith({
-        id: 'prescription-id-1',
-      });
+      expect(mockRepository.findById).toHaveBeenCalledWith({ id: 'prescription-id-1' });
       expect(result).toEqual(mockPrescription);
     });
 
     it('devrait lever NotFoundException si la prescription est introuvable', async () => {
       mockRepository.findById.mockResolvedValue(null);
 
-      await expect(service.findOne('inexistant-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOne('inexistant-id')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -132,42 +131,33 @@ describe('PrescriptionService', () => {
 
   describe('update', () => {
     it('devrait mettre à jour une prescription', async () => {
-      const updated = {
-        ...mockPrescription,
-        status: PrescriptionStatus.VALIDATE,
-      };
+      const updated = { ...mockPrescription, status: PrescriptionStatus.VALIDATED };
       mockRepository.update.mockResolvedValue(updated);
 
       const result = await service.update('prescription-id-1', {
-        status: PrescriptionStatus.VALIDATE,
-        invoiceId: 'invoice-id-1',
+        status: PrescriptionStatus.VALIDATED,
+        invoiceId: new Types.ObjectId(),
       });
 
       expect(mockRepository.update).toHaveBeenCalledWith(
         expect.objectContaining({ id: 'prescription-id-1' }),
       );
-      expect(result.status).toBe(PrescriptionStatus.VALIDATE);
+      expect(result.status).toBe(PrescriptionStatus.VALIDATED);
     });
 
-    it('devrait lever BadRequestException si status VALIDATE sans invoiceId', async () => {
+    it('devrait lever BadRequestException si status VALIDATED sans invoiceId', async () => {
       await expect(
-        service.update('prescription-id-1', {
-          status: PrescriptionStatus.VALIDATE,
-        }),
+        service.update('prescription-id-1', { status: PrescriptionStatus.VALIDATED }),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('devrait définir cartId à null et validatedAt lors de la validation', async () => {
-      const updated = {
-        ...mockPrescription,
-        cartId: null,
-        validatedAt: new Date(),
-      };
+      const updated = { ...mockPrescription, cartId: null, validatedAt: new Date() };
       mockRepository.update.mockResolvedValue(updated);
 
       await service.update('prescription-id-1', {
-        status: PrescriptionStatus.VALIDATE,
-        invoiceId: 'invoice-id-1',
+        status: PrescriptionStatus.VALIDATED,
+        invoiceId: new Types.ObjectId(),
       });
 
       expect(mockRepository.update).toHaveBeenCalledWith(
@@ -184,7 +174,7 @@ describe('PrescriptionService', () => {
       mockRepository.update.mockResolvedValue(null);
 
       await expect(
-        service.update('inexistant-id', { status: PrescriptionStatus.AWAIT }),
+        service.update('inexistant-id', { status: PrescriptionStatus.PENDING }),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -193,18 +183,21 @@ describe('PrescriptionService', () => {
 
   describe('validate', () => {
     it('devrait valider une prescription avec un invoiceId', async () => {
-      const validated = {
-        ...mockPrescription,
-        status: PrescriptionStatus.VALIDATE,
-      };
+      const validated = { ...mockPrescription, status: PrescriptionStatus.VALIDATED };
       mockRepository.update.mockResolvedValue(validated);
 
-      const result = await service.validate(
-        'prescription-id-1',
-        'invoice-id-1',
-      );
+      const invoiceId = new Types.ObjectId().toString();
+      const result = await service.validate('prescription-id-1', invoiceId);
 
-      expect(result.status).toBe(PrescriptionStatus.VALIDATE);
+      expect(result.status).toBe(PrescriptionStatus.VALIDATED);
+      expect(mockRepository.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({
+            invoiceId: expect.any(Types.ObjectId),
+            cartId: null,
+          }),
+        }),
+      );
     });
 
     it('devrait lever BadRequestException si invoiceId est absent', async () => {
@@ -217,41 +210,50 @@ describe('PrescriptionService', () => {
   // ── delete ────────────────────────────────────────────────────────────────
 
   describe('delete', () => {
-    it('devrait supprimer le fichier physique et la prescription en DB', async () => {
+    it('devrait supprimer le fichier physique et appliquer un soft delete en DB', async () => {
       mockRepository.findById.mockResolvedValue(mockPrescription);
       mockRepository.delete.mockResolvedValue({ deleted: true });
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.promises.access as jest.Mock).mockResolvedValue(undefined);
+      (fs.promises.unlink as jest.Mock).mockResolvedValue(undefined);
 
       await service.delete('prescription-id-1');
 
       const expectedPath = path.resolve(mockPrescription.storagePath);
-      expect(fs.existsSync).toHaveBeenCalledWith(expectedPath);
-      expect(fs.unlinkSync).toHaveBeenCalledWith(expectedPath);
-      expect(mockRepository.delete).toHaveBeenCalledWith({
-        id: 'prescription-id-1',
-      });
+      expect(fs.promises.access).toHaveBeenCalledWith(expectedPath);
+      expect(fs.promises.unlink).toHaveBeenCalledWith(expectedPath);
+      expect(mockRepository.delete).toHaveBeenCalledWith({ id: 'prescription-id-1' });
     });
 
-    it('ne devrait pas appeler unlinkSync si le fichier est absent du disque', async () => {
+    it('ne devrait pas appeler unlink si le fichier est absent (ENOENT)', async () => {
       mockRepository.findById.mockResolvedValue(mockPrescription);
       mockRepository.delete.mockResolvedValue({ deleted: true });
-      (fs.existsSync as jest.Mock).mockReturnValue(false);
+
+      const enoentError = Object.assign(new Error('File not found'), { code: 'ENOENT' });
+      (fs.promises.access as jest.Mock).mockRejectedValue(enoentError);
 
       await service.delete('prescription-id-1');
 
-      expect(fs.unlinkSync).not.toHaveBeenCalled();
-      expect(mockRepository.delete).toHaveBeenCalledWith({
-        id: 'prescription-id-1',
-      });
+      expect(fs.promises.unlink).not.toHaveBeenCalled();
+      expect(mockRepository.delete).toHaveBeenCalledWith({ id: 'prescription-id-1' });
+    });
+
+    it('devrait continuer le soft delete même si unlink échoue (erreur non-ENOENT)', async () => {
+      mockRepository.findById.mockResolvedValue(mockPrescription);
+      mockRepository.delete.mockResolvedValue({ deleted: true });
+
+      (fs.promises.access as jest.Mock).mockResolvedValue(undefined);
+      (fs.promises.unlink as jest.Mock).mockRejectedValue(new Error('Permission denied'));
+
+      await service.delete('prescription-id-1');
+
+      expect(mockRepository.delete).toHaveBeenCalledWith({ id: 'prescription-id-1' });
     });
 
     it('devrait lever NotFoundException si la prescription est introuvable', async () => {
       mockRepository.findById.mockResolvedValue(null);
 
-      await expect(service.delete('inexistant-id')).rejects.toThrow(
-        NotFoundException,
-      );
-      expect(fs.unlinkSync).not.toHaveBeenCalled();
+      await expect(service.delete('inexistant-id')).rejects.toThrow(NotFoundException);
+      expect(fs.promises.unlink).not.toHaveBeenCalled();
       expect(mockRepository.delete).not.toHaveBeenCalled();
     });
   });

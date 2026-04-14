@@ -59,6 +59,7 @@ export const ERRORS = {
   FILE_IS_REQUIRED: 'FILE_IS_REQUIRED',
   INVALID_CART_ID: 'INVALID_CART_ID',
   INVALID_FILE_PATH: 'INVALID_FILE_PATH',
+  ONLY_PDF_AND_IMAGE_FILES_ARE_ALLOWED: 'ONLY_PDF_AND_IMAGE_FILES_ARE_ALLOWED',
 };
 
 export const TOKEN_MAP: Record<string, { status: number; message: string }> = {
