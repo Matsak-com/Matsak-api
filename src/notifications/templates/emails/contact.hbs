@@ -1,26 +1,26 @@
 {{> header}}
 
 <div class="content">
-  <h2>Nouveau formulaire de contact</h2>
+  <h2 style="color:#1a2b3c; font-size:22px; font-weight:700; margin:0 0 24px 0;">Nouveau message de contact</h2>
 
   <div class="contact-details">
-    <p><strong>Nom :</strong> {{user.firstName}} {{user.lastName}}</p>
-    <p><strong>Email :</strong> <a href="mailto:{{user.email}}">{{user.email}}</a></p>
+    <p><strong>Nom</strong> {{user.firstName}} {{user.lastName}}</p>
+    <p><strong>Email</strong> <a href="mailto:{{user.email}}" style="color:#5dc760; text-decoration:none;">{{user.email}}</a></p>
     {{#if user.phone}}
-      <p><strong>Téléphone :</strong> {{user.phone}}</p>
+    <p><strong>Téléphone</strong> {{user.phone}}</p>
     {{/if}}
-    <p><strong>Sujet :</strong> {{subject}}</p>
-    <p><strong>Message :</strong></p>
-    <p class="contact-message">{{message}}</p>
-    
-    <div class="contact-meta">
-      <p><strong>Adresse IP :</strong> {{ip}}</p>
-      <p><strong>Date et heure :</strong> {{timestamp}}</p>
-    </div>
+    <p><strong>Sujet</strong> {{subject}}</p>
+  </div>
+
+  <p style="font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:0.8px; color:#9ca3af; margin:24px 0 8px 0;">Message</p>
+  <p class="contact-message">{{message}}</p>
+
+  <div class="contact-meta">
+    <p><strong>Reçu le</strong> {{timestamp}}</p>
   </div>
 
   <p class="contact-info">
-    Ce message a été envoyé via le formulaire de contact de votre site web.
+    Ce message a été soumis via le formulaire de contact de la plateforme Matsak.
   </p>
 </div>
 

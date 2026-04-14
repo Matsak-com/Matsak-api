@@ -105,7 +105,7 @@ jobs:
           MAIL_HOST=smtp.example.com
           MAIL_PORT=587
           MAIL_USER=test@example.com
-          MAIL_PASSWORD=test
+          MAIL_PASS=test
           MAIL_FROM=noreply@matsak.com
           EOF
 

@@ -15,6 +15,7 @@ import { IsEnum, IsMongoId } from 'class-validator';
 import { InvoiceService } from './invoice.service';
 import { InvoiceStatus } from './invoice.schema';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ERRORS } from '../common/errors';
 
 class UpdateInvoiceStatusDto {
   @IsEnum(InvoiceStatus, {
@@ -46,15 +47,31 @@ export class InvoiceController {
   // ⚠️ Routes statiques AVANT les routes dynamiques `:id`
 
   @UseGuards(JwtAuthGuard)
+  @Get()
+  findAll(@Request() req: any) {
+    const isAdmin =
+      req.user?.role === 'admin' ||
+      req.user?.roles?.includes('admin') ||
+      req.user?.role === 'superadmin' ||
+      req.user?.roles?.includes('superadmin');
+
+    if (!isAdmin) {
+      throw new ForbiddenException(ERRORS.FORBIDDEN_ALL_INVOICES);
+    }
+    return this.invoiceService.findAll();
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('team/:teamId')
   findByTeam(@Param() params: TeamParamDto, @Request() req: any) {
     const isAdmin =
-      req.user?.role === 'admin' || req.user?.roles?.includes('admin');
+      req.user?.role === 'admin' ||
+      req.user?.roles?.includes('admin') ||
+      req.user?.role === 'superadmin' ||
+      req.user?.roles?.includes('superadmin');
 
     if (!isAdmin) {
-      throw new ForbiddenException(
-        "Vous n'êtes pas autorisé à consulter les factures de cette équipe",
-      );
+      throw new ForbiddenException(ERRORS.FORBIDDEN_TEAM_INVOICES);
     }
     return this.invoiceService.findByTeam(params.teamId);
   }
@@ -74,8 +91,16 @@ export class InvoiceController {
   @Get(':id')
   async findOne(@Param() params: InvoiceParamDto, @Request() req: any) {
     const invoice = await this.invoiceService.findOne(params.id);
-    if (invoice.userId !== req.user?.userId) {
-      throw new ForbiddenException('Accès non autorisé à cette facture');
+    if (
+      invoice.userId !== req.user?.userId &&
+      !(
+        req.user?.role === 'admin' ||
+        req.user?.roles?.includes('admin') ||
+        req.user?.role === 'superadmin' ||
+        req.user?.roles?.includes('superadmin')
+      )
+    ) {
+      throw new ForbiddenException(ERRORS.FORBIDDEN_INVOICE_ACCESS);
     }
     return invoice;
   }
@@ -88,8 +113,16 @@ export class InvoiceController {
     @Request() req: any,
   ) {
     const invoice = await this.invoiceService.findOne(params.id);
-    if (invoice.userId !== req.user?.userId) {
-      throw new ForbiddenException('Vous ne pouvez pas modifier cette facture');
+    if (
+      invoice.userId !== req.user?.userId &&
+      !(
+        req.user?.role === 'admin' ||
+        req.user?.roles?.includes('admin') ||
+        req.user?.role === 'superadmin' ||
+        req.user?.roles?.includes('superadmin')
+      )
+    ) {
+      throw new ForbiddenException(ERRORS.FORBIDDEN_INVOICE_UPDATE);
     }
     return this.invoiceService.updateStatus(params.id, dto.status);
   }
@@ -98,14 +131,15 @@ export class InvoiceController {
   @Delete(':id')
   async remove(@Param() params: InvoiceParamDto, @Request() req: any) {
     const isAdmin =
-      req.user?.role === 'admin' || req.user?.roles?.includes('admin');
+      req.user?.role === 'admin' ||
+      req.user?.roles?.includes('admin') ||
+      req.user?.role === 'superadmin' ||
+      req.user?.roles?.includes('superadmin');
 
     if (!isAdmin) {
       const invoice = await this.invoiceService.findOne(params.id);
       if (invoice.userId !== req.user?.userId) {
-        throw new ForbiddenException(
-          'Vous ne pouvez pas supprimer cette facture',
-        );
+        throw new ForbiddenException(ERRORS.FORBIDDEN_INVOICE_DELETE);
       }
     }
 

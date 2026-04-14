@@ -116,6 +116,38 @@
       "deletedOn": "Deleted on",
       "contact": "If you believe this is an error, please contact our support at",
       "regards": "Best regards,"
+    },
+    "invoiceStatusUpdate": {
+      "subject": "Update on your invoice {{invoiceNumber}}",
+      "title": "Your invoice has been updated",
+      "greeting": "Hello",
+      "intro": "We are writing to let you know that the status of your invoice has been updated.",
+      "invoiceNumber": "Invoice number",
+      "invoiceDate": "Invoice date",
+      "paymentMethod": "Payment method",
+      "amount": "Total amount",
+      "newStatus": "New status",
+      "support": "If you have any questions about your invoice, our support team is here to help.",
+      "signature": "Best regards,<br>The Matsak Team"
+    },
+    "invoiceStatusUpdateAdmin": {
+      "subject": "[Admin] Status Update — Invoice {{invoiceNumber}}",
+      "title": "Invoice Status Notification",
+      "greeting": "Hello",
+      "intro": "An invoice on the Matsak platform has just changed its status. Here is a summary.",
+      "statusChanged": "New status",
+      "invoiceDetails": "Invoice details",
+      "invoiceNumber": "Invoice number",
+      "invoiceDate": "Invoice date",
+      "paymentMethod": "Payment method",
+      "amount": "Amount",
+      "newStatus": "Status",
+      "customerInfo": "Customer information",
+      "customerName": "Name",
+      "customerEmail": "Email",
+      "teamsLabel": "Pharmacies involved",
+      "autoNotice": "You are receiving this email as an administrator of the Matsak platform. No action is required on your part unless otherwise stated.",
+      "signature": "Best regards,<br>The Matsak Team"
     }
   }
 }

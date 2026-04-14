@@ -10,6 +10,9 @@ import { NotificationModule } from '../notifications/notification.module';
 import { Cart, CartSchema } from 'src/cart-item/cart-item.schema';
 import { Payment, PaymentSchema } from 'src/payment/payment.schema';
 import { PricingModule } from '../pricing/pricing.module';
+import { User, UserSchema } from '../users/user.schema';
+import { Member, MemberSchema } from '../members/member.schema';
+import { Role, RoleSchema } from '../roles/role.schema';
 
 @Module({
   imports: [
@@ -18,6 +21,9 @@ import { PricingModule } from '../pricing/pricing.module';
       { name: Counter.name, schema: CounterSchema },
       { name: Payment.name, schema: PaymentSchema },
       { name: Cart.name, schema: CartSchema },
+      { name: User.name, schema: UserSchema },
+      { name: Member.name, schema: MemberSchema },
+      { name: Role.name, schema: RoleSchema },
     ]),
     ProductModule,
     NotificationModule,

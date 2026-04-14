@@ -68,7 +68,6 @@
       "noAccount": "إذا لم تقم بإنشاء حساب، يمكنك تجاهل هذا البريد الإلكتروني بأمان.",
       "signature": "مع أطيب التحيات،<br>فريق Matsak"
     },
-    "email": {
     "invoice": {
       "subject": "فاتورتك {{invoiceNumber}}",
       "greeting": "مرحباً",
@@ -97,8 +96,7 @@
       "pickupQrTitle": "رموز QR للاستلام من الصيدلية",
       "pickupQrDescription": "قدّم رمز QR الخاص بكل صيدلية عند زيارتها لاستلام أدويتك.",
       "pickupQrMeta": "يُقدَّم في الصيدلية"
-    }
-  },
+    },
     "common": {
       "footer": "© {{year}} Matsak. جميع الحقوق محفوظة.",
       "contactUs": "اتصل بنا",
@@ -118,6 +116,38 @@
       "deletedOn": "تم الحذف في",
       "contact": "إذا كنت تعتقد أن هذا خطأ، يرجى الاتصال بدعمنا على",
       "regards": "مع أطيب التحيات,"
+    },
+    "invoiceStatusUpdate": {
+      "subject": "تحديث فاتورتك {{invoiceNumber}}",
+      "title": "تم تحديث فاتورتك",
+      "greeting": "مرحباً",
+      "intro": "نعلمك بأن حالة فاتورتك قد تم تحديثها.",
+      "invoiceNumber": "رقم الفاتورة",
+      "invoiceDate": "تاريخ الفاتورة",
+      "paymentMethod": "طريقة الدفع",
+      "amount": "المبلغ الإجمالي",
+      "newStatus": "الحالة الجديدة",
+      "support": "إذا كان لديك أي استفسار حول فاتورتك، فريق الدعم لدينا متاح لمساعدتك.",
+      "signature": "مع أطيب التحيات،<br>فريق Matsak"
+    },
+    "invoiceStatusUpdateAdmin": {
+      "subject": "[إدارة] تغيير الحالة — الفاتورة {{invoiceNumber}}",
+      "title": "إشعار حالة الفاتورة",
+      "greeting": "مرحباً",
+      "intro": "تم تغيير حالة فاتورة على منصة Matsak. فيما يلي الملخص.",
+      "statusChanged": "الحالة الجديدة",
+      "invoiceDetails": "تفاصيل الفاتورة",
+      "invoiceNumber": "رقم الفاتورة",
+      "invoiceDate": "تاريخ الفاتورة",
+      "paymentMethod": "طريقة الدفع",
+      "amount": "المبلغ",
+      "newStatus": "الحالة",
+      "customerInfo": "معلومات العميل",
+      "customerName": "الاسم",
+      "customerEmail": "البريد الإلكتروني",
+      "teamsLabel": "الصيدليات المعنية",
+      "autoNotice": "تتلقى هذا البريد الإلكتروني بصفتك مشرفاً على منصة Matsak. لا يلزم اتخاذ أي إجراء ما لم يُذكر خلاف ذلك.",
+      "signature": "مع أطيب التحيات،<br>فريق Matsak"
     }
   }
 }

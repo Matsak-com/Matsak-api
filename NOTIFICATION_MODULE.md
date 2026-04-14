@@ -23,7 +23,7 @@ MAIL_HOST=localhost
 MAIL_PORT=1025
 MAIL_SECURE=false
 MAIL_USER=
-MAIL_PASSWORD=
+MAIL_PASS=
 MAIL_FROM="Matsak <noreply@matsak.com>"
 
 # Redis Configuration (for job queue)
@@ -372,7 +372,7 @@ MAIL_HOST=smtp.sendgrid.net
 MAIL_PORT=587
 MAIL_SECURE=true
 MAIL_USER=apikey
-MAIL_PASSWORD=your-sendgrid-api-key
+MAIL_PASS=your-sendgrid-api-key
 MAIL_FROM="Matsak <noreply@matsak.com>"
 ```
 

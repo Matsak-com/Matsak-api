@@ -21,10 +21,10 @@ import { I18nService } from './i18n.service';
           port: parseInt(process.env.MAIL_PORT || '1025', 10),
           secure: process.env.MAIL_SECURE === 'true',
           auth:
-            process.env.MAIL_USER && process.env.MAIL_PASSWORD
+            process.env.MAIL_USER && process.env.MAIL_PASS
               ? {
                   user: process.env.MAIL_USER,
-                  pass: process.env.MAIL_PASSWORD,
+                  pass: process.env.MAIL_PASS,
                 }
               : undefined,
         },

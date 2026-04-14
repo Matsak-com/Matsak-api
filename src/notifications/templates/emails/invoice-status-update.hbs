@@ -1,0 +1,65 @@
+{{> header}}
+
+<div class="content">
+
+    {{!-- ── Title & greeting ──────────────────────────────────── --}}
+    <h2>{{t.title}}</h2>
+    <p class="greeting">{{t.greeting}}, <strong>{{customer.name}}</strong></p>
+    <p>{{t.intro}}</p>
+
+    {{!-- ── Status badge ────────────────────────────────────────── --}}
+    <div style="text-align: center; margin: 32px 0;">
+        <span style="
+            display: inline-block;
+            padding: 12px 36px;
+            background-color: {{statusColor}};
+            color: #ffffff;
+            border-radius: 50px;
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            box-shadow: 0 4px 14px {{statusShadow}};
+        ">
+            {{statusLabel}}
+        </span>
+    </div>
+
+    {{!-- ── Invoice summary ────────────────────────────────────── --}}
+    <table class="info-table">
+        <tr>
+            <td class="info-label">{{t.invoiceNumber}}</td>
+            <td class="info-value meta-mono">{{invoice.number}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">{{t.invoiceDate}}</td>
+            <td class="info-value">{{invoice.date}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">{{t.paymentMethod}}</td>
+            <td class="info-value">{{invoice.paymentMethod}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">{{t.amount}}</td>
+            <td class="info-value" style="font-size: 16px; font-weight: 700; color: #1a2b3c;">
+                {{invoice.amount}} {{invoice.currency}}
+            </td>
+        </tr>
+        <tr>
+            <td class="info-label">{{t.newStatus}}</td>
+            <td class="info-value" style="color: {{statusColor}}; font-weight: 700;">{{statusLabel}}</td>
+        </tr>
+    </table>
+
+    {{!-- ── Contextual message ─────────────────────────────────── --}}
+    <div class="important" style="border-left-color: {{statusColor}}; background-color: {{statusBg}};">
+        <p style="margin: 0; color: #374151; font-size: 14.5px; line-height: 1.7;">{{statusMessage}}</p>
+    </div>
+
+    {{!-- ── Divider + support ──────────────────────────────────── --}}
+    <p style="color: #6b7280; font-size: 14px;">{{t.support}}</p>
+
+    <p class="signature">{{{t.signature}}}</p>
+
+</div>
+
+{{> footer}}

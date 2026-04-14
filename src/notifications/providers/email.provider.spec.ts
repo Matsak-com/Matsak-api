@@ -21,6 +21,7 @@ describe('EmailProvider', () => {
     mockSendMail = jest.fn().mockResolvedValue({ messageId: 'test-123' });
     mockTransporter = {
       sendMail: mockSendMail,
+      close: jest.fn(),
     };
     (nodemailer.createTransport as jest.Mock).mockReturnValue(mockTransporter);
 

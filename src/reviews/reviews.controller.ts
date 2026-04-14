@@ -25,6 +25,7 @@ import { CurrentUser } from '../auth/decorator/current-user.decorator';
 import { UserPayload } from '../auth/jwt/jwt.strategy';
 import { UserRole } from '../users/user.schema';
 import { ReviewStatus } from './review.schema';
+import { ERRORS } from '../common/errors';
 
 @Controller('reviews')
 export class ReviewsController {
@@ -34,7 +35,7 @@ export class ReviewsController {
   @Post()
   create(@Body() dto: CreateReviewDto, @CurrentUser() user: UserPayload) {
     if (dto.userId && dto.userId !== user.userId) {
-      throw new BadRequestException('USER_ID_MISMATCH');
+      throw new BadRequestException(ERRORS.USER_ID_MISMATCH);
     }
 
     return this.reviewsService.create({ ...dto, userId: user.userId });
@@ -49,7 +50,7 @@ export class ReviewsController {
       user.role !== UserRole.SUPERADMIN &&
       user.role !== UserRole.MODERATOR
     ) {
-      throw new ForbiddenException('FORBIDDEN_REVIEW_APPROVAL');
+      throw new ForbiddenException(ERRORS.FORBIDDEN_REVIEW_APPROVAL);
     }
 
     return this.reviewsService.approve(params.id);
@@ -67,7 +68,7 @@ export class ReviewsController {
       user.role !== UserRole.SUPERADMIN &&
       user.role !== UserRole.MODERATOR
     ) {
-      throw new ForbiddenException('FORBIDDEN_REVIEW_REJECT');
+      throw new ForbiddenException(ERRORS.FORBIDDEN_REVIEW_REJECTION);
     }
 
     return this.reviewsService.reject(params.id);
@@ -82,7 +83,7 @@ export class ReviewsController {
       user.role !== UserRole.SUPERADMIN &&
       user.role !== UserRole.MODERATOR
     ) {
-      throw new ForbiddenException('FORBIDDEN_REVIEW_DELETE');
+      throw new ForbiddenException(ERRORS.FORBIDDEN_REVIEW_DELETION);
     }
 
     return this.reviewsService.delete(params.id);

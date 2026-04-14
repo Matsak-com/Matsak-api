@@ -12,6 +12,7 @@ import {
   Patch,
   HttpException,
 } from '@nestjs/common';
+import { ERRORS } from '../common/errors';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
@@ -59,9 +60,12 @@ export class AuthController {
       };
     } catch (error) {
       if (error.status === HttpStatus.CONFLICT) {
-        throw new ConflictException(error.message);
+        throw new ConflictException(ERRORS.EMAIL_ALREADY_EXISTS);
       }
-      throw error;
+      throw new HttpException(
+        ERRORS.REGISTRATION_FAILED,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -81,9 +85,10 @@ export class AuthController {
         locale: result.locale,
       };
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
-        error.message || 'Failed to update locale',
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+        ERRORS.LOCALE_UPDATE_FAILED,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -177,9 +182,7 @@ export class AuthController {
 
       return token;
     } catch (error) {
-      throw new ConflictException(
-        error.message || 'Google authentication failed',
-      );
+      throw new ConflictException(ERRORS.GOOGLE_AUTH_FAILED, error.message);
     }
   }
 

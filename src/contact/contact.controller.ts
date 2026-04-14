@@ -14,6 +14,7 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { ContactService } from './contact.service';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { ERRORS } from '../common/errors';
 
 @Controller('contact')
 @UseGuards(ThrottlerGuard)
@@ -34,7 +35,10 @@ export class ContactController {
       const messages = errors.flatMap((err) =>
         Object.values(err.constraints || {}),
       );
-      throw new BadRequestException(messages.join(', '));
+      throw new BadRequestException({
+        message: ERRORS.VALIDATION_FAILED,
+        errors: messages,
+      });
     }
 
     // Vérification honeypot
@@ -47,7 +51,7 @@ export class ContactController {
       dto.turnstileToken,
     );
     if (!isHuman) {
-      throw new ForbiddenException('CAPTCHA validation failed');
+      throw new ForbiddenException(ERRORS.CAPTCHA_VALIDATION_FAILED);
     }
 
     await this.contactService.queueContactEmail(dto, ip);

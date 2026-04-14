@@ -4,6 +4,7 @@ import { IEmailProvider } from '../interfaces/notification-provider.interface';
 import { ConfigService } from '@nestjs/config';
 import { I18nService } from '../i18n.service';
 import * as nodemailer from 'nodemailer';
+import SMTPTransport from 'nodemailer/lib/smtp-transport';
 import * as handlebars from 'handlebars';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -11,7 +12,6 @@ import * as path from 'path';
 @Injectable()
 export class EmailProvider implements IEmailProvider {
   private readonly logger = new Logger(EmailProvider.name);
-  private transporter: nodemailer.Transporter;
   private hbs: typeof handlebars;
   private readonly templateDir: string;
   private readonly LOGO_CID = 'matsak-logo';
@@ -32,25 +32,54 @@ export class EmailProvider implements IEmailProvider {
     private readonly configService: ConfigService,
     private readonly i18nService: I18nService,
   ) {
-    const mailUser = this.configService.get<string>('MAIL_USER');
-    const mailPass = this.configService.get<string>('MAIL_PASS');
-
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.get('MAIL_HOST', 'localhost'),
-      port: parseInt(this.configService.get('MAIL_PORT', '1025')),
-      secure: this.configService.get('MAIL_SECURE', 'false') === 'true',
-      ...(mailUser && mailPass
-        ? { auth: { user: mailUser, pass: mailPass } }
-        : {}),
-    });
-
     this.hbs = handlebars.create();
     this.templateDir = this.findTemplateDirectory();
     this.configureHandlebars();
     this.logger.log(`Template directory: ${this.templateDir}`);
   }
 
+  /**
+   * Build a fresh nodemailer transporter.
+   * pool:false — creates a new TCP connection per message, preventing stale
+   * socket ECONNRESET that occurs when the SMTP server drops idle connections.
+   */
+  private createTransporter(): nodemailer.Transporter<SMTPTransport.SentMessageInfo> {
+    const mailUser = this.configService.get<string>('MAIL_USER');
+    const mailPass =
+      this.configService.get<string>('MAIL_PASS') ||
+      this.configService.get<string>('MAIL_PASSWORD');
+    const secure = this.configService.get('MAIL_SECURE', 'false') === 'true';
+    const rejectUnauthorized =
+      this.configService.get('MAIL_TLS_REJECT_UNAUTHORIZED', 'true') !== 'false';
+
+    const options: SMTPTransport.Options = {
+      host: this.configService.get('MAIL_HOST', 'localhost'),
+      port: parseInt(this.configService.get('MAIL_PORT', '1025'), 10),
+      secure,
+      // Prevent opportunistic STARTTLS — plain-SMTP servers (e.g. MailHog)
+      // return 500 on STARTTLS which nodemailer then handles as ECONNRESET.
+      ignoreTLS: !secure,
+      // Only pass TLS socket options when the connection is actually TLS.
+      ...(secure ? { tls: { rejectUnauthorized } } : {}),
+      connectionTimeout: 10_000,
+      greetingTimeout: 8_000,
+      socketTimeout: 15_000,
+      ...(mailUser && mailPass
+        ? { auth: { user: mailUser, pass: mailPass } }
+        : {}),
+    };
+
+    return nodemailer.createTransport(options);
+  }
+
   async sendEmail(options: EmailOptions): Promise<void> {
+    await this.doSend(options, false);
+  }
+
+  private async doSend(options: EmailOptions, isRetry: boolean): Promise<void> {
+    // Fresh transporter per attempt — prevents stale-socket issues in Docker
+    // and ensures MailHog (or any plain-SMTP server) gets a clean connection.
+    const transporter = this.createTransporter();
     try {
       const {
         to,
@@ -74,33 +103,52 @@ export class EmailProvider implements IEmailProvider {
         locale,
       );
 
-      const logoAttachment = this.buildLogoAttachment();
-
       const mailOptions: any = {
         to: Array.isArray(to) ? to.join(', ') : to,
         subject,
         from: this.configService.get('MAIL_FROM', 'noreply@matsak-mg.com'),
-        attachments: [
-          ...(logoAttachment ? [logoAttachment] : []),
-          ...(attachments || []),
-        ],
+        // Logo is now served via HTTP URL — no inline CID attachment needed.
+        // CID attachments force a multipart/related wrapper that MailHog and
+        // some clients can't render, showing raw MIME source instead of HTML.
+        attachments: attachments || [],
       };
 
       if (template) {
         const emailHtml = await this.compileEmail(template, fullContext);
         mailOptions.html = emailHtml;
-        await this.transporter.sendMail(mailOptions);
+        await transporter.sendMail(mailOptions);
         this.logger.log(`Email '${template}' sent to ${to}`);
       } else if (html) {
         mailOptions.html = html;
-        await this.transporter.sendMail(mailOptions);
+        await transporter.sendMail(mailOptions);
       } else if (text) {
         mailOptions.text = text;
-        await this.transporter.sendMail(mailOptions);
+        await transporter.sendMail(mailOptions);
       }
     } catch (error) {
+      // Retry once on transient SMTP connection errors.
+      // nodemailer wraps raw TCP errors (ECONNRESET etc.) as code='ESOCKET'.
+      // "Connection closed unexpectedly" has no code — match by message.
+      const isTransient =
+        !isRetry &&
+        (error.code === 'ESOCKET' ||
+          error.code === 'ECONNRESET' ||
+          error.code === 'ECONNREFUSED' ||
+          error.code === 'ETIMEDOUT' ||
+          error.message === 'Connection closed unexpectedly' ||
+          (typeof error.message === 'string' &&
+            error.message.includes('ECONNRESET')));
+      if (isTransient) {
+        this.logger.warn(
+          `SMTP connection lost (${error.code ?? error.message}), retrying…`,
+        );
+        return this.doSend(options, true);
+      }
       this.logger.error(`Failed to send email: ${error.message}`, error.stack);
       throw error;
+    } finally {
+      // Always release the TCP connection back to MailHog / SMTP server.
+      transporter.close();
     }
   }
 
@@ -235,6 +283,10 @@ export class EmailProvider implements IEmailProvider {
     context: any,
     locale: string,
   ): Promise<any> {
+    const apiUrl = this.configService.get(
+      'APP_API_URL',
+      'http://localhost:8080',
+    );
     const platform = {
       name: this.configService.get('APP_NAME', 'Matsak'),
       url: this.configService.get('FRONTEND_URL', 'http://localhost:3000'),
@@ -246,7 +298,9 @@ export class EmailProvider implements IEmailProvider {
         'CONTACT_EMAIL',
         'contact@matsak-mg.com',
       ),
-      logoCid: this.LOGO_CID,
+      // Logo served via static HTTP — avoids multipart/related MIME structure
+      // that prevents MailHog and some clients from rendering the HTML body.
+      logoUrl: `${apiUrl}/assets/images/matsak-logo.png`,
     };
 
     const urls = {

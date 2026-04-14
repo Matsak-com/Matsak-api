@@ -1,0 +1,97 @@
+{{> header}}
+
+<div class="content">
+
+    {{!-- ── Title & greeting ──────────────────────────────────── --}}
+    <h2>{{t.title}}</h2>
+    <p class="greeting">{{t.greeting}}, <strong>{{recipient.name}}</strong></p>
+    <p>{{t.intro}}</p>
+
+    {{!-- ── Status change alert ───────────────────────────────── --}}
+    <div class="important" style="border-left-color: {{statusColor}}; background-color: {{statusBg}};">
+        <p style="margin: 0 0 4px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; font-weight: 600;">
+            {{t.statusChanged}}
+        </p>
+        <p style="margin: 0; font-size: 18px; font-weight: 700; color: {{statusColor}};">
+            {{statusLabel}}
+        </p>
+    </div>
+
+    {{!-- ── Invoice details ───────────────────────────────────── --}}
+    <h3 class="section-title">{{t.invoiceDetails}}</h3>
+    <table class="info-table">
+        <tr>
+            <td class="info-label">{{t.invoiceNumber}}</td>
+            <td class="info-value meta-mono">{{invoice.number}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">{{t.invoiceDate}}</td>
+            <td class="info-value">{{invoice.date}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">{{t.paymentMethod}}</td>
+            <td class="info-value">{{invoice.paymentMethod}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">{{t.amount}}</td>
+            <td class="info-value" style="font-size: 15px; font-weight: 700; color: #1a2b3c;">
+                {{invoice.amount}} {{invoice.currency}}
+            </td>
+        </tr>
+        <tr>
+            <td class="info-label">{{t.newStatus}}</td>
+            <td class="info-value" style="color: {{statusColor}}; font-weight: 700;">{{statusLabel}}</td>
+        </tr>
+    </table>
+
+    {{!-- ── Customer info ───────────────────────────────────────── --}}
+    <h3 class="section-title">{{t.customerInfo}}</h3>
+    <table class="info-table">
+        <tr>
+            <td class="info-label">{{t.customerName}}</td>
+            <td class="info-value">{{customer.name}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">{{t.customerEmail}}</td>
+            <td class="info-value">
+                <a href="mailto:{{customer.email}}" style="color: #5dc760; text-decoration: none;">
+                    {{customer.email}}
+                </a>
+            </td>
+        </tr>
+    </table>
+
+    {{!-- ── Affected pharmacies / teams ───────────────────────── --}}
+    {{#if teams}}
+    <h3 class="section-title">{{t.teamsLabel}}</h3>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+        <tr>
+            <td>
+                {{#each teams}}
+                <span style="
+                    display: inline-block;
+                    padding: 5px 14px;
+                    background-color: #1a2b3c;
+                    color: #ffffff;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    letter-spacing: 0.4px;
+                    margin: 3px 4px 3px 0;
+                ">{{this}}</span>
+                {{/each}}
+            </td>
+        </tr>
+    </table>
+    {{/if}}
+
+    {{!-- ── Auto notice ────────────────────────────────────────── --}}
+    <p style="color: #9ca3af; font-size: 12.5px; margin-top: 28px; padding-top: 20px; border-top: 1px solid #e9ecef;">
+        {{t.autoNotice}}
+    </p>
+
+    <p class="signature">{{{t.signature}}}</p>
+
+</div>
+
+{{> footer}}

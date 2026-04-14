@@ -91,13 +91,12 @@
     </div>
     {{/if}}
 
-    {{#if deliveryCid}}
+    {{#if deliveryQrDataUri}}
     <div class="qr-block qr-delivery">
         <h3 class="section-title">{{t.deliveryQrTitle}}</h3>
         <p class="qr-description">{{t.deliveryQrDescription}}</p>
         <div class="qr-image-wrapper">
-            {{!-- CID : l'image est attachée à l'email, pas en base64 --}}
-            <img src="cid:{{deliveryCid}}" alt="QR Code livraison" width="200" height="200" class="qr-image" />
+            <img src="{{deliveryQrDataUri}}" alt="QR Code livraison" width="200" height="200" class="qr-image" />
         </div>
         <p class="qr-meta">{{t.deliveryQrMeta}}</p>
     </div>
@@ -114,12 +113,11 @@
     <p>{{t.pickupQrDescription}}</p>
 
     {{#each teams}}
-    {{#if this.qrCid}}
+    {{#if this.qrDataUri}}
     <div class="qr-block qr-pickup">
         <div class="qr-pharmacy-name">{{this.teamName}}</div>
         <div class="qr-image-wrapper">
-            {{!-- CID : l'image est attachée à l'email, pas en base64 --}}
-            <img src="cid:{{this.qrCid}}" alt="QR Code {{this.teamName}}" width="200" height="200" class="qr-image" />
+            <img src="{{this.qrDataUri}}" alt="QR Code {{this.teamName}}" width="200" height="200" class="qr-image" />
         </div>
         <p class="qr-meta">{{../t.pickupQrMeta}} {{this.teamName}}</p>
     </div>
