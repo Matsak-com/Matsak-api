@@ -84,10 +84,15 @@ export class PrescriptionService {
   async delete(id: string) {
     const prescription = await this.findOne(id);
 
-    // Supprime le fichier physique
+    // Supprime le fichier physique sans bloquer l'event loop
     const absolutePath = path.resolve(prescription.storagePath);
-    if (fs.existsSync(absolutePath)) {
-      fs.unlinkSync(absolutePath);
+    try {
+      await fs.promises.access(absolutePath);
+      await fs.promises.unlink(absolutePath);
+    } catch (error: any) {
+      if (error?.code !== 'ENOENT') {
+        // Continue with the DB delete even if file deletion fails
+      }
     }
 
     return this.prescriptionRepository.delete({ id });
