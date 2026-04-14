@@ -62,7 +62,10 @@ export class AuthController {
       if (error.status === HttpStatus.CONFLICT) {
         throw new ConflictException(ERRORS.EMAIL_ALREADY_EXISTS);
       }
-      throw new HttpException(ERRORS.REGISTRATION_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        ERRORS.REGISTRATION_FAILED,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -83,7 +86,10 @@ export class AuthController {
       };
     } catch (error) {
       if (error instanceof HttpException) throw error;
-      throw new HttpException(ERRORS.LOCALE_UPDATE_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        ERRORS.LOCALE_UPDATE_FAILED,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -176,7 +182,7 @@ export class AuthController {
 
       return token;
     } catch (error) {
-      throw new ConflictException(ERRORS.GOOGLE_AUTH_FAILED);
+      throw new ConflictException(ERRORS.GOOGLE_AUTH_FAILED, error.message);
     }
   }
 

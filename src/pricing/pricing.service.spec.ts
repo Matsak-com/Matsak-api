@@ -154,7 +154,9 @@ describe('PricingService', () => {
     it('throws NotFoundException if rule not found', async () => {
       pricingRuleRepo.findById.mockResolvedValue(null);
       await expect(
-        service.updateRule(new Types.ObjectId().toString(), { basePriceEur: 5 }),
+        service.updateRule(new Types.ObjectId().toString(), {
+          basePriceEur: 5,
+        }),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -235,7 +237,9 @@ describe('PricingService', () => {
     });
 
     it('throws if promo is inactive', async () => {
-      promoCodeRepo.findByCode.mockResolvedValue(buildPromo({ isActive: false }));
+      promoCodeRepo.findByCode.mockResolvedValue(
+        buildPromo({ isActive: false }),
+      );
       await expect(
         service.validatePromoCode({ code: 'PROMO10', orderSubtotalEur: 50 }),
       ).rejects.toThrow(BadRequestException);
@@ -302,7 +306,11 @@ describe('PricingService', () => {
     it('applies surcharge lines', async () => {
       pricingRuleRepo.findActiveForTeam.mockResolvedValue([
         buildRule({ basePriceEur: 2, type: PricingRuleType.DELIVERY }),
-        buildRule({ basePriceEur: 1, type: PricingRuleType.SERVICE, name: 'Service fee' }),
+        buildRule({
+          basePriceEur: 1,
+          type: PricingRuleType.SERVICE,
+          name: 'Service fee',
+        }),
       ]);
 
       const summary = await service.calculateTotal({ cartSubtotalEur: 10 });
@@ -324,7 +332,9 @@ describe('PricingService', () => {
     });
 
     it('applies percentage promo correctly', async () => {
-      promoCodeRepo.findByCode.mockResolvedValue(buildPromo({ discountValue: 10 }));
+      promoCodeRepo.findByCode.mockResolvedValue(
+        buildPromo({ discountValue: 10 }),
+      );
 
       const summary = await service.calculateTotal({
         cartSubtotalEur: 100,
@@ -350,7 +360,10 @@ describe('PricingService', () => {
 
     it('caps fixed discount at subtotal amount', async () => {
       promoCodeRepo.findByCode.mockResolvedValue(
-        buildPromo({ discountType: DiscountType.FIXED_EUR, discountValue: 200 }),
+        buildPromo({
+          discountType: DiscountType.FIXED_EUR,
+          discountValue: 200,
+        }),
       );
 
       const summary = await service.calculateTotal({
@@ -390,9 +403,9 @@ describe('PricingService', () => {
   describe('redeemPromoCode', () => {
     it('throws if promo code not found', async () => {
       promoCodeRepo.findByCode.mockResolvedValue(null);
-      await expect(
-        service.redeemPromoCode('NOTEXIST', 50),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.redeemPromoCode('NOTEXIST', 50)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('throws if atomic increment fails (race condition)', async () => {

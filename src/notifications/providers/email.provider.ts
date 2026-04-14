@@ -72,10 +72,7 @@ export class EmailProvider implements IEmailProvider {
     await this.doSend(options, false);
   }
 
-  private async doSend(
-    options: EmailOptions,
-    isRetry: boolean,
-  ): Promise<void> {
+  private async doSend(options: EmailOptions, isRetry: boolean): Promise<void> {
     // Fresh transporter per attempt — prevents stale-socket issues in Docker
     // and ensures MailHog (or any plain-SMTP server) gets a clean connection.
     const transporter = this.createTransporter();
@@ -282,7 +279,10 @@ export class EmailProvider implements IEmailProvider {
     context: any,
     locale: string,
   ): Promise<any> {
-    const apiUrl = this.configService.get('APP_API_URL', 'http://localhost:8080');
+    const apiUrl = this.configService.get(
+      'APP_API_URL',
+      'http://localhost:8080',
+    );
     const platform = {
       name: this.configService.get('APP_NAME', 'Matsak'),
       url: this.configService.get('FRONTEND_URL', 'http://localhost:3000'),

@@ -494,7 +494,7 @@ export class InvoiceService {
         label: { fr: 'Remboursé', en: 'Refunded' },
         message: {
           fr: 'Un remboursement a été initié pour cette facture. Le montant sera restitué selon les délais habituels de votre moyen de paiement. Si vous avez des questions, contactez notre équipe.',
-          en: 'A refund has been initiated for this invoice. The amount will be returned according to your payment method\'s usual processing time. If you have any questions, please contact our team.',
+          en: "A refund has been initiated for this invoice. The amount will be returned according to your payment method's usual processing time. If you have any questions, please contact our team.",
         },
       },
       [InvoiceStatus.CANCELLED]: {
@@ -503,7 +503,7 @@ export class InvoiceService {
         bg: 'rgba(231, 76, 60, 0.07)',
         label: { fr: 'Annulé', en: 'Cancelled' },
         message: {
-          fr: 'Cette facture a été annulée. Si vous pensez qu\'il s\'agit d\'une erreur ou si vous avez des questions, n\'hésitez pas à contacter notre équipe de support.',
+          fr: "Cette facture a été annulée. Si vous pensez qu'il s'agit d'une erreur ou si vous avez des questions, n'hésitez pas à contacter notre équipe de support.",
           en: 'This invoice has been cancelled. If you believe this is an error or have any questions, please do not hesitate to contact our support team.',
         },
       },
@@ -526,7 +526,11 @@ export class InvoiceService {
       amount: this.formatAmount(
         fullInvoice.totalLocal ?? fullInvoice.payment?.amount ?? 0,
       ),
-      currency: (fullInvoice.currency ?? fullInvoice.payment?.currency ?? 'MGA').toUpperCase(),
+      currency: (
+        fullInvoice.currency ??
+        fullInvoice.payment?.currency ??
+        'MGA'
+      ).toUpperCase(),
     };
   }
 

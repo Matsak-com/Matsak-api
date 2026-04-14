@@ -553,7 +553,7 @@ describe('InvoiceService', () => {
       expect(notificationService.sendEmail).not.toHaveBeenCalled();
     });
   });
-  
+
   // ─── findByTeam ───────────────────────────────────────────────────────────
   describe('findByTeam', () => {
     const mockTeamId = new Types.ObjectId('507f1f77bcf86cd799439099');
@@ -606,9 +606,9 @@ describe('InvoiceService', () => {
       });
 
       const callFilter = invoiceRepo.findAll.mock.calls[0][0].filter;
-      expect(
-        callFilter['cartSnapshot.items.product.team._id'].toString(),
-      ).toBe(mockTeamId.toString());
+      expect(callFilter['cartSnapshot.items.product.team._id'].toString()).toBe(
+        mockTeamId.toString(),
+      );
     });
 
     it('should return only items belonging to the requested team', async () => {

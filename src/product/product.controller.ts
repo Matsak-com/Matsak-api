@@ -214,7 +214,7 @@ export class ProductController {
       });
       return results;
     } catch (error) {
-      throw new BadRequestException(ERRORS.PRODUCT_FETCH_FAILED);
+      throw new BadRequestException(ERRORS.PRODUCT_FETCH_FAILED, error.message);
     }
   }
 
