@@ -254,7 +254,7 @@ MAIL_HOST=smtp.sendgrid.net
 MAIL_PORT=587
 MAIL_SECURE=true
 MAIL_USER=apikey
-MAIL_PASSWORD=your-api-key
+MAIL_PASS=your-api-key
 REDIS_HOST=your-redis-host
 REDIS_PORT=6379
 

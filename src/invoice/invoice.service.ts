@@ -406,7 +406,6 @@ export class InvoiceService {
 
   async findAll(): Promise<any[]> {
     const invoices = await this.invoiceRepo.findAll({
-      filter: { deleted_at: { $exists: false } },
       options: { sort: { invoiceDate: -1 }, populate: this.populateOptions },
     });
     return invoices.map((invoice) => this.formatInvoiceResponse(invoice));

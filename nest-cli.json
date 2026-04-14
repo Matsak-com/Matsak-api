@@ -12,6 +12,10 @@
       {
         "include": "notifications/locales/**/*",
         "outDir": "dist"
+      },
+      {
+        "include": "assets/**/*",
+        "outDir": "dist"
       }
     ]
   }

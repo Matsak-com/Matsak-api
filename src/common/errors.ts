@@ -18,7 +18,7 @@ export const ERRORS = {
   // Cart
   CART_NOT_FOUND: 'CART_NOT_FOUND',
   CART_PRODUCT_NOT_FOUND: 'CART_PRODUCT_NOT_FOUND',
-  CART_EMPTY: 'Cart is empty',
+  CART_EMPTY: 'CART_EMPTY',
   CART_SESSION_REQUIRED: 'CART_SESSION_REQUIRED',
   SESSION_ID_MISSING: 'SESSION_ID_MISSING',
   PRODUCT_ID_MISSING: 'PRODUCT_ID_MISSING',
@@ -129,6 +129,14 @@ export const TOKEN_MAP: Record<string, { status: number; message: string }> = {
   [ERRORS.CART_PRODUCT_NOT_FOUND]: {
     status: HttpStatus.NOT_FOUND,
     message: 'Product not found in cart',
+  },
+  [ERRORS.CART_EMPTY]: {
+    status: HttpStatus.BAD_REQUEST,
+    message: 'Cart is empty',
+  },
+  [ERRORS.CART_SESSION_REQUIRED]: {
+    status: HttpStatus.BAD_REQUEST,
+    message: 'Une session panier ou un identifiant utilisateur est requis.',
   },
   [ERRORS.ADDRESS_NOT_FOUND]: {
     status: HttpStatus.NOT_FOUND,

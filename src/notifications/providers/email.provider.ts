@@ -45,8 +45,12 @@ export class EmailProvider implements IEmailProvider {
    */
   private createTransporter(): nodemailer.Transporter<SMTPTransport.SentMessageInfo> {
     const mailUser = this.configService.get<string>('MAIL_USER');
-    const mailPass = this.configService.get<string>('MAIL_PASS');
+    const mailPass =
+      this.configService.get<string>('MAIL_PASS') ||
+      this.configService.get<string>('MAIL_PASSWORD');
     const secure = this.configService.get('MAIL_SECURE', 'false') === 'true';
+    const rejectUnauthorized =
+      this.configService.get('MAIL_TLS_REJECT_UNAUTHORIZED', 'true') !== 'false';
 
     const options: SMTPTransport.Options = {
       host: this.configService.get('MAIL_HOST', 'localhost'),
@@ -56,7 +60,7 @@ export class EmailProvider implements IEmailProvider {
       // return 500 on STARTTLS which nodemailer then handles as ECONNRESET.
       ignoreTLS: !secure,
       // Only pass TLS socket options when the connection is actually TLS.
-      ...(secure ? { tls: { rejectUnauthorized: false } } : {}),
+      ...(secure ? { tls: { rejectUnauthorized } } : {}),
       connectionTimeout: 10_000,
       greetingTimeout: 8_000,
       socketTimeout: 15_000,

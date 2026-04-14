@@ -30,7 +30,7 @@ async function bootstrap() {
 
   app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
   // Serve email logo and other static assets (used as URL in email templates)
-  app.use('/assets', express.static(join(process.cwd(), 'src/assets')));
+  app.use('/assets', express.static(join(__dirname, 'assets')));
 
   app.use(cookieParser());
 
