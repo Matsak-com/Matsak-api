@@ -20,13 +20,6 @@ interface CreateInvoiceFromPaymentDto {
   currency?: string;
 }
 
-interface CidAttachment {
-  filename: string;
-  content: Buffer;
-  cid: string;
-  contentType: string;
-}
-
 @Injectable()
 export class InvoiceService {
   private readonly logger = new Logger(InvoiceService.name);
@@ -221,7 +214,6 @@ export class InvoiceService {
     }
 
     const isPickup = payment.deliveryMethod === DeliveryMethod.PICKUP;
-    const attachments: CidAttachment[] = [];
 
     const teamMap = new Map<
       string,
@@ -230,7 +222,9 @@ export class InvoiceService {
         teamName: string;
         items: any[];
         subtotalRaw: number;
-        qrCid?: string;
+        // QR code embedded as data URI — avoids CID attachments which force
+        // a multipart/related MIME envelope that breaks HTML rendering.
+        qrDataUri?: string;
       }
     >();
 
@@ -260,7 +254,7 @@ export class InvoiceService {
       });
     }
 
-    let deliveryCid: string | null = null;
+    let deliveryQrDataUri: string | null = null;
     let deliveryAddress: any = null;
 
     if (!isPickup) {
@@ -295,13 +289,7 @@ export class InvoiceService {
 
       try {
         const buffer = await this.generateQRCodeBuffer(qrPayload);
-        deliveryCid = `qr-delivery-${invoice.invoiceNumber}`;
-        attachments.push({
-          filename: `qr-livraison-${invoice.invoiceNumber}.png`,
-          content: buffer,
-          cid: deliveryCid,
-          contentType: 'image/png',
-        });
+        deliveryQrDataUri = `data:image/png;base64,${buffer.toString('base64')}`;
         this.logger.log(`✅ QR livraison généré pour ${invoice.invoiceNumber}`);
       } catch (err) {
         this.logger.error(`Erreur génération QR livraison`, err);
@@ -327,14 +315,7 @@ export class InvoiceService {
 
         try {
           const buffer = await this.generateQRCodeBuffer(qrPayload);
-          const cid = `qr-pickup-${teamId}`;
-          teamData.qrCid = cid;
-          attachments.push({
-            filename: `qr-retrait-${teamData.teamName.replace(/\s+/g, '-')}.png`,
-            content: buffer,
-            cid,
-            contentType: 'image/png',
-          });
+          teamData.qrDataUri = `data:image/png;base64,${buffer.toString('base64')}`;
           this.logger.log(`✅ QR retrait généré pour team ${teamId}`);
         } catch (err) {
           this.logger.error(`Erreur génération QR retrait team ${teamId}`, err);
@@ -370,7 +351,7 @@ export class InvoiceService {
       },
       isPickup,
       deliveryAddress,
-      deliveryCid,
+      deliveryQrDataUri,
       teams,
     };
 
@@ -380,7 +361,6 @@ export class InvoiceService {
       template: 'invoice',
       context: JSON.parse(JSON.stringify(context)),
       locale: 'fr',
-      attachments,
     });
 
     this.logger.log(
