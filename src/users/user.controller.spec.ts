@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { HttpException, HttpStatus } from '@nestjs/common';
 import { UserController } from './users.controller';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -94,7 +95,7 @@ describe('UserController', () => {
         newPassword: 'newpassword123',
       };
       jest.spyOn(usersService, 'updateUser').mockImplementation(() => {
-        throw { message: 'Update failed', status: 400 };
+        throw new HttpException('Update failed', HttpStatus.BAD_REQUEST);
       });
 
       await expect(
