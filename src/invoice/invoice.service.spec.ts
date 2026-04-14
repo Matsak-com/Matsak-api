@@ -9,6 +9,9 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Payment } from '../payment/payment.schema';
 import { Cart } from '../cart-item/cart-item.schema';
 import { PricingService } from '../pricing/pricing.service';
+import { User } from '../users/user.schema';
+import { Member } from '../members/member.schema';
+import { Role } from '../roles/role.schema';
 
 describe('InvoiceService', () => {
   let service: InvoiceService;
@@ -137,6 +140,18 @@ describe('InvoiceService', () => {
         {
           provide: PricingService,
           useValue: mockPricingService,
+        },
+        {
+          provide: getModelToken(User.name),
+          useValue: { findById: jest.fn() },
+        },
+        {
+          provide: getModelToken(Member.name),
+          useValue: { findOne: jest.fn() },
+        },
+        {
+          provide: getModelToken(Role.name),
+          useValue: { findById: jest.fn() },
         },
       ],
     }).compile();
