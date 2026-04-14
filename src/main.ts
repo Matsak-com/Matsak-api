@@ -3,8 +3,8 @@ import { AppModule } from './app.module';
 import { join } from 'path';
 import { corsConfig } from './configs/cors/cors.config';
 import * as express from 'express';
-import cookieParser from 'cookie-parser';
 import * as fs from 'fs';
+import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   // ✅ Fail fast si APP_URL manquant
