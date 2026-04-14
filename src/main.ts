@@ -3,11 +3,18 @@ import { AppModule } from './app.module';
 import { join } from 'path';
 import { corsConfig } from './configs/cors/cors.config';
 import * as express from 'express';
+import * as fs from 'fs';
 import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
-  // bodyParser désactivé pour le configurer manuellement
-  // → permet d'exposer req.rawBody pour la vérification HMAC du webhook Mvola
+  // ✅ Fail fast si APP_URL manquant
+  if (!process.env.APP_URL) {
+    throw new Error('APP_URL environment variable is required');
+  }
+
+  // ✅ Crée le dossier au démarrage s'il n'existe pas
+  fs.mkdirSync(join(__dirname, '..', 'uploads', 'prescriptions'), { recursive: true });
+
   const app = await NestFactory.create(AppModule, {
     cors: corsConfig,
     bodyParser: false,
@@ -15,8 +22,6 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
 
-  // Body parser JSON avec capture du raw body (Buffer)
-  // req.rawBody est utilisé par MvolaWebhookGuard pour vérifier la signature HMAC
   app.use(
     express.json({
       verify: (req: any, _res, buf) => {
@@ -25,7 +30,6 @@ async function bootstrap() {
     }),
   );
 
-  // Body parser URL-encoded (formulaires)
   app.use(express.urlencoded({ extended: true }));
 
   app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));

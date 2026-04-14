@@ -56,6 +56,10 @@ export const ERRORS = {
   USER_CREATION_FAILED: 'USER_CREATION_FAILED',
   REGISTRATION_FAILED: 'REGISTRATION_FAILED',
   INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
+  FILE_IS_REQUIRED: 'FILE_IS_REQUIRED',
+  INVALID_CART_ID: 'INVALID_CART_ID',
+  INVALID_FILE_PATH: 'INVALID_FILE_PATH',
+  ONLY_PDF_AND_IMAGE_FILES_ARE_ALLOWED: 'ONLY_PDF_AND_IMAGE_FILES_ARE_ALLOWED',
 };
 
 export const TOKEN_MAP: Record<string, { status: number; message: string }> = {
@@ -190,6 +194,10 @@ export const TOKEN_MAP: Record<string, { status: number; message: string }> = {
   [ERRORS.LOCALE_INVALID]: {
     status: HttpStatus.BAD_REQUEST,
     message: 'Locale should be a string',
+  },
+  [ERRORS.ONLY_PDF_AND_IMAGE_FILES_ARE_ALLOWED]: {
+    status: HttpStatus.BAD_REQUEST,
+    message: 'Only PDF or image files are allowed',
   },
   [ERRORS.INSUFFICIENT_STOCK]: {
     status: HttpStatus.BAD_REQUEST,

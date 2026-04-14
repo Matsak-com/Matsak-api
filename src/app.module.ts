@@ -29,6 +29,7 @@ import { FaqsModule } from './faqs/faqs.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { PaymentModule } from './payment/payment.module';
 import { InvoiceModule } from './invoice/invoice.module';
+import { PrescriptionModule } from './prescription/prescription.module';
 import { CookieConsentController } from './cookie-consent/cookie-consent.controller';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ContactModule } from './contact/contact.module';
@@ -114,6 +115,7 @@ export function getRedisConfig() {
     ReviewsModule,
     PaymentModule,
     InvoiceModule,
+    PrescriptionModule,
     ContactModule,
     PricingModule,
     CurrencyModule,
