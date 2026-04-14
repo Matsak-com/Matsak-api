@@ -9,6 +9,7 @@ import { UpdatePrescriptionDto } from './dto/update-prescription.dto';
 import { PrescriptionStatus } from './prescription.schema';
 import * as fs from 'fs';
 import * as path from 'path';
+import { Types } from 'mongoose';
 
 @Injectable()
 export class PrescriptionService {
@@ -20,7 +21,7 @@ export class PrescriptionService {
     return this.prescriptionRepository.create({
       doc: {
         ...createPrescriptionDto,
-        status: createPrescriptionDto.status ?? PrescriptionStatus.AWAIT,
+        status: createPrescriptionDto.status ?? PrescriptionStatus.PENDING,
       },
     });
   }
@@ -39,7 +40,7 @@ export class PrescriptionService {
 
   async update(id: string, updatePrescriptionDto: UpdatePrescriptionDto) {
     if (
-      updatePrescriptionDto.status === PrescriptionStatus.VALIDATE &&
+      updatePrescriptionDto.status === PrescriptionStatus.VALIDATED &&
       !updatePrescriptionDto.invoiceId
     ) {
       throw new BadRequestException(
@@ -49,7 +50,7 @@ export class PrescriptionService {
 
     const update = { ...updatePrescriptionDto } as any;
 
-    if (updatePrescriptionDto.status === PrescriptionStatus.VALIDATE) {
+    if (updatePrescriptionDto.status === PrescriptionStatus.VALIDATED) {
       update.cartId = null;
       update.validatedAt = new Date();
     }
@@ -74,17 +75,20 @@ export class PrescriptionService {
     }
 
     return this.update(id, {
-      status: PrescriptionStatus.VALIDATE,
-      invoiceId,
+      status: PrescriptionStatus.VALIDATED,
+      invoiceId: new Types.ObjectId(invoiceId),
       cartId: null,
     });
   }
 
-  // ✅ Supprime la prescription en DB + le fichier physique sur le disque
+  /**
+   * Supprime le fichier physique du disque ET applique un soft delete en DB
+   * (le document reste en base avec `deleted_at` défini via BaseRepository)
+   */
   async delete(id: string) {
     const prescription = await this.findOne(id);
 
-    // Supprime le fichier physique sans bloquer l'event loop
+    // Supprime le fichier physique du disque
     const absolutePath = path.resolve(prescription.storagePath);
     try {
       await fs.promises.access(absolutePath);
@@ -95,6 +99,7 @@ export class PrescriptionService {
       }
     }
 
+    // Soft delete en DB : définit deleted_at via BaseRepository
     return this.prescriptionRepository.delete({ id });
   }
 }

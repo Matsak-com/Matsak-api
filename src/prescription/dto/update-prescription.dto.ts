@@ -1,7 +1,11 @@
 import { PrescriptionStatus } from '../prescription.schema';
+import { Types } from 'mongoose';
 
 export class UpdatePrescriptionDto {
   status?: PrescriptionStatus;
-  invoiceId?: string;
-  cartId?: string | null;
+  cartId?: Types.ObjectId | null;
+  invoiceId?: Types.ObjectId | null;
+  validatedBy?: string;
+  validatedAt?: Date;
+  rejectionReason?: string;
 }

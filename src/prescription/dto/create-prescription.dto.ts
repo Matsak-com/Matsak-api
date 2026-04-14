@@ -1,4 +1,6 @@
+// dto/create-prescription.dto.ts
 import { PrescriptionStatus } from '../prescription.schema';
+import { Types } from 'mongoose';
 
 export class CreatePrescriptionDto {
   fileName: string;
@@ -6,9 +8,11 @@ export class CreatePrescriptionDto {
   fileUrl: string;
   mimeType: string;
   size: number;
-  cartId?: string;
   status?: PrescriptionStatus;
-  invoiceId?: string;
+
+  cartId?: Types.ObjectId | null;
+  invoiceId?: Types.ObjectId | null;
+
   userId?: string;
   validatedBy?: string;
   validatedAt?: Date;

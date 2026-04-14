@@ -1,62 +1,81 @@
 # Collection Prescription Documentation
 
 ## Overview
-La collection **Prescription** permet de gérer les fichiers prescription (PDF ou images) avec un statut de validation et des références aux panier et facture.
+La collection **Prescription** permet de gérer les fichiers prescription (PDF ou images) avec un statut de validation et des références au panier et à la facture.
 
 ## Schéma
 
 ```typescript
 export enum PrescriptionStatus {
-  PENDING = 'pending',    // En attente de validation
-  VALIDATED = 'validated' // Validée et liée à une facture
+  PENDING  = 'pending',    // En attente de validation
+  VALIDATED = 'validated', // Validée et liée à une facture
+  REFUSED  = 'refused',    // Refusée par l'admin
 }
 
 export class Prescription {
-  // Métadonnées du fichier 
-  originalName: string;      // Nom original du fichier
-  storagePath: string;       // Chemin de stockage local
+  // Métadonnées du fichier
+  fileName: string;          // Nom original du fichier (affiché à l'utilisateur)
+  storagePath: string;       // Chemin de stockage local (relatif à la racine)
+  fileUrl: string;           // URL publique d'accès au fichier
   mimeType: string;          // Type MIME (PDF ou image)
   size: number;              // Taille en octets
-  
-  // Références 
-  cartId?: Types.ObjectId;   // ID du panier (supprimé lors de la validation)
+
+  // Références
+  cartId?: Types.ObjectId;    // ID du panier (supprimé lors de la validation)
   invoiceId?: Types.ObjectId; // ID de la facture (défini lors de la validation)
-  
+
   // Statut
-  status: PrescriptionStatus; // PENDING ou VALIDATED
+  status: PrescriptionStatus; // PENDING, VALIDATED ou REFUSED
   validatedAt?: Date;         // Date de validation
-  
+
+  // Audit
+  validatedBy?: string;       // ID de l'admin ayant validé
+  rejectionReason?: string;   // Motif de refus
+
   // Soft delete
-  deleted_at?: Date;
-  
+  deleted_at?: Date;          // Marquage suppression logique (fichier disque supprimé)
+
   // Timestamps MongoDB
   createdAt: Date;
   updatedAt: Date;
 }
 ```
 
+## Politique de suppression
+
+| Action | DB | Fichier disque |
+|---|---|---|
+| `DELETE /prescription/:id` | Suppression physique | ✅ Supprimé via `fs.unlinkSync` |
+| Soft delete (futur) | `deleted_at` défini | ⚠️ Fichier conservé pour audit |
+
+> **Note** : La suppression via l'API (`DELETE`) supprime à la fois le document en base
+> et le fichier physique sur le disque. Si une traçabilité complète est requise,
+> privilégier un soft delete sans suppression du fichier.
+
 ## Fichiers autorisés
 - **PDF** : `application/pdf`
 - **Images** : `image/jpeg`, `image/png`, `image/webp`
-- **Taille max** : 10MB
+- **Taille max** : 10 MB
+- **Stockage** : `uploads/prescriptions/<uuid>.<ext>`
 
 ## API Endpoints
 
 ### 1. Créer une prescription
 ```http
-POST /prescription
+POST /api/prescription
 Content-Type: multipart/form-data
 
-file: <binary>
-cartId: <mongoId> (optionnel)
+file:   <binary>
+cartId: <mongoId> (optionnel, doit être un ObjectId valide)
 ```
 
 **Réponse (201)** :
 ```json
 {
   "_id": "507f1f77bcf86cd799439011",
-  "originalName": "ordonnance.pdf",
-  "storagePath": "./uploads/prescriptions/1695312000000-ordonnance.pdf",
+  "fileName": "ordonnance.pdf",
+  "storagePath": "uploads/prescriptions/a1b2c3-uuid.pdf",
+  "fileUrl": "https://monapp.com/uploads/prescriptions/a1b2c3-uuid.pdf",
   "mimeType": "application/pdf",
   "size": 245678,
   "cartId": "507f1f77bcf86cd799439012",
@@ -69,14 +88,15 @@ cartId: <mongoId> (optionnel)
 ```
 
 **Erreurs** :
-- `400` : Seuls les fichiers PDF ou images sont autorisés
-- `400` : Le fichier prescription est requis
+- `400` : `ONLY_PDF_AND_IMAGE_FILES_ARE_ALLOWED`
+- `400` : `FILE_IS_REQUIRED`
+- `400` : `INVALID_CART_ID`
 
 ---
 
 ### 2. Lister toutes les prescriptions
 ```http
-GET /prescription
+GET /api/prescription
 ```
 
 **Réponse (200)** : Array of prescriptions
@@ -85,7 +105,7 @@ GET /prescription
 
 ### 3. Récupérer une prescription
 ```http
-GET /prescription/:id
+GET /api/prescription/:id
 ```
 
 **Erreurs** :
@@ -93,9 +113,23 @@ GET /prescription/:id
 
 ---
 
-### 4. Valider une prescription
+### 4. Lire le fichier physique
 ```http
-PATCH /prescription/:id/validate
+GET /api/prescription/:id/file
+```
+
+**Réponse** : Fichier streamé inline (PDF affiché dans le navigateur, image affichée)
+
+**Erreurs** :
+- `400` : `INVALID_FILE_PATH`
+- `400` : `FILE_NOT_FOUND`
+- `404` : Prescription not found
+
+---
+
+### 5. Valider une prescription
+```http
+PATCH /api/prescription/:id/validate
 Content-Type: application/json
 
 {
@@ -113,8 +147,9 @@ Content-Type: application/json
 ```json
 {
   "_id": "507f1f77bcf86cd799439011",
-  "originalName": "ordonnance.pdf",
-  "storagePath": "./uploads/prescriptions/1695312000000-ordonnance.pdf",
+  "fileName": "ordonnance.pdf",
+  "storagePath": "uploads/prescriptions/a1b2c3-uuid.pdf",
+  "fileUrl": "https://monapp.com/uploads/prescriptions/a1b2c3-uuid.pdf",
   "mimeType": "application/pdf",
   "size": 245678,
   "cartId": null,
@@ -132,93 +167,31 @@ Content-Type: application/json
 
 ---
 
+### 6. Supprimer une prescription
+```http
+DELETE /api/prescription/:id
+```
+
+**Effet** :
+- ✅ Document supprimé de la base de données
+- ✅ Fichier physique supprimé du disque
+
+**Erreurs** :
+- `404` : Prescription not found
+
+---
+
 ## Flux de travail
 
 ### Cas 1 : Création avec cartId
 ```mermaid
 graph LR
   A["Upload fichier + cartId"] --> B["Status: PENDING"]
-  B --> C["Attendre validation"]
-  C --> D["Appel validate avec invoiceId"]
+  B --> C["Attendre validation admin"]
+  C --> D["PATCH validate avec invoiceId"]
   D --> E["Status: VALIDATED"]
   E --> F["cartId: null"]
-  F --> G["invoiceId defini"]
+  F --> G["invoiceId défini"]
 ```
 
 ### Cas 2 : Création sans cartId
-```
-POST /prescription {file}
-→ Status: PENDING
-→ Pas de cartId
-→ Attendre validation
-→ PATCH /prescription/:id/validate {invoiceId}
-```
-
----
-
-## Validation
-- **Pre-hook Mongoose** : Lorsque `status === VALIDATED`, `invoiceId` **doit** être défini
-- **On validation** : `cartId` est automatiquement supprimé (`null`)
-- **Soft delete** : Les prescriptions ne sont jamais supprimées, seulement marquées avec `deleted_at`
-
----
-
-## Indices MongoDB
-- Index sur `cartId` (sparse, optimise les recherches)
-- Index sur `invoiceId` (sparse, optimise les recherches)
-- Index sur `status` (facilite les filtres PENDING/VALIDATED)
-- Filtrage automatique des `deleted_at` via BaseRepository
-
----
-
-## Intégration avec les modules existants
-
-### Cart (panier)
-- Référence optionnelle : `cartId` au moment de l'upload
-- Supprimée lors de la validation
-
-### Invoice (facture)
-- Référence assignée lors de `validate()`
-- Lie la prescription validée à la facture émise
-
-### Base Repository
-- Utilise `BaseRepository<Prescription>`
-- Soft deletes automatiques
-- Gestion des ObjectIds
-
----
-
-## Exemple complet
-
-```typescript
-// 1. Upload
-const prescription = await prescriptionService.create({
-  originalName: 'ordonnance.pdf',
-  storagePath: './uploads/prescriptions/1234-ordonnance.pdf',
-  mimeType: 'application/pdf',
-  size: 245678,
-  cartId: 'cart_id_here',
-  status: PrescriptionStatus.PENDING
-});
-// → _id créé, status = PENDING, cartId stocké
-
-// 2. Validation (après émission de la facture)
-const validated = await prescriptionService.validate(
-  prescription._id,
-  'invoice_id_here'
-);
-// → status = VALIDATED
-// → invoiceId assigné
-// → cartId = null
-// → validatedAt = maintenant
-```
-
----
-
-## Notes de sécurité
-- ✅ Filtrage des types MIME (PDF, images uniquement)
-- ✅ Limite de 10MB par fichier
-- ✅ Stockage disque local (`./uploads/prescriptions/`)
-- ✅ Validation pre-hook Mongoose pour intégrité
-- ✅ Soft deletes pour traçabilité
-

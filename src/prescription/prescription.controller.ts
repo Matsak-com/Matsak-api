@@ -7,17 +7,23 @@ import {
   Param,
   Patch,
   Post,
+  Req,
   Res,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { Response } from 'express';
+import { Response, Request } from 'express';
 import * as path from 'path';
 import * as fs from 'fs';
+import { extname } from 'path';
+import { v4 as uuidv4 } from 'uuid';
+import contentDisposition from 'content-disposition';
+import { Types } from 'mongoose';
 import { PrescriptionService } from './prescription.service';
 import { PrescriptionStatus } from './prescription.schema';
+import { ERRORS } from 'src/common/errors';
 
 const ALLOWED_PRESCRIPTION_MIME_TYPES = [
   'application/pdf',
@@ -25,6 +31,9 @@ const ALLOWED_PRESCRIPTION_MIME_TYPES = [
   'image/png',
   'image/webp',
 ];
+
+// ✅ Répertoire de base sécurisé (résolu en absolu au démarrage)
+const UPLOADS_BASE_DIR = path.resolve('./uploads/prescriptions');
 
 @Controller('prescription')
 export class PrescriptionController {
@@ -34,18 +43,21 @@ export class PrescriptionController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
-        destination: './uploads/prescriptions',
+        // ✅ Callback qui crée le dossier s'il n'existe pas
+        destination: (req, file, callback) => {
+          fs.mkdirSync(UPLOADS_BASE_DIR, { recursive: true });
+          callback(null, UPLOADS_BASE_DIR);
+        },
         filename: (req, file, callback) => {
-          const safeName = `${Date.now()}-${file.originalname}`;
+          const ext = extname(file.originalname).toLowerCase();
+          const safeName = `${uuidv4()}${ext}`;
           callback(null, safeName);
         },
       }),
       fileFilter: (req, file, callback) => {
         if (!ALLOWED_PRESCRIPTION_MIME_TYPES.includes(file.mimetype)) {
           return callback(
-            new BadRequestException(
-              'Seuls les fichiers PDF ou images sont autorisés',
-            ),
+            new BadRequestException(ERRORS.ONLY_PDF_AND_IMAGE_FILES_ARE_ALLOWED),
             false,
           );
         }
@@ -57,13 +69,20 @@ export class PrescriptionController {
   async create(
     @UploadedFile() file: Express.Multer.File,
     @Body('cartId') cartId?: string,
+    @Req() req?: Request,
   ) {
     if (!file) {
-      throw new BadRequestException('Le fichier prescription est requis');
+      throw new BadRequestException(ERRORS.FILE_IS_REQUIRED);
     }
 
-    const relativePath = path.join('uploads', 'prescriptions', file.filename);
-    const fileUrl = `${process.env.APP_URL}/${relativePath.replace(/\\/g, '/')}`;
+    // ✅ Validation cartId : doit être un ObjectId Mongoose valide si fourni
+    if (cartId && !Types.ObjectId.isValid(cartId)) {
+      throw new BadRequestException(ERRORS.INVALID_CART_ID);
+    }
+
+    const relativePath = `uploads/prescriptions/${file.filename}`;
+    const baseUrl = process.env.APP_URL ?? `${req.protocol}://${req.get('host')}`;
+    const fileUrl = `${baseUrl}/${relativePath}`;
 
     return this.prescriptionService.create({
       fileName: file.originalname,
@@ -71,8 +90,8 @@ export class PrescriptionController {
       fileUrl,
       mimeType: file.mimetype,
       size: file.size,
-      cartId,
-      status: PrescriptionStatus.AWAIT,
+      cartId: cartId ? new Types.ObjectId(cartId) : null,      
+      status: PrescriptionStatus.PENDING,
     });
   }
 
@@ -90,16 +109,18 @@ export class PrescriptionController {
   async getFile(@Param('id') id: string, @Res() res: Response) {
     const prescription = await this.prescriptionService.findOne(id);
 
+    // ✅ Sécurité path traversal : on s'assure que le chemin reste dans uploads/prescriptions
     const absolutePath = path.resolve(prescription.storagePath);
-
-    if (!fs.existsSync(absolutePath)) {
-      throw new BadRequestException('Fichier introuvable sur le serveur');
+    if (!absolutePath.startsWith(UPLOADS_BASE_DIR)) {
+      throw new BadRequestException(ERRORS.INVALID_FILE_PATH);
     }
 
-    res.setHeader(
-      'Content-Disposition',
-      `inline; filename="${prescription.fileName}"`,
-    );
+    if (!fs.existsSync(absolutePath)) {
+      throw new BadRequestException(ERRORS.FILE_NOT_FOUND);
+    }
+
+    // ✅ content-disposition package pour encoder correctement le nom de fichier
+    res.setHeader('Content-Disposition', contentDisposition(prescription.fileName, { type: 'inline' }));
     res.setHeader('Content-Type', prescription.mimeType);
 
     const stream = fs.createReadStream(absolutePath);

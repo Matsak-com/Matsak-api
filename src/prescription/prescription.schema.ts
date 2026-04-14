@@ -3,9 +3,10 @@ import { Document, Types } from 'mongoose';
 
 export type PrescriptionDocument = Prescription & Document;
 
+// ✅ Renommé en PENDING/VALIDATED/REFUSED pour cohérence avec le reste du codebase
 export enum PrescriptionStatus {
-  AWAIT = 'await',
-  VALIDATE = 'validate',
+  PENDING = 'pending',
+  VALIDATED = 'validated',
   REFUSED = 'refused',
 }
 
@@ -26,29 +27,30 @@ export class Prescription {
   @Prop({ required: true })
   size: number;
 
+  // ✅ sparse: true sans default: null → index ne couvre que les docs avec un vrai ObjectId
   @Prop({
     type: Types.ObjectId,
     ref: 'Cart',
     required: false,
     sparse: true,
     index: true,
-    default: null,
   })
-  cartId?: Types.ObjectId | string | null;
+  cartId?: Types.ObjectId | null;
 
+  // ✅ idem pour invoiceId
   @Prop({
     type: Types.ObjectId,
     ref: 'Invoice',
     required: false,
-    index: { partialFilterExpression: { invoiceId: { $type: 'objectId' } } },
-    default: null,
+    sparse: true,
+    index: true,
   })
-  invoiceId?: Types.ObjectId | string | null;
+  invoiceId?: Types.ObjectId | null;
 
   @Prop({
     required: true,
     enum: Object.values(PrescriptionStatus),
-    default: PrescriptionStatus.AWAIT,
+    default: PrescriptionStatus.PENDING,
     index: true,
   })
   status: PrescriptionStatus;
