@@ -145,6 +145,27 @@ export class PrescriptionController {
 
       res.status(500).json({ message: 'Erreur lors de la lecture du fichier' });
     });
+
+    stream.on('error', (error: NodeJS.ErrnoException) => {
+      if (res.headersSent) {
+        if (!res.writableEnded) {
+          res.end();
+        }
+        return;
+      }
+
+      if (error.code === 'ENOENT') {
+        res.status(404).json({ message: 'Fichier introuvable sur le serveur' });
+        return;
+      }
+
+      if (error.code === 'EACCES' || error.code === 'EPERM') {
+        res.status(403).json({ message: 'Accès au fichier refusé' });
+        return;
+      }
+
+      res.status(500).json({ message: 'Erreur lors de la lecture du fichier' });
+    });
     stream.pipe(res);
   }
 
