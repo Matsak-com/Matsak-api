@@ -11,7 +11,9 @@ import { Types } from 'mongoose';
 import { MAX_ITEM_QUANTITY } from '../common/schemas/cart.schemas';
 
 type CartItem = { product: Types.ObjectId; quantity: number };
-type EnrichedCartItem = Record<string, any> & { quantity: number };
+type EnrichedCartItem =
+  | (Record<string, any> & { quantity: number; _deleted?: never })
+  | { _id: Types.ObjectId; quantity: number; _deleted: true };
 type CartResponse = { _id: Types.ObjectId | null; items: EnrichedCartItem[] };
 
 @Injectable()
@@ -38,7 +40,12 @@ export class CartService {
 
     return items.map((item) => {
       const product = productMap.get(item.product.toString());
-      if (!product) return { _id: item.product, quantity: item.quantity };
+      if (!product)
+        return {
+          _id: item.product,
+          quantity: item.quantity,
+          _deleted: true as const,
+        };
       return { ...product, quantity: item.quantity };
     });
   }
