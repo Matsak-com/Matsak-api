@@ -57,7 +57,6 @@ export class Cart {
 
   @Prop({
     type: Date,
-    index: true, // ← Index pour les requêtes de soft delete
   })
   deleted_at?: Date;
 }
