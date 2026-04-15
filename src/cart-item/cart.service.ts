@@ -2,7 +2,6 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  UnprocessableEntityException,
 } from '@nestjs/common';
 import { ERRORS } from '../common/errors';
 import { AddToCartDto } from './dto/add-to-cart.dto';
@@ -23,7 +22,9 @@ export class CartService {
   ) {}
 
   /** Batch-load products for all cart items in a single query (eliminates N+1). */
-  private async enrichCartItems(items: CartItem[]): Promise<EnrichedCartItem[]> {
+  private async enrichCartItems(
+    items: CartItem[],
+  ): Promise<EnrichedCartItem[]> {
     if (items.length === 0) return [];
 
     const productIds = items.map((item) => item.product);
@@ -33,9 +34,7 @@ export class CartService {
       options: { populate: ['detail', 'images', 'team'], lean: true },
     });
 
-    const productMap = new Map(
-      products.map((p: any) => [p._id.toString(), p]),
-    );
+    const productMap = new Map(products.map((p: any) => [p._id.toString(), p]));
 
     return items
       .map((item) => {
@@ -202,9 +201,7 @@ export class CartService {
     if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
 
     const originalLength = cart.items.length;
-    cart.items = cart.items.filter(
-      (i) => i.product.toString() !== productId,
-    );
+    cart.items = cart.items.filter((i) => i.product.toString() !== productId);
 
     if (cart.items.length === originalLength) {
       throw new NotFoundException(ERRORS.CART_PRODUCT_NOT_FOUND);

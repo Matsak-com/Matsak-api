@@ -13,7 +13,9 @@ async function bootstrap() {
   }
 
   // ✅ Crée le dossier au démarrage s'il n'existe pas
-  fs.mkdirSync(join(__dirname, '..', 'uploads', 'prescriptions'), { recursive: true });
+  fs.mkdirSync(join(__dirname, '..', 'uploads', 'prescriptions'), {
+    recursive: true,
+  });
 
   const app = await NestFactory.create(AppModule, {
     cors: corsConfig,

@@ -116,14 +116,18 @@ describe('PrescriptionService', () => {
 
       const result = await service.findOne('prescription-id-1');
 
-      expect(mockRepository.findById).toHaveBeenCalledWith({ id: 'prescription-id-1' });
+      expect(mockRepository.findById).toHaveBeenCalledWith({
+        id: 'prescription-id-1',
+      });
       expect(result).toEqual(mockPrescription);
     });
 
     it('devrait lever NotFoundException si la prescription est introuvable', async () => {
       mockRepository.findById.mockResolvedValue(null);
 
-      await expect(service.findOne('inexistant-id')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('inexistant-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -131,7 +135,10 @@ describe('PrescriptionService', () => {
 
   describe('update', () => {
     it('devrait mettre à jour une prescription', async () => {
-      const updated = { ...mockPrescription, status: PrescriptionStatus.VALIDATED };
+      const updated = {
+        ...mockPrescription,
+        status: PrescriptionStatus.VALIDATED,
+      };
       mockRepository.update.mockResolvedValue(updated);
 
       const result = await service.update('prescription-id-1', {
@@ -147,12 +154,18 @@ describe('PrescriptionService', () => {
 
     it('devrait lever BadRequestException si status VALIDATED sans invoiceId', async () => {
       await expect(
-        service.update('prescription-id-1', { status: PrescriptionStatus.VALIDATED }),
+        service.update('prescription-id-1', {
+          status: PrescriptionStatus.VALIDATED,
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('devrait définir cartId à null et validatedAt lors de la validation', async () => {
-      const updated = { ...mockPrescription, cartId: null, validatedAt: new Date() };
+      const updated = {
+        ...mockPrescription,
+        cartId: null,
+        validatedAt: new Date(),
+      };
       mockRepository.update.mockResolvedValue(updated);
 
       await service.update('prescription-id-1', {
@@ -183,7 +196,10 @@ describe('PrescriptionService', () => {
 
   describe('validate', () => {
     it('devrait valider une prescription avec un invoiceId', async () => {
-      const validated = { ...mockPrescription, status: PrescriptionStatus.VALIDATED };
+      const validated = {
+        ...mockPrescription,
+        status: PrescriptionStatus.VALIDATED,
+      };
       mockRepository.update.mockResolvedValue(validated);
 
       const invoiceId = new Types.ObjectId().toString();
@@ -221,20 +237,26 @@ describe('PrescriptionService', () => {
       const expectedPath = path.resolve(mockPrescription.storagePath);
       expect(fs.promises.access).toHaveBeenCalledWith(expectedPath);
       expect(fs.promises.unlink).toHaveBeenCalledWith(expectedPath);
-      expect(mockRepository.delete).toHaveBeenCalledWith({ id: 'prescription-id-1' });
+      expect(mockRepository.delete).toHaveBeenCalledWith({
+        id: 'prescription-id-1',
+      });
     });
 
     it('ne devrait pas appeler unlink si le fichier est absent (ENOENT)', async () => {
       mockRepository.findById.mockResolvedValue(mockPrescription);
       mockRepository.delete.mockResolvedValue({ deleted: true });
 
-      const enoentError = Object.assign(new Error('File not found'), { code: 'ENOENT' });
+      const enoentError = Object.assign(new Error('File not found'), {
+        code: 'ENOENT',
+      });
       (fs.promises.access as jest.Mock).mockRejectedValue(enoentError);
 
       await service.delete('prescription-id-1');
 
       expect(fs.promises.unlink).not.toHaveBeenCalled();
-      expect(mockRepository.delete).toHaveBeenCalledWith({ id: 'prescription-id-1' });
+      expect(mockRepository.delete).toHaveBeenCalledWith({
+        id: 'prescription-id-1',
+      });
     });
 
     it('devrait continuer le soft delete même si unlink échoue (erreur non-ENOENT)', async () => {
@@ -242,17 +264,23 @@ describe('PrescriptionService', () => {
       mockRepository.delete.mockResolvedValue({ deleted: true });
 
       (fs.promises.access as jest.Mock).mockResolvedValue(undefined);
-      (fs.promises.unlink as jest.Mock).mockRejectedValue(new Error('Permission denied'));
+      (fs.promises.unlink as jest.Mock).mockRejectedValue(
+        new Error('Permission denied'),
+      );
 
       await service.delete('prescription-id-1');
 
-      expect(mockRepository.delete).toHaveBeenCalledWith({ id: 'prescription-id-1' });
+      expect(mockRepository.delete).toHaveBeenCalledWith({
+        id: 'prescription-id-1',
+      });
     });
 
     it('devrait lever NotFoundException si la prescription est introuvable', async () => {
       mockRepository.findById.mockResolvedValue(null);
 
-      await expect(service.delete('inexistant-id')).rejects.toThrow(NotFoundException);
+      await expect(service.delete('inexistant-id')).rejects.toThrow(
+        NotFoundException,
+      );
       expect(fs.promises.unlink).not.toHaveBeenCalled();
       expect(mockRepository.delete).not.toHaveBeenCalled();
     });
