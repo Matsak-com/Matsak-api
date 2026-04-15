@@ -1,9 +1,20 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ERRORS } from '../common/errors';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { ProductRepository } from '../product/product.repository';
 import { CartRepository } from './cart.repository';
 import { Types } from 'mongoose';
+import { MAX_ITEM_QUANTITY } from '../common/schemas/cart.schemas';
+
+type CartItem = { product: Types.ObjectId; quantity: number };
+type EnrichedCartItem =
+  | (Record<string, any> & { quantity: number; _deleted?: never })
+  | { _id: Types.ObjectId; quantity: number; _deleted: true };
+type CartResponse = { _id: Types.ObjectId | null; items: EnrichedCartItem[] };
 
 @Injectable()
 export class CartService {
@@ -12,37 +23,55 @@ export class CartService {
     private readonly productRepository: ProductRepository,
   ) {}
 
-  // 🔹 Enrichir les items avec produit + quantité
-  private async enrichCartItems(items: any[]) {
-    return Promise.all(
-      items.map(async (item) => {
-        const product = await this.productRepository.findById({
-          id: item.product,
-          options: { populate: ['detail', 'images', 'team'], lean: true },
-        });
+  /** Batch-load products for all cart items in a single query (eliminates N+1). */
+  private async enrichCartItems(
+    items: CartItem[],
+  ): Promise<EnrichedCartItem[]> {
+    if (items.length === 0) return [];
 
+    const productIds = items.map((item) => item.product);
+
+    const products = await this.productRepository.findAll({
+      filter: { _id: { $in: productIds } },
+      options: { populate: ['detail', 'images', 'team'], lean: true },
+    });
+
+    const productMap = new Map(products.map((p: any) => [p._id.toString(), p]));
+
+    return items.map((item) => {
+      const product = productMap.get(item.product.toString());
+      if (!product)
         return {
-          ...product,
+          _id: item.product,
           quantity: item.quantity,
+          _deleted: true as const,
         };
-      }),
-    );
+      return { ...product, quantity: item.quantity };
+    });
   }
 
-  // 🔍 Trouver panier (session OU user)
+  /** Find a cart by userId (authenticated) or sessionId (guest). */
   private async findCart(sessionId?: string, userId?: Types.ObjectId) {
     if (userId) return this.cartRepository.findByUserId(userId);
     if (sessionId) return this.cartRepository.findBySessionId(sessionId);
     return null;
   }
 
-  // ➕ Ajouter au panier
+  /** Add item to cart — validates product existence and enforces quantity cap. */
   async addToCart(
     dto: AddToCartDto,
     sessionId?: string,
     userId?: Types.ObjectId,
-  ) {
+  ): Promise<CartResponse> {
     const quantity = dto.quantity ?? 1;
+
+    const product = await this.productRepository.findById({
+      id: dto.productId,
+      options: { projection: { _id: 1 }, lean: true },
+    });
+    if (!product) {
+      throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
+    }
 
     let cart = await this.findCart(sessionId, userId);
 
@@ -54,8 +83,8 @@ export class CartService {
           items: [{ product: dto.productId as any, quantity }],
         },
       });
-
-      return cart;
+      const enrichedItems = await this.enrichCartItems(cart.items);
+      return { _id: cart._id as Types.ObjectId, items: enrichedItems };
     }
 
     const existingItem = cart.items.find(
@@ -63,7 +92,11 @@ export class CartService {
     );
 
     if (existingItem) {
-      existingItem.quantity += quantity;
+      const newQty = existingItem.quantity + quantity;
+      if (newQty > MAX_ITEM_QUANTITY) {
+        throw new BadRequestException(ERRORS.INVALID_QUANTITY);
+      }
+      existingItem.quantity = newQty;
     } else {
       cart.items.push({ product: dto.productId as any, quantity });
     }
@@ -73,23 +106,34 @@ export class CartService {
       update: { items: cart.items },
     });
 
-    return cart;
+    const enrichedItems = await this.enrichCartItems(cart.items);
+    return { _id: cart._id as Types.ObjectId, items: enrichedItems };
   }
 
-  // 📦 Récupérer panier
-  async getCart(sessionId?: string, userId?: Types.ObjectId) {
+  /** Retrieve the cart. Returns an empty cart when none exists (guest flow). */
+  async getCart(
+    sessionId?: string,
+    userId?: Types.ObjectId,
+  ): Promise<CartResponse> {
     const cart = await this.findCart(sessionId, userId);
-    if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
+    if (!cart) {
+      return { _id: null, items: [] };
+    }
 
     const enrichedItems = await this.enrichCartItems(cart.items);
-    return { _id: cart._id, items: enrichedItems };
+    return { _id: cart._id as Types.ObjectId, items: enrichedItems };
   }
 
-  // 🔀 Fusionner panier session → user
-  async mergeSessionCartToUser(sessionId: string, userId: Types.ObjectId) {
+  /** Merge guest session cart into the authenticated user's cart on login. */
+  async mergeSessionCartToUser(
+    sessionId: string,
+    userId: Types.ObjectId,
+  ): Promise<CartResponse> {
     const sessionCart = await this.cartRepository.findBySessionId(sessionId);
 
-    if (!sessionCart || sessionCart.items.length === 0) return null;
+    if (!sessionCart || sessionCart.items.length === 0) {
+      return this.getCart(undefined, userId);
+    }
 
     let userCart = await this.cartRepository.findByUserId(userId);
 
@@ -100,38 +144,42 @@ export class CartService {
       await this.cartRepository.delete({
         id: sessionCart._id as Types.ObjectId,
       });
-      return userCart;
-    }
+    } else {
+      for (const sessionItem of sessionCart.items) {
+        const existingItem = userCart.items.find(
+          (i) => i.product.toString() === sessionItem.product.toString(),
+        );
 
-    for (const sessionItem of sessionCart.items) {
-      const existingItem = userCart.items.find(
-        (i) => i.product.toString() === sessionItem.product.toString(),
-      );
-
-      if (existingItem) {
-        existingItem.quantity += sessionItem.quantity;
-      } else {
-        userCart.items.push(sessionItem);
+        if (existingItem) {
+          existingItem.quantity = Math.min(
+            existingItem.quantity + sessionItem.quantity,
+            MAX_ITEM_QUANTITY,
+          );
+        } else {
+          userCart.items.push(sessionItem);
+        }
       }
+
+      await this.cartRepository.update({
+        id: userCart._id as Types.ObjectId,
+        update: { items: userCart.items },
+      });
+      await this.cartRepository.delete({
+        id: sessionCart._id as Types.ObjectId,
+      });
     }
 
-    await this.cartRepository.update({
-      id: userCart._id as Types.ObjectId,
-      update: { items: userCart.items },
-    });
-
-    await this.cartRepository.delete({ id: sessionCart._id as Types.ObjectId });
-
-    return userCart;
+    const enrichedItems = await this.enrichCartItems(userCart.items);
+    return { _id: userCart._id as Types.ObjectId, items: enrichedItems };
   }
 
-  // 🔄 Mettre à jour quantité
+  /** Update the quantity of a cart item. */
   async updateItemQuantity(
     productId: string,
     quantity: number,
     sessionId?: string,
     userId?: Types.ObjectId,
-  ) {
+  ): Promise<CartResponse> {
     const cart = await this.findCart(sessionId, userId);
     if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
 
@@ -146,53 +194,64 @@ export class CartService {
     });
 
     const enrichedItems = await this.enrichCartItems(cart.items);
-    return { _id: cart._id, items: enrichedItems };
+    return { _id: cart._id as Types.ObjectId, items: enrichedItems };
   }
 
-  // ❌ Supprimer un produit du panier
+  /** Remove a single product from the cart. */
   async deleteItem(
     productId: string,
     sessionId?: string,
     userId?: Types.ObjectId,
-  ) {
+  ): Promise<CartResponse> {
     const cart = await this.findCart(sessionId, userId);
     if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
 
+    const originalLength = cart.items.length;
     cart.items = cart.items.filter((i) => i.product.toString() !== productId);
 
-    return this.cartRepository.update({
+    if (cart.items.length === originalLength) {
+      throw new NotFoundException(ERRORS.CART_PRODUCT_NOT_FOUND);
+    }
+
+    await this.cartRepository.update({
       id: cart._id as Types.ObjectId,
       update: { items: cart.items },
     });
+
+    const enrichedItems = await this.enrichCartItems(cart.items);
+    return { _id: cart._id as Types.ObjectId, items: enrichedItems };
   }
 
-  // 🧹 Vider panier (clear items only)
-  async clearCart(sessionId?: string, userId?: Types.ObjectId) {
+  /** Clear all items from the cart (keeps the cart document). */
+  async clearCart(
+    sessionId?: string,
+    userId?: Types.ObjectId,
+  ): Promise<CartResponse> {
     const cart = await this.findCart(sessionId, userId);
     if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
 
-    return this.cartRepository.update({
+    await this.cartRepository.update({
       id: cart._id as Types.ObjectId,
       update: { items: [] },
     });
+
+    return { _id: cart._id as Types.ObjectId, items: [] };
   }
 
   /**
-   * Soft delete avec vérification — pour les endpoints API exposés.
-   * Lève NotFoundException si le panier n'existe pas.
+   * Soft delete with verification — for exposed API endpoints.
+   * Throws NotFoundException if the cart does not exist.
    */
   async softDeleteCart(cartId: string): Promise<void> {
     const objectId = new Types.ObjectId(cartId);
     const cart = await this.cartRepository.findById({ id: objectId });
-    if (!cart) throw new NotFoundException(`Panier ${cartId} introuvable`);
-
-    // Délègue à softDeleteCartById pour éviter la duplication
+    if (!cart) throw new NotFoundException(ERRORS.CART_NOT_FOUND);
     await this.softDeleteCartById(objectId);
   }
 
   /**
-   * Soft delete sans vérification — usage interne uniquement
-   * quand l'existence du panier est déjà garantie (ex: post-paiement).
+   * Soft delete without verification — internal use only
+   * when cart existence is already guaranteed (e.g. post-payment).
    */
   async softDeleteCartById(cartId: Types.ObjectId): Promise<void> {
     await this.cartRepository.update({
