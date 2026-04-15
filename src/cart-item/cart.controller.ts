@@ -95,12 +95,12 @@ export class CartController {
   @UseGuards(JwtAuthGuard)
   async mergeCart(@CurrentUser() user: UserPayload, @Req() req: Request) {
     const sessionId = req.cookies?.sessionId as string | undefined;
+    const userId = new Types.ObjectId(user.userId);
 
     if (!sessionId) {
-      return { items: [] };
+      return this.cartService.getCart(undefined, userId);
     }
 
-    const userId = new Types.ObjectId(user.userId);
     return this.cartService.mergeSessionCartToUser(sessionId, userId);
   }
 

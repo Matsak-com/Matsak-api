@@ -36,13 +36,11 @@ export class CartService {
 
     const productMap = new Map(products.map((p: any) => [p._id.toString(), p]));
 
-    return items
-      .map((item) => {
-        const product = productMap.get(item.product.toString());
-        if (!product) return null;
-        return { ...product, quantity: item.quantity };
-      })
-      .filter((item): item is EnrichedCartItem => item !== null);
+    return items.map((item) => {
+      const product = productMap.get(item.product.toString());
+      if (!product) return { _id: item.product, quantity: item.quantity };
+      return { ...product, quantity: item.quantity };
+    });
   }
 
   /** Find a cart by userId (authenticated) or sessionId (guest). */
@@ -62,6 +60,7 @@ export class CartService {
 
     const product = await this.productRepository.findById({
       id: dto.productId,
+      options: { projection: { _id: 1 }, lean: true },
     });
     if (!product) {
       throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
