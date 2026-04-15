@@ -21,7 +21,7 @@ describe('ZodValidationPipe', () => {
       password: 'password123',
     };
 
-    const result = pipe.transform(validData);
+    const result = pipe.transform(validData, { type: 'body', metatype: null });
     expect(result).toEqual(expect.objectContaining(validData));
   });
 
@@ -33,7 +33,7 @@ describe('ZodValidationPipe', () => {
       password: 'password123',
     };
 
-    expect(() => pipe.transform(invalidData)).toThrow(BadRequestException);
+    expect(() => pipe.transform(invalidData, { type: 'body', metatype: null })).toThrow(BadRequestException);
   });
 
   it('should reject short password', () => {
@@ -44,7 +44,7 @@ describe('ZodValidationPipe', () => {
       password: '123',
     };
 
-    expect(() => pipe.transform(invalidData)).toThrow(BadRequestException);
+    expect(() => pipe.transform(invalidData, { type: 'body', metatype: null })).toThrow(BadRequestException);
   });
 
   it('should reject empty required fields', () => {
@@ -55,6 +55,6 @@ describe('ZodValidationPipe', () => {
       password: 'password123',
     };
 
-    expect(() => pipe.transform(invalidData)).toThrow(BadRequestException);
+    expect(() => pipe.transform(invalidData, { type: 'body', metatype: null })).toThrow(BadRequestException);
   });
 });
