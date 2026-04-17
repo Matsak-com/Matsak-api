@@ -326,7 +326,10 @@ export class UsersService {
       updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
     }
 
-    Object.assign(user, updateUserDto);
+    // Explicitly strip `role` to prevent privilege escalation
+    const safeUpdate = { ...(updateUserDto as any) };
+    delete safeUpdate.role;
+    Object.assign(user, safeUpdate);
     return user.save();
   }
 
@@ -369,6 +372,7 @@ export class UsersService {
   async switchCurrentTeam(
     userId: string,
     teamId: string,
+    role: UserRole,
   ): Promise<SwitchTeamResponse> {
     const user = await this.userRepository.findById({ id: userId });
     if (!user) {
@@ -384,7 +388,7 @@ export class UsersService {
       },
     });
 
-    if (!membership) {
+    if (!membership && role !== UserRole.SUPERADMIN) {
       throw new BadRequestException(
         'You are not an active member of this team',
       );
