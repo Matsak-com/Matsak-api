@@ -11,7 +11,9 @@ import { Types } from 'mongoose';
 import { MAX_ITEM_QUANTITY } from '../common/schemas/cart.schemas';
 
 type CartItem = { product: Types.ObjectId; quantity: number };
-type EnrichedCartItem = Record<string, any> & { quantity: number };
+type EnrichedCartItem =
+  | (Record<string, any> & { quantity: number; _deleted?: never })
+  | { _id: Types.ObjectId; quantity: number; _deleted: true };
 type CartResponse = { _id: Types.ObjectId | null; items: EnrichedCartItem[] };
 
 @Injectable()
@@ -36,13 +38,16 @@ export class CartService {
 
     const productMap = new Map(products.map((p: any) => [p._id.toString(), p]));
 
-    return items
-      .map((item) => {
-        const product = productMap.get(item.product.toString());
-        if (!product) return null;
-        return { ...product, quantity: item.quantity };
-      })
-      .filter((item): item is EnrichedCartItem => item !== null);
+    return items.map((item) => {
+      const product = productMap.get(item.product.toString());
+      if (!product)
+        return {
+          _id: item.product,
+          quantity: item.quantity,
+          _deleted: true as const,
+        };
+      return { ...product, quantity: item.quantity };
+    });
   }
 
   /** Find a cart by userId (authenticated) or sessionId (guest). */
@@ -62,6 +67,7 @@ export class CartService {
 
     const product = await this.productRepository.findById({
       id: dto.productId,
+      options: { projection: { _id: 1 }, lean: true },
     });
     if (!product) {
       throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
