@@ -63,8 +63,8 @@ export const activeIngredientSchema = z.object({
 
 // Storage conditions subdocument schema
 export const storageConditionsSchema = z.object({
-  minTemperature: z.number().optional(),
-  maxTemperature: z.number().optional(),
+  minTemperature: z.number().nullable().optional(),
+  maxTemperature: z.number().nullable().optional(),
   lightCondition: z
     .nativeEnum(StorageConditionLight)
     .optional()
@@ -177,7 +177,8 @@ export const createDetailProductSchema = z.object({
   // ------------------------------------------------------------------
   categoryId: z
     .string()
-    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for categoryId'),
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for categoryId')
+    .optional(),
   subcategoryId: z
     .string()
     .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for subcategoryId')

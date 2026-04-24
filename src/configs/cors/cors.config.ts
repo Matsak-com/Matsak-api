@@ -7,15 +7,15 @@ type CorsOptionsWithOriginFn = Omit<CorsOptions, 'origin'> & {
   origin: CustomOrigin;
 };
 
-// Allow common front-end development ports (HTTP and HTTPS)
-const defaultAllowedOrigins = [
+// Hardcoded development origins — always allowed regardless of env config.
+const DEFAULT_ALLOWED_ORIGINS: ReadonlyArray<string> = [
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:8080',
   'https://localhost:8080',
   'http://localhost:8081',
   'https://localhost:8081',
-  'http://localhost:5173', // Vite default port
+  'http://localhost:5173',
   'https://localhost:5173',
   'http://localhost:4200',
   'https://localhost:4200',
@@ -32,32 +32,41 @@ const defaultAllowedOrigins = [
   'https://firecamp.dev',
 ];
 
-const rawCorsOrigin = process.env.CORS_ORIGIN;
-const envAllowedOrigins =
-  rawCorsOrigin && rawCorsOrigin.trim() !== ''
-    ? rawCorsOrigin
-        .split(',')
-        .map((origin) => origin.trim())
-        .filter(Boolean)
-    : [];
-const allowedOrigins = new Set([
-  ...defaultAllowedOrigins,
-  ...envAllowedOrigins,
-]);
+/**
+ * Build the allowed-origins Set lazily so that CORS_ORIGIN is read after
+ * dotenv / ConfigModule has had a chance to populate process.env.
+ * The Set is cached after the first request.
+ */
+let _allowedOrigins: Set<string> | null = null;
 
-const isOriginAllowed = (origin?: string) => {
-  if (!origin) return true;
-  return allowedOrigins.has(origin);
-};
+function getAllowedOrigins(): Set<string> {
+  if (_allowedOrigins) return _allowedOrigins;
+
+  const envOrigins: string[] =
+    process.env.CORS_ORIGIN && process.env.CORS_ORIGIN.trim() !== ''
+      ? process.env.CORS_ORIGIN.split(',')
+          .map((o) => o.trim())
+          .filter(Boolean)
+      : [];
+
+  _allowedOrigins = new Set([...DEFAULT_ALLOWED_ORIGINS, ...envOrigins]);
+  return _allowedOrigins;
+}
 
 export const corsConfig: CorsOptionsWithOriginFn = {
   origin: (origin, callback) => {
-    if (isOriginAllowed(origin)) {
+    const allowed = getAllowedOrigins();
+
+    // No origin header = same-origin or server-to-server request — allow it.
+    if (!origin || allowed.has(origin)) {
       callback(null, true);
       return;
     }
 
-    callback(new Error('Not allowed by CORS'));
+    // Reject cleanly without throwing — throwing here propagates to the
+    // global exception filter which sends an error response WITHOUT CORS
+    // headers, causing the browser to show a misleading CORS error.
+    callback(null, false);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   credentials: true,
@@ -67,6 +76,7 @@ export const corsConfig: CorsOptionsWithOriginFn = {
     'x-matsak-web',
     'x-user-id',
   ],
+  preflightContinue: false,
   optionsSuccessStatus: 204,
 };
 

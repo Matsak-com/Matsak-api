@@ -44,10 +44,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         // Try to detect a token inside the response.message
         const maybeMessage = (exResponse as any).message;
         if (typeof maybeMessage === 'string' && TOKEN_MAP[maybeMessage]) {
+          // Spread the full response so extra fields like `errors` are preserved.
+          const { message: _msg, ...rest } = exResponse as Record<string, any>;
           body = {
             error: true,
             code: maybeMessage,
             message: TOKEN_MAP[maybeMessage].message,
+            ...rest,
           };
           status = TOKEN_MAP[maybeMessage].status;
         } else {

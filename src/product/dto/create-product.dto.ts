@@ -140,6 +140,9 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
       cloned.teamId = cloned.detailData.team;
     }
     delete cloned.detailData.team;
+  } else if (cloned.teamId && typeof cloned.teamId === 'object' && cloned.teamId !== null) {
+    // If teamId is sent as a populated team object at top level, extract _id
+    cloned.teamId = cloned.teamId._id || cloned.teamId;
   }
 
   // Handle category from detailData.category OR top level categoryId
@@ -161,7 +164,14 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
     delete cloned.detailData.category;
   } else if (cloned.categoryId) {
     cloned.detailData = cloned.detailData || {};
-    cloned.detailData.categoryId = cloned.categoryId;
+    // If categoryId is an object (populated category), extract _id
+    if (typeof cloned.categoryId === 'object' && cloned.categoryId !== null) {
+      cloned.detailData.categoryId =
+        cloned.categoryId._id || cloned.categoryId;
+      cloned.categoryId = cloned.categoryId._id || cloned.categoryId;
+    } else {
+      cloned.detailData.categoryId = cloned.categoryId;
+    }
     // Don't delete categoryId here - keep it for validation
   }
 
@@ -188,6 +198,17 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
     delete cloned.detailData.createdAt;
     delete cloned.detailData.updatedAt;
     delete cloned.detailData.__v;
+  }
+
+  // Normalize any remaining populated ObjectId references passed directly in detailData
+  if (cloned.detailData) {
+    if (typeof cloned.detailData.categoryId === 'object' && cloned.detailData.categoryId !== null) {
+      cloned.detailData.categoryId = cloned.detailData.categoryId._id || cloned.detailData.categoryId;
+      cloned.categoryId = cloned.detailData.categoryId;
+    }
+    if (typeof cloned.detailData.subcategoryId === 'object' && cloned.detailData.subcategoryId !== null) {
+      cloned.detailData.subcategoryId = cloned.detailData.subcategoryId._id || cloned.detailData.subcategoryId;
+    }
   }
 
   // Handle pricing and discount data
@@ -335,7 +356,10 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
     }
     delete cloned.detailData.team;
   } else if (cloned.teamId) {
-    // teamId is already at the right level, keep it
+    // If teamId is a populated team object, extract _id
+    if (typeof cloned.teamId === 'object' && cloned.teamId !== null) {
+      cloned.teamId = cloned.teamId._id || cloned.teamId;
+    }
   }
 
   // Handle category from detailData.category OR top level categoryId
@@ -357,7 +381,14 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
     delete cloned.detailData.category;
   } else if (cloned.categoryId) {
     cloned.detailData = cloned.detailData || {};
-    cloned.detailData.categoryId = cloned.categoryId;
+    // If categoryId is an object (populated category), extract _id
+    if (typeof cloned.categoryId === 'object' && cloned.categoryId !== null) {
+      cloned.detailData.categoryId =
+        cloned.categoryId._id || cloned.categoryId;
+      cloned.categoryId = cloned.categoryId._id || cloned.categoryId;
+    } else {
+      cloned.detailData.categoryId = cloned.categoryId;
+    }
   }
 
   // Handle subcategory
@@ -381,7 +412,12 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
     delete cloned.detailData.subcategory;
   } else if (cloned.subcategoryId) {
     cloned.detailData = cloned.detailData || {};
-    cloned.detailData.subcategoryId = cloned.subcategoryId;
+    // If subcategoryId is a populated object, extract _id
+    if (typeof cloned.subcategoryId === 'object' && cloned.subcategoryId !== null) {
+      cloned.detailData.subcategoryId = cloned.subcategoryId._id || cloned.subcategoryId;
+    } else {
+      cloned.detailData.subcategoryId = cloned.subcategoryId;
+    }
   }
   // Clean up subcategory and subcategoryId if they're null
   if (cloned.detailData?.subcategory === null) {
@@ -395,6 +431,17 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
     delete cloned.detailData.createdAt;
     delete cloned.detailData.updatedAt;
     delete cloned.detailData.__v;
+  }
+
+  // Normalize any remaining populated ObjectId references passed directly in detailData
+  if (cloned.detailData) {
+    if (typeof cloned.detailData.categoryId === 'object' && cloned.detailData.categoryId !== null) {
+      cloned.detailData.categoryId = cloned.detailData.categoryId._id || cloned.detailData.categoryId;
+      cloned.categoryId = cloned.detailData.categoryId;
+    }
+    if (typeof cloned.detailData.subcategoryId === 'object' && cloned.detailData.subcategoryId !== null) {
+      cloned.detailData.subcategoryId = cloned.detailData.subcategoryId._id || cloned.detailData.subcategoryId;
+    }
   }
 
   // Handle pricing
