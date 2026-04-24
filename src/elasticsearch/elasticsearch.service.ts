@@ -82,7 +82,10 @@ export class SearchService implements OnModuleInit {
                   dosageForm: { type: 'keyword' },
                   strength: { type: 'text', analyzer: 'custom_analyzer' },
                   routeOfAdministration: { type: 'keyword' },
-                  dosageInstructions: { type: 'text', analyzer: 'custom_analyzer' },
+                  dosageInstructions: {
+                    type: 'text',
+                    analyzer: 'custom_analyzer',
+                  },
                   therapeuticClass: { type: 'keyword' },
                   pharmacologicalClass: { type: 'keyword' },
                   contraindications: { type: 'text' },

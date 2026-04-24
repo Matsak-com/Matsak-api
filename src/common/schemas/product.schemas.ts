@@ -67,11 +67,15 @@ export const storageConditionsSchema = z.object({
   maxTemperature: z.number().nullable().optional(),
   lightCondition: z
     .nativeEnum(StorageConditionLight)
+    .nullable()
     .optional()
+    .transform((val) => val ?? StorageConditionLight.NO_RESTRICTION)
     .default(StorageConditionLight.NO_RESTRICTION),
   moistureCondition: z
     .nativeEnum(StorageConditionMoisture)
+    .nullable()
     .optional()
+    .transform((val) => val ?? StorageConditionMoisture.NO_RESTRICTION)
     .default(StorageConditionMoisture.NO_RESTRICTION),
   specialInstructions: z.string().optional(),
 });

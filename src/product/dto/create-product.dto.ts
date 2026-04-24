@@ -140,7 +140,11 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
       cloned.teamId = cloned.detailData.team;
     }
     delete cloned.detailData.team;
-  } else if (cloned.teamId && typeof cloned.teamId === 'object' && cloned.teamId !== null) {
+  } else if (
+    cloned.teamId &&
+    typeof cloned.teamId === 'object' &&
+    cloned.teamId !== null
+  ) {
     // If teamId is sent as a populated team object at top level, extract _id
     cloned.teamId = cloned.teamId._id || cloned.teamId;
   }
@@ -166,8 +170,7 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
     cloned.detailData = cloned.detailData || {};
     // If categoryId is an object (populated category), extract _id
     if (typeof cloned.categoryId === 'object' && cloned.categoryId !== null) {
-      cloned.detailData.categoryId =
-        cloned.categoryId._id || cloned.categoryId;
+      cloned.detailData.categoryId = cloned.categoryId._id || cloned.categoryId;
       cloned.categoryId = cloned.categoryId._id || cloned.categoryId;
     } else {
       cloned.detailData.categoryId = cloned.categoryId;
@@ -202,12 +205,20 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
 
   // Normalize any remaining populated ObjectId references passed directly in detailData
   if (cloned.detailData) {
-    if (typeof cloned.detailData.categoryId === 'object' && cloned.detailData.categoryId !== null) {
-      cloned.detailData.categoryId = cloned.detailData.categoryId._id || cloned.detailData.categoryId;
+    if (
+      typeof cloned.detailData.categoryId === 'object' &&
+      cloned.detailData.categoryId !== null
+    ) {
+      cloned.detailData.categoryId =
+        cloned.detailData.categoryId._id || cloned.detailData.categoryId;
       cloned.categoryId = cloned.detailData.categoryId;
     }
-    if (typeof cloned.detailData.subcategoryId === 'object' && cloned.detailData.subcategoryId !== null) {
-      cloned.detailData.subcategoryId = cloned.detailData.subcategoryId._id || cloned.detailData.subcategoryId;
+    if (
+      typeof cloned.detailData.subcategoryId === 'object' &&
+      cloned.detailData.subcategoryId !== null
+    ) {
+      cloned.detailData.subcategoryId =
+        cloned.detailData.subcategoryId._id || cloned.detailData.subcategoryId;
     }
   }
 
@@ -383,8 +394,7 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
     cloned.detailData = cloned.detailData || {};
     // If categoryId is an object (populated category), extract _id
     if (typeof cloned.categoryId === 'object' && cloned.categoryId !== null) {
-      cloned.detailData.categoryId =
-        cloned.categoryId._id || cloned.categoryId;
+      cloned.detailData.categoryId = cloned.categoryId._id || cloned.categoryId;
       cloned.categoryId = cloned.categoryId._id || cloned.categoryId;
     } else {
       cloned.detailData.categoryId = cloned.categoryId;
@@ -413,8 +423,12 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
   } else if (cloned.subcategoryId) {
     cloned.detailData = cloned.detailData || {};
     // If subcategoryId is a populated object, extract _id
-    if (typeof cloned.subcategoryId === 'object' && cloned.subcategoryId !== null) {
-      cloned.detailData.subcategoryId = cloned.subcategoryId._id || cloned.subcategoryId;
+    if (
+      typeof cloned.subcategoryId === 'object' &&
+      cloned.subcategoryId !== null
+    ) {
+      cloned.detailData.subcategoryId =
+        cloned.subcategoryId._id || cloned.subcategoryId;
     } else {
       cloned.detailData.subcategoryId = cloned.subcategoryId;
     }
@@ -435,12 +449,20 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
 
   // Normalize any remaining populated ObjectId references passed directly in detailData
   if (cloned.detailData) {
-    if (typeof cloned.detailData.categoryId === 'object' && cloned.detailData.categoryId !== null) {
-      cloned.detailData.categoryId = cloned.detailData.categoryId._id || cloned.detailData.categoryId;
+    if (
+      typeof cloned.detailData.categoryId === 'object' &&
+      cloned.detailData.categoryId !== null
+    ) {
+      cloned.detailData.categoryId =
+        cloned.detailData.categoryId._id || cloned.detailData.categoryId;
       cloned.categoryId = cloned.detailData.categoryId;
     }
-    if (typeof cloned.detailData.subcategoryId === 'object' && cloned.detailData.subcategoryId !== null) {
-      cloned.detailData.subcategoryId = cloned.detailData.subcategoryId._id || cloned.detailData.subcategoryId;
+    if (
+      typeof cloned.detailData.subcategoryId === 'object' &&
+      cloned.detailData.subcategoryId !== null
+    ) {
+      cloned.detailData.subcategoryId =
+        cloned.detailData.subcategoryId._id || cloned.detailData.subcategoryId;
     }
   }
 

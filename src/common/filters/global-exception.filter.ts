@@ -45,7 +45,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         const maybeMessage = (exResponse as any).message;
         if (typeof maybeMessage === 'string' && TOKEN_MAP[maybeMessage]) {
           // Spread the full response so extra fields like `errors` are preserved.
-          const { message: _msg, ...rest } = exResponse as Record<string, any>;
+          const { message: _msg, ...rest } = exResponse as Record<string, any>; // eslint-disable-line @typescript-eslint/no-unused-vars
           body = {
             error: true,
             code: maybeMessage,

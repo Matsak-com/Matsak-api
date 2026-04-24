@@ -40,6 +40,9 @@ import {
 import { ZodMultipartFiles } from '../common/decorators/zod-multipart-files.decorator';
 import { Types } from 'mongoose';
 import { MembersService } from '../members/members.service';
+import { CurrentUser } from '../auth/decorator/current-user.decorator';
+import { UserPayload } from '../auth/jwt/jwt.strategy';
+import { UserRole } from '../users/user.schema';
 
 @Controller('products')
 export class ProductController {
@@ -180,7 +183,17 @@ export class ProductController {
   @UseGuards(JwtAuthGuard)
   @Get('user/:userId')
   @CompoundZodValidation({ params: userIdParamSchema })
-  async findByUser(@Param() params: { userId: string }) {
+  async findByUser(
+    @Param() params: { userId: string },
+    @CurrentUser() user: UserPayload,
+  ) {
+    // Superadmin bypasses team membership check and can access all products
+    if (user.role === UserRole.SUPERADMIN) {
+      return this.productService.findBy({
+        filter: { deleted_at: { $exists: false } },
+      });
+    }
+
     try {
       const members = await this.membersService.getTeamMembersByUserId(
         params.userId,
@@ -214,7 +227,8 @@ export class ProductController {
       });
       return results;
     } catch (error) {
-      throw new BadRequestException(ERRORS.PRODUCT_FETCH_FAILED, error.message);
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new BadRequestException(ERRORS.PRODUCT_FETCH_FAILED, msg);
     }
   }
 

@@ -285,11 +285,11 @@ export enum PharmacologicalClass {
 // Pregnancy safety category (FDA classification + N/A)
 // ---------------------------------------------------------------------------
 export enum PregnancyCategory {
-  A = 'A',   // No risk in controlled human studies
-  B = 'B',   // No risk in animal studies; no adequate human studies
-  C = 'C',   // Risk cannot be ruled out
-  D = 'D',   // Positive evidence of human risk; benefit may outweigh risk
-  X = 'X',   // Contraindicated in pregnancy
+  A = 'A', // No risk in controlled human studies
+  B = 'B', // No risk in animal studies; no adequate human studies
+  C = 'C', // Risk cannot be ruled out
+  D = 'D', // Positive evidence of human risk; benefit may outweigh risk
+  X = 'X', // Contraindicated in pregnancy
   NA = 'NA', // Not applicable / not classified
 }
 
@@ -297,11 +297,11 @@ export enum PregnancyCategory {
 // Controlled substance schedule (based on DEA / international)
 // ---------------------------------------------------------------------------
 export enum ControlledSubstanceSchedule {
-  SCHEDULE_I = 'schedule_I',     // High abuse potential, no accepted medical use
-  SCHEDULE_II = 'schedule_II',   // High abuse potential, severe dependence risk
+  SCHEDULE_I = 'schedule_I', // High abuse potential, no accepted medical use
+  SCHEDULE_II = 'schedule_II', // High abuse potential, severe dependence risk
   SCHEDULE_III = 'schedule_III', // Moderate-to-low physical dependence potential
-  SCHEDULE_IV = 'schedule_IV',   // Low abuse potential relative to Schedule III
-  SCHEDULE_V = 'schedule_V',     // Low abuse potential relative to Schedule IV
+  SCHEDULE_IV = 'schedule_IV', // Low abuse potential relative to Schedule III
+  SCHEDULE_V = 'schedule_V', // Low abuse potential relative to Schedule IV
   NOT_SCHEDULED = 'not_scheduled',
 }
 
