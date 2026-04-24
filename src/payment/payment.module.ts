@@ -15,6 +15,7 @@ import { CartModule } from '../cart-item/cart.module';
 import { ProductModule } from '../product/product.module';
 import { InvoiceModule } from '../invoice/invoice.module';
 import { InventoryModule } from '../inventory/inventory.module';
+import { PricingModule } from 'src/pricing/pricing.module';
 
 // Import statique obligatoire pour que TypeScript/NestJS compile correctement.
 // Le fichier payment-mock.controller.ts DOIT exister dans le projet.
@@ -30,6 +31,7 @@ const isProduction = process.env.NODE_ENV === 'production';
     ProductModule,
     InvoiceModule,
     InventoryModule,
+    PricingModule,
   ],
 
   controllers: [

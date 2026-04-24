@@ -57,7 +57,9 @@ export class PrescriptionController {
       fileFilter: (req, file, callback) => {
         if (!ALLOWED_PRESCRIPTION_MIME_TYPES.includes(file.mimetype)) {
           return callback(
-            new BadRequestException(ERRORS.ONLY_PDF_AND_IMAGE_FILES_ARE_ALLOWED),
+            new BadRequestException(
+              ERRORS.ONLY_PDF_AND_IMAGE_FILES_ARE_ALLOWED,
+            ),
             false,
           );
         }
@@ -81,7 +83,8 @@ export class PrescriptionController {
     }
 
     const relativePath = `uploads/prescriptions/${file.filename}`;
-    const baseUrl = process.env.APP_URL ?? `${req.protocol}://${req.get('host')}`;
+    const baseUrl =
+      process.env.APP_URL ?? `${req.protocol}://${req.get('host')}`;
     const fileUrl = `${baseUrl}/${relativePath}`;
 
     return this.prescriptionService.create({
@@ -90,7 +93,7 @@ export class PrescriptionController {
       fileUrl,
       mimeType: file.mimetype,
       size: file.size,
-      cartId: cartId ? new Types.ObjectId(cartId) : null,      
+      cartId: cartId ? new Types.ObjectId(cartId) : null,
       status: PrescriptionStatus.PENDING,
     });
   }
@@ -120,7 +123,10 @@ export class PrescriptionController {
     }
 
     // ✅ content-disposition package pour encoder correctement le nom de fichier
-    res.setHeader('Content-Disposition', contentDisposition(prescription.fileName, { type: 'inline' }));
+    res.setHeader(
+      'Content-Disposition',
+      contentDisposition(prescription.fileName, { type: 'inline' }),
+    );
     res.setHeader('Content-Type', prescription.mimeType);
 
     const stream = fs.createReadStream(absolutePath);

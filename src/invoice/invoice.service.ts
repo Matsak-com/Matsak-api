@@ -7,17 +7,12 @@ import { NotificationService } from '../notifications/notification.service';
 import { Payment } from '../payment/payment.schema';
 import * as QRCode from 'qrcode';
 import { DeliveryMethod } from '../payment/payment.schema';
-import { PricingService, DEFAULT_CURRENCY } from '../pricing/pricing.service';
 import { User, UserRole } from '../users/user.schema';
 import { Member, MemberStatus } from '../members/member.schema';
 import { Role } from '../roles/role.schema';
 
 interface CreateInvoiceFromPaymentDto {
   paymentId: string;
-  /** Optional promo code to apply */
-  promoCode?: string;
-  /** Target display currency — defaults to MGA */
-  currency?: string;
 }
 
 @Injectable()
@@ -29,12 +24,18 @@ export class InvoiceService {
     private readonly invoiceRepo: InvoiceRepository,
     private readonly notificationService: NotificationService,
     @InjectModel(Payment.name) private readonly paymentModel: Model<Payment>,
-    private readonly pricingService: PricingService,
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectModel(Member.name) private readonly memberModel: Model<Member>,
     @InjectModel(Role.name) private readonly roleModel: Model<Role>,
   ) {}
 
+  // ══════════════════════════════════════════════════════════════
+  // Création de facture — COPIE depuis payment.pricingSnapshot
+  // Aucun recalcul de pricing ici.
+  //
+  // Invariant garanti par PaymentService.initiate() :
+  //   payment.pricingSnapshot.totalLocal === payment.amount
+  // ══════════════════════════════════════════════════════════════
   async createInvoiceFromPayment(
     dto: CreateInvoiceFromPaymentDto,
   ): Promise<Invoice> {
@@ -58,64 +59,29 @@ export class InvoiceService {
 
         if (!payment) throw new NotFoundException('Payment introuvable');
 
-        const cart = payment.cartId as any;
-
-        // Compute cart subtotal in the products' own currency (basePrice is
-        // stored in the product's `currency` field, which defaults to 'MGA').
-        const cartItems = cart.items as any[];
-        const currencies = [
-          ...new Set(
-            cartItems
-              .map((item: any) => item.product?.currency)
-              .filter(Boolean),
-          ),
-        ] as string[];
-
-        if (currencies.length > 1) {
-          this.logger.warn(
-            `Cart contains items in mixed currencies (${currencies.join(', ')}); ` +
-              `defaulting to MGA for subtotal calculation`,
+        // ── Vérification de cohérence ─────────────────────────────────────
+        // pricingSnapshot est obligatoire depuis la refonte du schema Payment.
+        // Si absent (document legacy), on lève une erreur explicite.
+        if (!payment.pricingSnapshot) {
+          throw new Error(
+            `Payment ${dto.paymentId} ne contient pas de pricingSnapshot. ` +
+              `Document legacy ou Payment créé avant la migration ?`,
           );
         }
 
-        const productCurrency: string = currencies[0] ?? 'MGA';
-        const cartSubtotal = cartItems.reduce(
-          (sum: number, item: any) =>
-            sum + (item.product?.basePrice ?? 0) * (item.quantity ?? 1),
-          0,
-        );
-
-        // Determine team from first item (all items belong to same team typically)
-        const teamId: string | null =
-          cart.items?.[0]?.product?.team?._id?.toString() ?? null;
-
-        const currency = dto.currency ?? DEFAULT_CURRENCY;
-
-        // Calculate full pricing summary (rates, surcharges, promo)
-        const pricing = await this.pricingService.calculateTotal({
-          cartSubtotalEur: cartSubtotal,
-          currentCurrency: productCurrency,
-          teamId,
-          promoCode: dto.promoCode ?? null,
-          currency,
-          deliveryMethod: payment.deliveryMethod ?? 'delivery',
-        });
-
-        // Redeem promo code atomically (fire only if provided and valid)
-        if (dto.promoCode && pricing.promoCodeSnapshot) {
-          await this.pricingService
-            .redeemPromoCode(
-              dto.promoCode,
-              pricing.subtotalEur,
-              teamId ?? undefined,
-            )
-            .catch((err) =>
-              this.logger.error(
-                `Promo redemption failed for ${dto.promoCode}`,
-                err.message,
-              ),
-            );
+        // Assertion : le montant Mvola doit correspondre au total local figé
+        if (payment.pricingSnapshot.totalLocal !== payment.amount) {
+          this.logger.error(
+            `PRICING_MISMATCH sur Payment ${dto.paymentId}: ` +
+              `amount=${payment.amount} !== pricingSnapshot.totalLocal=${payment.pricingSnapshot.totalLocal}`,
+          );
+          // On ne bloque pas la création de la facture — on log et on continue
+          // avec le pricingSnapshot comme source de vérité, car c'est lui qui
+          // contient le détail (surcharges, discount, taux de change).
         }
+
+        const cart = payment.cartId as any;
+        const pricing = payment.pricingSnapshot;
 
         const invoiceDoc = {
           payment: new Types.ObjectId(dto.paymentId),
@@ -124,6 +90,8 @@ export class InvoiceService {
           deliveryAddressId: payment.deliveryAddressId
             ? new Types.ObjectId(payment.deliveryAddressId.toString())
             : undefined,
+
+          // ── Cart snapshot ─────────────────────────────────────────────────
           cartSnapshot: {
             cartId: cart._id,
             sessionId: cart.sessionId,
@@ -142,10 +110,15 @@ export class InvoiceService {
             })),
             snapshotAt: new Date(),
           },
+
           invoiceNumber,
           status: InvoiceStatus.PAID,
           invoiceDate: new Date(),
-          // ── Pricing snapshot ───────────────────────────────────
+
+          // ── Pricing — copie directe depuis payment.pricingSnapshot ────────
+          // Aucun appel à PricingService ici. Le taux de change, les surcharges
+          // et le promo code sont ceux qui étaient en vigueur au moment où le
+          // client a initié le paiement.
           currency: pricing.currency,
           exchangeRate: pricing.exchangeRate,
           exchangeRateSnapshotAt: pricing.exchangeRateSnapshotAt,
@@ -164,7 +137,7 @@ export class InvoiceService {
         const invoice = await this.invoiceRepo.create({ doc: invoiceDoc });
         this.logger.log(`✅ Facture ${invoiceNumber} créée avec succès`);
 
-        // ── Email envoyé en fire-and-forget — ne bloque pas le post-traitement
+        // Fire-and-forget — ne bloque pas le post-traitement
         const fullInvoice = await this.findOne(invoice._id.toString());
         this.sendInvoiceEmail(fullInvoice).catch((err) =>
           this.logger.error(
@@ -175,16 +148,7 @@ export class InvoiceService {
 
         return invoice;
       } catch (error) {
-        if (error.code === 11000 && attempt < this.MAX_INVOICE_RETRIES) {
-          this.logger.warn(
-            `Collision invoiceNumber — retry ${attempt}/${this.MAX_INVOICE_RETRIES}`,
-          );
-          continue;
-        }
-        this.logger.error(
-          'Erreur lors de la création de facture',
-          error.stack || error.message,
-        );
+        this.logger.error('Erreur lors de la création de facture');
         throw error;
       }
     }
@@ -222,15 +186,13 @@ export class InvoiceService {
         teamName: string;
         items: any[];
         subtotalRaw: number;
-        // QR code embedded as data URI — avoids CID attachments which force
-        // a multipart/related MIME envelope that breaks HTML rendering.
         qrDataUri?: string;
       }
     >();
 
     for (const item of cart?.items ?? []) {
       const product = item.product;
-      const team = product?.team; // déjà { _id, name } dans le snapshot
+      const team = product?.team;
 
       const teamId = team?._id?.toString() ?? 'sans-team';
       const teamName = team?.name ?? 'Autres produits';
@@ -239,13 +201,13 @@ export class InvoiceService {
         teamMap.set(teamId, { teamId, teamName, items: [], subtotalRaw: 0 });
       }
 
-      const unitPrice = item.price ?? 0; // ← prix figé dans le snapshot
+      const unitPrice = item.price ?? 0;
       const quantity = item.quantity ?? 1;
       const lineTotal = unitPrice * quantity;
 
       teamMap.get(teamId).subtotalRaw += lineTotal;
       teamMap.get(teamId).items.push({
-        name: product?.name ?? 'Produit', // ← name déjà dans le snapshot
+        name: product?.name ?? 'Produit',
         quantity,
         unitPrice: this.formatAmount(unitPrice),
         totalPrice: this.formatAmount(lineTotal),
@@ -396,12 +358,12 @@ export class InvoiceService {
         path: 'payment',
         populate: [
           { path: 'userId', select: 'name email addresses' },
-          // cartId gardé comme fallback uniquement
           { path: 'cartId', select: '_id' },
         ],
       },
     ];
   }
+
   // ─── CRUD ─────────────────────────────────────────────────────────────────
 
   async findAll(): Promise<any[]> {
@@ -446,7 +408,6 @@ export class InvoiceService {
     const updated = await this.invoiceRepo.update({ id, update: updateData });
     this.logger.log(`Facture ${invoice.invoiceNumber} → statut: ${status}`);
 
-    // Fire-and-forget — does not block the response
     this.findOne(id)
       .then((fullInvoice) => this.sendStatusUpdateEmails(fullInvoice, status))
       .catch((err) =>
@@ -461,10 +422,6 @@ export class InvoiceService {
 
   // ─── Status email helpers ─────────────────────────────────────────────────
 
-  /**
-   * Returns status-specific display data for both locales.
-   * All values are pre-computed so templates stay logic-free.
-   */
   private getStatusConfig(status: InvoiceStatus): {
     color: string;
     shadow: string;
@@ -492,8 +449,8 @@ export class InvoiceService {
         bg: 'rgba(230, 126, 34, 0.07)',
         label: { fr: 'Remboursé', en: 'Refunded' },
         message: {
-          fr: 'Un remboursement a été initié pour cette facture. Le montant sera restitué selon les délais habituels de votre moyen de paiement. Si vous avez des questions, contactez notre équipe.',
-          en: "A refund has been initiated for this invoice. The amount will be returned according to your payment method's usual processing time. If you have any questions, please contact our team.",
+          fr: 'Un remboursement a été initié pour cette facture. Le montant sera restitué selon les délais habituels de votre moyen de paiement.',
+          en: "A refund has been initiated for this invoice. The amount will be returned according to your payment method's usual processing time.",
         },
       },
       [InvoiceStatus.CANCELLED]: {
@@ -502,17 +459,14 @@ export class InvoiceService {
         bg: 'rgba(231, 76, 60, 0.07)',
         label: { fr: 'Annulé', en: 'Cancelled' },
         message: {
-          fr: "Cette facture a été annulée. Si vous pensez qu'il s'agit d'une erreur ou si vous avez des questions, n'hésitez pas à contacter notre équipe de support.",
-          en: 'This invoice has been cancelled. If you believe this is an error or have any questions, please do not hesitate to contact our support team.',
+          fr: "Cette facture a été annulée. Si vous pensez qu'il s'agit d'une erreur, n'hésitez pas à contacter notre équipe de support.",
+          en: 'This invoice has been cancelled. If you believe this is an error, please contact our support team.',
         },
       },
     };
     return configs[status];
   }
 
-  /**
-   * Builds formatted invoice context shared between customer and admin emails.
-   */
   private buildInvoiceEmailContext(fullInvoice: any) {
     return {
       number: fullInvoice.invoiceNumber,
@@ -533,9 +487,6 @@ export class InvoiceService {
     };
   }
 
-  /**
-   * Collects distinct team names referenced in the invoice cart snapshot.
-   */
   private extractTeamNames(fullInvoice: any): string[] {
     const teams = new Map<string, string>();
     for (const item of fullInvoice.cart?.items ?? []) {
@@ -547,10 +498,6 @@ export class InvoiceService {
     return Array.from(teams.values());
   }
 
-  /**
-   * Resolves the MongoDB ObjectId of the role named "admin" (case-insensitive).
-   * Returns null if the role does not exist.
-   */
   private async resolveAdminRoleId(): Promise<Types.ObjectId | null> {
     const adminRole = await this.roleModel
       .findOne({ name: /^admin$/i, deleted_at: { $exists: false } })
@@ -559,9 +506,6 @@ export class InvoiceService {
     return adminRole ? (adminRole._id as Types.ObjectId) : null;
   }
 
-  /**
-   * Returns distinct email addresses of active team admins for a set of team IDs.
-   */
   private async getTeamAdminEmails(
     teamIds: Types.ObjectId[],
     adminRoleId: Types.ObjectId,
@@ -591,9 +535,6 @@ export class InvoiceService {
     return result;
   }
 
-  /**
-   * Returns the email addresses of all active superadmins.
-   */
   private async getSuperadminEmails(): Promise<
     Array<{ name: string; email: string }>
   > {
@@ -608,12 +549,6 @@ export class InvoiceService {
     }));
   }
 
-  /**
-   * Sends status-change notification emails to:
-   *  1. The customer (if they have an email on file)
-   *  2. Active team admins for every team on the invoice
-   *  3. All superadmins
-   */
   private async sendStatusUpdateEmails(
     fullInvoice: any,
     newStatus: InvoiceStatus,
@@ -622,7 +557,6 @@ export class InvoiceService {
     const invoiceCtx = this.buildInvoiceEmailContext(fullInvoice);
     const teamNames = this.extractTeamNames(fullInvoice);
 
-    // ── 1. Customer email ────────────────────────────────────────
     const customerEmail = fullInvoice.customer?.email;
     if (customerEmail) {
       const locale: 'fr' | 'en' = 'fr';
@@ -656,7 +590,6 @@ export class InvoiceService {
       );
     }
 
-    // ── 2 & 3. Admin / Superadmin emails ─────────────────────────
     const teamIds = (fullInvoice.cart?.items ?? [])
       .map((item: any) => item.product?.team?._id)
       .filter(Boolean)
@@ -669,7 +602,6 @@ export class InvoiceService {
       this.getSuperadminEmails(),
     ]);
 
-    // Merge and deduplicate by email
     const seen = new Set<string>();
     const adminRecipients: Array<{ name: string; email: string }> = [];
     for (const r of [...teamAdmins, ...superadmins]) {
@@ -761,6 +693,19 @@ export class InvoiceService {
       refundedAt: invoice.refundedAt,
       createdAt: invoice.createdAt,
       updatedAt: invoice.updatedAt,
+      // ── Pricing fields exposés directement depuis l'invoice ───────────────
+      currency: invoice.currency,
+      exchangeRate: invoice.exchangeRate,
+      subtotalEur: invoice.subtotalEur,
+      subtotalLocal: invoice.subtotalLocal,
+      pricingLines: invoice.pricingLines,
+      surchargesTotalEur: invoice.surchargesTotalEur,
+      surchargesTotalLocal: invoice.surchargesTotalLocal,
+      discountEur: invoice.discountEur,
+      discountLocal: invoice.discountLocal,
+      promoCodeSnapshot: invoice.promoCodeSnapshot,
+      totalEur: invoice.totalEur,
+      totalLocal: invoice.totalLocal,
       payment: {
         _id: payment._id,
         method: payment.method,
@@ -820,7 +765,6 @@ export class InvoiceService {
   }
 
   async remove(id: string): Promise<void> {
-    // Récupérer le document formaté AVANT le soft-delete
     const fullInvoice = await this.findOne(id);
 
     await this.invoiceRepo.update({ id, update: { deleted_at: new Date() } });
@@ -844,8 +788,14 @@ export class InvoiceService {
             },
             invoice: {
               number: fullInvoice.invoiceNumber,
-              amount: this.formatAmount(fullInvoice.payment?.amount ?? 0),
-              currency: fullInvoice.payment?.currency?.toUpperCase() ?? 'MGA',
+              amount: this.formatAmount(
+                fullInvoice.totalLocal ?? fullInvoice.payment?.amount ?? 0,
+              ),
+              currency: (
+                fullInvoice.currency ??
+                fullInvoice.payment?.currency ??
+                'MGA'
+              ).toUpperCase(),
               deletedAt: deletedAt.toLocaleDateString('fr-FR', {
                 day: 'numeric',
                 month: 'long',

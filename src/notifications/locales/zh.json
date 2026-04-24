@@ -84,6 +84,8 @@
       "unitPrice": "单价",
       "total": "总计",
       "subtotal": "小计",
+      "subtotalItems": "商品小计",
+      "promoCode": "优惠码",
       "totalPaid": "实付金额",
       "shippingAddress": "配送地址",
       "support": "如果您对发票有任何疑问，请随时联系我们的团队。",

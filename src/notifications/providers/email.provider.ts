@@ -50,7 +50,8 @@ export class EmailProvider implements IEmailProvider {
       this.configService.get<string>('MAIL_PASSWORD');
     const secure = this.configService.get('MAIL_SECURE', 'false') === 'true';
     const rejectUnauthorized =
-      this.configService.get('MAIL_TLS_REJECT_UNAUTHORIZED', 'true') !== 'false';
+      this.configService.get('MAIL_TLS_REJECT_UNAUTHORIZED', 'true') !==
+      'false';
 
     const options: SMTPTransport.Options = {
       host: this.configService.get('MAIL_HOST', 'localhost'),
