@@ -135,7 +135,9 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
       typeof cloned.detailData.team === 'object' &&
       cloned.detailData.team !== null
     ) {
-      cloned.teamId = cloned.detailData.team._id || cloned.detailData.team;
+      cloned.teamId = cloned.detailData.team._id
+        ? cloned.detailData.team._id.toString()
+        : undefined;
     } else {
       cloned.teamId = cloned.detailData.team;
     }
@@ -146,7 +148,7 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
     cloned.teamId !== null
   ) {
     // If teamId is sent as a populated team object at top level, extract _id
-    cloned.teamId = cloned.teamId._id || cloned.teamId;
+    cloned.teamId = cloned.teamId._id ? cloned.teamId._id.toString() : undefined;
   }
 
   // Handle category from detailData.category OR top level categoryId
@@ -157,10 +159,11 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
       typeof cloned.detailData.category === 'object' &&
       cloned.detailData.category !== null
     ) {
-      cloned.detailData.categoryId =
-        cloned.detailData.category._id || cloned.detailData.category;
-      cloned.categoryId =
-        cloned.detailData.category._id || cloned.detailData.category;
+      const catId = cloned.detailData.category._id
+        ? cloned.detailData.category._id.toString()
+        : undefined;
+      cloned.detailData.categoryId = catId;
+      cloned.categoryId = catId;
     } else {
       cloned.detailData.categoryId = cloned.detailData.category;
       cloned.categoryId = cloned.detailData.category;
@@ -170,8 +173,11 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
     cloned.detailData = cloned.detailData || {};
     // If categoryId is an object (populated category), extract _id
     if (typeof cloned.categoryId === 'object' && cloned.categoryId !== null) {
-      cloned.detailData.categoryId = cloned.categoryId._id || cloned.categoryId;
-      cloned.categoryId = cloned.categoryId._id || cloned.categoryId;
+      const catId = cloned.categoryId._id
+        ? cloned.categoryId._id.toString()
+        : undefined;
+      cloned.detailData.categoryId = catId;
+      cloned.categoryId = catId;
     } else {
       cloned.detailData.categoryId = cloned.categoryId;
     }
@@ -186,8 +192,9 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
       typeof cloned.subcategoryId === 'object' &&
       cloned.subcategoryId !== null
     ) {
-      cloned.detailData.subcategoryId =
-        cloned.subcategoryId._id || cloned.subcategoryId;
+      cloned.detailData.subcategoryId = cloned.subcategoryId._id
+        ? cloned.subcategoryId._id.toString()
+        : undefined;
     } else {
       cloned.detailData.subcategoryId = cloned.subcategoryId;
     }
@@ -209,16 +216,19 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
       typeof cloned.detailData.categoryId === 'object' &&
       cloned.detailData.categoryId !== null
     ) {
-      cloned.detailData.categoryId =
-        cloned.detailData.categoryId._id || cloned.detailData.categoryId;
-      cloned.categoryId = cloned.detailData.categoryId;
+      const catId = cloned.detailData.categoryId._id
+        ? cloned.detailData.categoryId._id.toString()
+        : undefined;
+      cloned.detailData.categoryId = catId;
+      cloned.categoryId = catId;
     }
     if (
       typeof cloned.detailData.subcategoryId === 'object' &&
       cloned.detailData.subcategoryId !== null
     ) {
-      cloned.detailData.subcategoryId =
-        cloned.detailData.subcategoryId._id || cloned.detailData.subcategoryId;
+      cloned.detailData.subcategoryId = cloned.detailData.subcategoryId._id
+        ? cloned.detailData.subcategoryId._id.toString()
+        : undefined;
     }
   }
 

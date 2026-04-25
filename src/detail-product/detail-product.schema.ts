@@ -125,7 +125,7 @@ export class DetailProduct {
   @Prop({ required: false })
   strength?: string;
 
-  @Prop({ type: [{ type: Object }], default: [] })
+  @Prop({ type: [ActiveIngredient], default: [] })
   activeIngredients: ActiveIngredient[];
 
   // ------------------------------------------------------------------

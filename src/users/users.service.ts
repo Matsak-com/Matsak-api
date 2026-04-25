@@ -327,8 +327,7 @@ export class UsersService {
     }
 
     // Explicitly strip `role` to prevent privilege escalation
-    const safeUpdate = { ...(updateUserDto as any) };
-    delete safeUpdate.role;
+    const { role: _role, ...safeUpdate } = updateUserDto;
     Object.assign(user, safeUpdate);
     return user.save();
   }
@@ -372,7 +371,6 @@ export class UsersService {
   async switchCurrentTeam(
     userId: string,
     teamId: string,
-    role: UserRole,
   ): Promise<SwitchTeamResponse> {
     const user = await this.userRepository.findById({ id: userId });
     if (!user) {
@@ -388,7 +386,7 @@ export class UsersService {
       },
     });
 
-    if (!membership && role !== UserRole.SUPERADMIN) {
+    if (!membership && user.role !== UserRole.SUPERADMIN) {
       throw new BadRequestException(
         'You are not an active member of this team',
       );

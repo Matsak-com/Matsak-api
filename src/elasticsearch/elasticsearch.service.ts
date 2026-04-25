@@ -50,99 +50,129 @@ export class SearchService implements OnModuleInit {
             },
           },
           mappings: {
-            properties: {
-              basePrice: { type: 'float' },
-              currency: { type: 'keyword' },
-              discounts: { type: 'object' },
-              team: { type: 'keyword' },
-              createdAt: { type: 'date' },
-              updatedAt: { type: 'date' },
-              stockQuantity: { type: 'integer' },
-              lowStockThreshold: { type: 'integer' },
-              trackStock: { type: 'boolean' },
-              detail: {
-                properties: {
-                  _id: { type: 'keyword' },
-                  name: {
-                    type: 'text',
-                    analyzer: 'custom_analyzer',
-                    fields: {
-                      keyword: { type: 'keyword' },
-                    },
-                  },
-                  description: {
-                    type: 'text',
-                    analyzer: 'custom_analyzer',
-                  },
-                  genericName: {
-                    type: 'text',
-                    analyzer: 'custom_analyzer',
-                    fields: { keyword: { type: 'keyword' } },
-                  },
-                  dosageForm: { type: 'keyword' },
-                  strength: { type: 'text', analyzer: 'custom_analyzer' },
-                  routeOfAdministration: { type: 'keyword' },
-                  dosageInstructions: {
-                    type: 'text',
-                    analyzer: 'custom_analyzer',
-                  },
-                  therapeuticClass: { type: 'keyword' },
-                  pharmacologicalClass: { type: 'keyword' },
-                  contraindications: { type: 'text' },
-                  sideEffects: { type: 'text' },
-                  warningLabels: { type: 'text' },
-                  drugInteractions: { type: 'text' },
-                  prescriptionRequired: { type: 'boolean' },
-                  controlledSubstance: { type: 'boolean' },
-                  packagingType: { type: 'keyword' },
-                  atcCode: { type: 'keyword' },
-                  form: { type: 'text' },
-                  expirationDate: { type: 'date' },
-                  manufacturer: {
-                    type: 'text',
-                    analyzer: 'custom_analyzer',
-                    fields: {
-                      keyword: { type: 'keyword' },
-                    },
-                  },
-                  isRepackaged: { type: 'boolean' },
-                  sku: { type: 'keyword' },
-                  barcode: { type: 'keyword' },
-                  category: {
-                    properties: {
-                      _id: { type: 'keyword' },
-                      name: { type: 'text', analyzer: 'custom_analyzer' },
-                    },
-                  },
-                  subcategory: {
-                    properties: {
-                      _id: { type: 'keyword' },
-                      name: { type: 'text', analyzer: 'custom_analyzer' },
-                    },
-                  },
-                },
-              },
-              images: {
-                type: 'nested',
-                properties: {
-                  _id: { type: 'keyword' },
-                  name: { type: 'text' },
-                  mimeType: { type: 'keyword' },
-                  altText: { type: 'text' },
-                  // Note: 'data' field (base64) is intentionally excluded to reduce index size
-                  // Image data can be retrieved from MongoDB using the _id reference
-                },
-              },
-            },
+            properties: this.getIndexMappings(),
           },
         });
         this.logger.log(`Index "${this.index}" created successfully`);
       } else {
-        this.logger.log(`Index "${this.index}" already exists`);
+        this.logger.log(
+          `Index "${this.index}" already exists — applying mapping updates`,
+        );
+        await this.updateMappings();
       }
     } catch (error) {
       this.logger.error(
         `Failed to create index: ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /**
+   * Returns the Elasticsearch field mappings for the products index.
+   * Centralised so both create and put-mapping paths use the same definition.
+   */
+  private getIndexMappings() {
+    return {
+      basePrice: { type: 'float' },
+      currency: { type: 'keyword' },
+      discounts: { type: 'object' },
+      team: { type: 'keyword' },
+      createdAt: { type: 'date' },
+      updatedAt: { type: 'date' },
+      stockQuantity: { type: 'integer' },
+      lowStockThreshold: { type: 'integer' },
+      trackStock: { type: 'boolean' },
+      detail: {
+        properties: {
+          _id: { type: 'keyword' },
+          name: {
+            type: 'text',
+            analyzer: 'custom_analyzer',
+            fields: {
+              keyword: { type: 'keyword' },
+            },
+          },
+          description: {
+            type: 'text',
+            analyzer: 'custom_analyzer',
+          },
+          genericName: {
+            type: 'text',
+            analyzer: 'custom_analyzer',
+            fields: { keyword: { type: 'keyword' } },
+          },
+          dosageForm: { type: 'keyword' },
+          strength: { type: 'text', analyzer: 'custom_analyzer' },
+          routeOfAdministration: { type: 'keyword' },
+          dosageInstructions: {
+            type: 'text',
+            analyzer: 'custom_analyzer',
+          },
+          therapeuticClass: { type: 'keyword' },
+          pharmacologicalClass: { type: 'keyword' },
+          contraindications: { type: 'text' },
+          sideEffects: { type: 'text' },
+          warningLabels: { type: 'text' },
+          drugInteractions: { type: 'text' },
+          prescriptionRequired: { type: 'boolean' },
+          controlledSubstance: { type: 'boolean' },
+          packagingType: { type: 'keyword' },
+          atcCode: { type: 'keyword' },
+          form: { type: 'text' },
+          expirationDate: { type: 'date' },
+          manufacturer: {
+            type: 'text',
+            analyzer: 'custom_analyzer',
+            fields: {
+              keyword: { type: 'keyword' },
+            },
+          },
+          isRepackaged: { type: 'boolean' },
+          sku: { type: 'keyword' },
+          barcode: { type: 'keyword' },
+          category: {
+            properties: {
+              _id: { type: 'keyword' },
+              name: { type: 'text', analyzer: 'custom_analyzer' },
+            },
+          },
+          subcategory: {
+            properties: {
+              _id: { type: 'keyword' },
+              name: { type: 'text', analyzer: 'custom_analyzer' },
+            },
+          },
+        },
+      },
+      images: {
+        type: 'nested',
+        properties: {
+          _id: { type: 'keyword' },
+          name: { type: 'text' },
+          mimeType: { type: 'keyword' },
+          altText: { type: 'text' },
+          // Note: 'data' field (base64) is intentionally excluded to reduce index size
+          // Image data can be retrieved from MongoDB using the _id reference
+        },
+      },
+    };
+  }
+
+  /**
+   * Update the mappings of an existing index by calling the put mapping API.
+   * Existing fields are not affected; only new fields are added.
+   */
+  async updateMappings() {
+    try {
+      await this.elasticsearchService.indices.putMapping({
+        index: this.index,
+        properties: this.getIndexMappings() as any,
+      });
+      this.logger.log(`Mappings updated for index "${this.index}"`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to update mappings for index "${this.index}": ${error.message}`,
         error.stack,
       );
     }

@@ -76,7 +76,6 @@ export class UserController {
       return await this.usersService.switchCurrentTeam(
         user.userId,
         switchTeamDto.teamId,
-        user.role,
       );
     } catch (error) {
       if (error instanceof HttpException) throw error;

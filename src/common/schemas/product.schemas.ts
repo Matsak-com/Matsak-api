@@ -181,8 +181,7 @@ export const createDetailProductSchema = z.object({
   // ------------------------------------------------------------------
   categoryId: z
     .string()
-    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for categoryId')
-    .optional(),
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for categoryId'),
   subcategoryId: z
     .string()
     .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for subcategoryId')

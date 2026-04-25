@@ -238,7 +238,7 @@ export class CreateDetailProductDto {
 
   @IsOptional()
   @IsDateString()
-  expirationDate?: Date;
+  expirationDate?: string;
 
   // ------------------------------------------------------------------
   // Manufacturer
