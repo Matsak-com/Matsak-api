@@ -327,6 +327,7 @@ export class UsersService {
     }
 
     // Explicitly strip `role` to prevent privilege escalation
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { role: _role, ...safeUpdate } = updateUserDto;
     Object.assign(user, safeUpdate);
     return user.save();
