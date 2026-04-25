@@ -7,6 +7,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
+import type { MappingProperty } from '@elastic/elasticsearch/lib/api/types';
 import { ProductDocument } from '../product/product.schema';
 import { ERRORS } from '../common/errors';
 import { ImageProductService } from '../image-product/image-product.service';
@@ -72,7 +73,7 @@ export class SearchService implements OnModuleInit {
    * Returns the Elasticsearch field mappings for the products index.
    * Centralised so both create and put-mapping paths use the same definition.
    */
-  private getIndexMappings() {
+  private getIndexMappings(): Record<string, MappingProperty> {
     return {
       basePrice: { type: 'float' },
       currency: { type: 'keyword' },
