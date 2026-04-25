@@ -44,7 +44,17 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         // Try to detect a token inside the response.message
         const maybeMessage = (exResponse as any).message;
         if (typeof maybeMessage === 'string' && TOKEN_MAP[maybeMessage]) {
+          // Spread the full response so extra fields like `errors` are preserved.
+          // Spread `rest` first so that our explicit fields are not overwritten.
+          const {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            message: _msg,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            error: _err,
+            ...rest
+          } = exResponse as Record<string, any>;
           body = {
+            ...rest,
             error: true,
             code: maybeMessage,
             message: TOKEN_MAP[maybeMessage].message,

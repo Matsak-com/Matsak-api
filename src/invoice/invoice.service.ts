@@ -727,6 +727,20 @@ export class InvoiceService {
     return invoices.map((invoice) => this.formatInvoiceResponse(invoice));
   }
 
+  /**
+   * Returns true if the user is an active member of the given team.
+   * Used by the controller to gate the team-invoice route for non-admin users.
+   */
+  async isUserTeamMember(teamId: string, userId: string): Promise<boolean> {
+    const count = await this.memberModel.countDocuments({
+      team: new Types.ObjectId(teamId),
+      user: new Types.ObjectId(userId),
+      status: MemberStatus.ACTIVE,
+      deleted_at: { $exists: false },
+    });
+    return count > 0;
+  }
+
   async findByTeam(teamId: string): Promise<any[]> {
     const invoices = await this.invoiceRepo.findAll({
       filter: {

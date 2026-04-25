@@ -21,6 +21,7 @@ import { UpdatePasswordDto } from '../auth/dto/update-password.dto';
 import { SwitchTeamDto } from '../auth/dto/switch-team.dto';
 import { UsersService, SwitchTeamResponse } from './users.service';
 import { CompoundZodValidation } from '../common/decorators/zod-validation.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorator/current-user.decorator';
 import { UserPayload } from '../auth/jwt/jwt.strategy';
 import { UserRole } from '../users/user.schema';
@@ -43,6 +44,8 @@ import { ERRORS } from '../common/errors';
 export class UserController {
   constructor(private readonly usersService: UsersService) {}
 
+  @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.ADMIN)
   @Get()
   getUsers() {
     return this.usersService.getUsers();
@@ -90,8 +93,12 @@ export class UserController {
     @Param() params: { userId: string },
     @CurrentUser() user: UserPayload,
   ) {
-    // Users can only access their own data unless they're admin
-    if (user.userId !== params.userId && user.role !== UserRole.ADMIN) {
+    // Users can only access their own data unless they're admin or superadmin
+    if (
+      user.userId !== params.userId &&
+      user.role !== UserRole.ADMIN &&
+      user.role !== UserRole.SUPERADMIN
+    ) {
       throw new ForbiddenException(ERRORS.FORBIDDEN_USER_ACCESS);
     }
     return this.usersService.getUser(params.userId);
@@ -110,8 +117,12 @@ export class UserController {
     @Body() updateUserDto: UpdateUserDto & UpdatePasswordDto,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    // Users can only update their own data unless they're admin
-    if (user.userId !== params.userId && user.role !== UserRole.ADMIN) {
+    // Users can only update their own data unless they're admin or superadmin
+    if (
+      user.userId !== params.userId &&
+      user.role !== UserRole.ADMIN &&
+      user.role !== UserRole.SUPERADMIN
+    ) {
       throw new ForbiddenException(ERRORS.FORBIDDEN_USER_UPDATE);
     }
 

@@ -1,6 +1,17 @@
 // 🔧 CORRECTIONS dans product.schemas.ts
 
 import { z } from 'zod';
+import {
+  DosageForm,
+  RouteOfAdministration,
+  TherapeuticClass,
+  PharmacologicalClass,
+  PregnancyCategory,
+  ControlledSubstanceSchedule,
+  PackagingType,
+  StorageConditionLight,
+  StorageConditionMoisture,
+} from '../constants/pharmaceutical.constants';
 
 // Discount schema
 export const discountSchema = z.object({
@@ -43,6 +54,32 @@ export const dimensionsSchema = z.object({
   unit: z.string().optional().default('cm'),
 });
 
+// Active ingredient subdocument schema
+export const activeIngredientSchema = z.object({
+  name: z.string().min(1),
+  amount: z.number().min(0).optional(),
+  unit: z.string().optional(),
+});
+
+// Storage conditions subdocument schema
+export const storageConditionsSchema = z.object({
+  minTemperature: z.number().nullable().optional(),
+  maxTemperature: z.number().nullable().optional(),
+  lightCondition: z
+    .nativeEnum(StorageConditionLight)
+    .nullable()
+    .optional()
+    .transform((val) => val ?? StorageConditionLight.NO_RESTRICTION)
+    .default(StorageConditionLight.NO_RESTRICTION),
+  moistureCondition: z
+    .nativeEnum(StorageConditionMoisture)
+    .nullable()
+    .optional()
+    .transform((val) => val ?? StorageConditionMoisture.NO_RESTRICTION)
+    .default(StorageConditionMoisture.NO_RESTRICTION),
+  specialInstructions: z.string().optional(),
+});
+
 // 🔧 NEW: Advanced data schema
 export const advanceDataSchema = z.object({
   sku: z.string().optional(),
@@ -56,13 +93,71 @@ export const advanceDataSchema = z.object({
 // Detail product schema
 export const createDetailProductSchema = z.object({
   name: z.string().min(1, 'Product name is required'),
-  description: z.string().optional().default(''), // Allow empty description for creation
-  composition: z.string().optional(),
+  description: z.string().optional().default(''),
+
+  // ------------------------------------------------------------------
+  // Core pharmaceutical identifiers
+  // ------------------------------------------------------------------
+  genericName: z.string().optional(),
+  atcCode: z.string().optional(),
+  registrationNumber: z.string().optional(),
+  countryOfOrigin: z.string().optional(),
+
+  // ------------------------------------------------------------------
+  // Pharmaceutical form & strength
+  // ------------------------------------------------------------------
+  dosageForm: z.nativeEnum(DosageForm).optional(),
+  /** @deprecated Use dosageForm */
   form: z.string().optional(),
-  indications: z.string().optional(),
+  strength: z.string().optional(),
+  activeIngredients: z.array(activeIngredientSchema).optional().default([]),
+
+  // ------------------------------------------------------------------
+  // Route & administration
+  // ------------------------------------------------------------------
+  routeOfAdministration: z.nativeEnum(RouteOfAdministration).optional(),
+  dosageInstructions: z.string().optional(),
+
+  // ------------------------------------------------------------------
+  // Therapeutic & pharmacological classification
+  // ------------------------------------------------------------------
+  therapeuticClass: z.nativeEnum(TherapeuticClass).optional(),
+  pharmacologicalClass: z.nativeEnum(PharmacologicalClass).optional(),
+
+  // ------------------------------------------------------------------
+  // Clinical information
+  // ------------------------------------------------------------------
   contraindications: z.string().optional(),
   sideEffects: z.string().optional(),
-  precautions: z.string().optional(),
+  warningLabels: z.array(z.string()).optional().default([]),
+  drugInteractions: z.array(z.string()).optional().default([]),
+  pregnancyCategory: z
+    .nativeEnum(PregnancyCategory)
+    .optional()
+    .default(PregnancyCategory.NA),
+
+  // ------------------------------------------------------------------
+  // Regulatory & supply classification
+  // ------------------------------------------------------------------
+  prescriptionRequired: z.boolean().optional().default(false),
+  controlledSubstance: z.boolean().optional().default(false),
+  controlledSubstanceSchedule: z
+    .nativeEnum(ControlledSubstanceSchedule)
+    .optional(),
+  isNarcotic: z.boolean().optional().default(false),
+
+  // ------------------------------------------------------------------
+  // Packaging & storage
+  // ------------------------------------------------------------------
+  packagingType: z.nativeEnum(PackagingType).optional(),
+  packagingSize: z.string().optional(),
+  storageConditions: storageConditionsSchema.optional(),
+
+  // ------------------------------------------------------------------
+  // Batch & expiry tracking
+  // ------------------------------------------------------------------
+  batchNumber: z.string().optional(),
+  lotNumber: z.string().optional(),
   expirationDate: z
     .union([z.string(), z.date()])
     .optional()
@@ -74,8 +169,16 @@ export const createDetailProductSchema = z.object({
       }
       return val;
     }),
+
+  // ------------------------------------------------------------------
+  // Manufacturer
+  // ------------------------------------------------------------------
   manufacturer: z.string().optional(),
   isRepackaged: z.boolean().optional(),
+
+  // ------------------------------------------------------------------
+  // Category references
+  // ------------------------------------------------------------------
   categoryId: z
     .string()
     .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for categoryId'),
@@ -83,11 +186,14 @@ export const createDetailProductSchema = z.object({
     .string()
     .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for subcategoryId')
     .optional(),
-  // New fields added
-  sku: z.string().optional(), // Remove min(1) requirement for creation
+
+  // ------------------------------------------------------------------
+  // Identifiers & advanced data
+  // ------------------------------------------------------------------
+  sku: z.string().optional(),
   barcode: z.string().optional(),
-  weight: z.number().min(0).nullable().optional(), // Allow null values
-  dimensions: dimensionsSchema.nullable().optional(), // Allow null values
+  weight: z.number().min(0).nullable().optional(),
+  dimensions: dimensionsSchema.nullable().optional(),
   seo: seoSchema.optional().default(() => ({})),
   additionalInfo: z.string().optional().default(''),
 });
@@ -210,20 +316,74 @@ export const updateProductSchemaFlexible = z
       .object({
         name: z.string().optional(),
         description: z.string().optional(),
-        composition: z.string().optional(),
+
+        // Core pharmaceutical identifiers
+        genericName: z.string().optional(),
+        atcCode: z.string().optional(),
+        registrationNumber: z.string().optional(),
+        countryOfOrigin: z.string().optional(),
+
+        // Pharmaceutical form & strength
+        dosageForm: z.nativeEnum(DosageForm).optional(),
+        /** @deprecated Use dosageForm */
         form: z.string().optional(),
-        indications: z.string().optional(),
+        strength: z.string().optional(),
+        activeIngredients: z.array(activeIngredientSchema).optional(),
+
+        // Route & administration
+        routeOfAdministration: z.nativeEnum(RouteOfAdministration).optional(),
+        dosageInstructions: z.string().optional(),
+
+        // Therapeutic & pharmacological classification
+        therapeuticClass: z.nativeEnum(TherapeuticClass).optional(),
+        pharmacologicalClass: z.nativeEnum(PharmacologicalClass).optional(),
+
+        // Clinical information
         contraindications: z.string().optional(),
         sideEffects: z.string().optional(),
-        precautions: z.string().optional(),
-        expirationDate: z.date().optional(), // 🔧 Accepter directement Date
+        warningLabels: z.array(z.string()).optional(),
+        drugInteractions: z.array(z.string()).optional(),
+        pregnancyCategory: z.nativeEnum(PregnancyCategory).optional(),
+
+        // Regulatory & supply classification
+        prescriptionRequired: z.boolean().optional(),
+        controlledSubstance: z.boolean().optional(),
+        controlledSubstanceSchedule: z
+          .nativeEnum(ControlledSubstanceSchedule)
+          .optional(),
+        isNarcotic: z.boolean().optional(),
+
+        // Packaging & storage
+        packagingType: z.nativeEnum(PackagingType).optional(),
+        packagingSize: z.string().optional(),
+        storageConditions: storageConditionsSchema.optional(),
+
+        // Batch & expiry tracking
+        batchNumber: z.string().optional(),
+        lotNumber: z.string().optional(),
+        expirationDate: z
+          .union([z.string(), z.date()])
+          .optional()
+          .transform((val) => {
+            if (!val) return undefined;
+            if (typeof val === 'string') {
+              const date = new Date(val);
+              return isNaN(date.getTime()) ? undefined : date;
+            }
+            return val;
+          }),
+
+        // Manufacturer
         manufacturer: z.string().optional(),
         isRepackaged: z.boolean().optional(),
+
+        // Category references
         subcategoryId: z
           .string()
           .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for subcategoryId')
           .optional(),
-        // New fields added
+
+        // Identifiers & advanced data
         sku: z.string().min(1, 'SKU must not be empty').optional(),
         barcode: z.string().optional(),
         weight: z.number().min(0, 'Weight must be positive').optional(),
@@ -254,13 +414,52 @@ export const simpleUpdateSchema = z
     detailData: z
       .object({
         name: z.string().min(1).optional(),
-        description: z.string().optional(), // Remove min(1) requirement for updates
-        composition: z.string().optional(),
+        description: z.string().optional(),
+
+        // Core pharmaceutical identifiers
+        genericName: z.string().optional(),
+        atcCode: z.string().optional(),
+        registrationNumber: z.string().optional(),
+        countryOfOrigin: z.string().optional(),
+
+        // Pharmaceutical form & strength
+        dosageForm: z.nativeEnum(DosageForm).optional(),
+        /** @deprecated Use dosageForm */
         form: z.string().optional(),
-        indications: z.string().optional(),
+        strength: z.string().optional(),
+        activeIngredients: z.array(activeIngredientSchema).optional(),
+
+        // Route & administration
+        routeOfAdministration: z.nativeEnum(RouteOfAdministration).optional(),
+        dosageInstructions: z.string().optional(),
+
+        // Therapeutic & pharmacological classification
+        therapeuticClass: z.nativeEnum(TherapeuticClass).optional(),
+        pharmacologicalClass: z.nativeEnum(PharmacologicalClass).optional(),
+
+        // Clinical information
         contraindications: z.string().optional(),
         sideEffects: z.string().optional(),
-        precautions: z.string().optional(),
+        warningLabels: z.array(z.string()).optional(),
+        drugInteractions: z.array(z.string()).optional(),
+        pregnancyCategory: z.nativeEnum(PregnancyCategory).optional(),
+
+        // Regulatory & supply classification
+        prescriptionRequired: z.boolean().optional(),
+        controlledSubstance: z.boolean().optional(),
+        controlledSubstanceSchedule: z
+          .nativeEnum(ControlledSubstanceSchedule)
+          .optional(),
+        isNarcotic: z.boolean().optional(),
+
+        // Packaging & storage
+        packagingType: z.nativeEnum(PackagingType).optional(),
+        packagingSize: z.string().optional(),
+        storageConditions: storageConditionsSchema.optional(),
+
+        // Batch & expiry tracking
+        batchNumber: z.string().optional(),
+        lotNumber: z.string().optional(),
         expirationDate: z
           .union([z.string(), z.date()])
           .optional()
@@ -272,8 +471,12 @@ export const simpleUpdateSchema = z
             }
             return val;
           }),
+
+        // Manufacturer
         manufacturer: z.string().optional(),
         isRepackaged: z.boolean().optional(),
+
+        // Category references
         categoryId: z
           .string()
           .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for categoryId')
@@ -282,8 +485,9 @@ export const simpleUpdateSchema = z
           .string()
           .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for subcategoryId')
           .optional(),
-        // New fields added
-        sku: z.string().optional(), // Remove min(1) requirement for updates
+
+        // Identifiers & advanced data
+        sku: z.string().optional(),
         barcode: z.string().optional(),
         weight: z.number().min(0).nullable().optional(),
         dimensions: dimensionsSchema.nullable().optional(),

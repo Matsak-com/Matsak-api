@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Body,
   Controller,
-  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -14,6 +13,7 @@ import {
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 import {
   teamIdParamSchema,
   reviewIdParamSchema,
@@ -42,50 +42,29 @@ export class ReviewsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @Post(':id/approve')
   @CompoundZodValidation({ params: reviewIdParamSchema })
-  approve(@Param() params: { id: string }, @CurrentUser() user: UserPayload) {
-    if (
-      user.role !== UserRole.ADMIN &&
-      user.role !== UserRole.SUPERADMIN &&
-      user.role !== UserRole.MODERATOR
-    ) {
-      throw new ForbiddenException(ERRORS.FORBIDDEN_REVIEW_APPROVAL);
-    }
-
+  approve(@Param() params: { id: string }) {
     return this.reviewsService.approve(params.id);
   }
 
   @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @Patch(':id')
   @CompoundZodValidation({
     params: reviewIdParamSchema,
     body: reviewStatusBodySchema,
   })
-  reject(@Param() params: { id: string }, @CurrentUser() user: UserPayload) {
-    if (
-      user.role !== UserRole.ADMIN &&
-      user.role !== UserRole.SUPERADMIN &&
-      user.role !== UserRole.MODERATOR
-    ) {
-      throw new ForbiddenException(ERRORS.FORBIDDEN_REVIEW_REJECTION);
-    }
-
+  reject(@Param() params: { id: string }) {
     return this.reviewsService.reject(params.id);
   }
 
   @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @Delete(':id')
   @CompoundZodValidation({ params: reviewIdParamSchema })
-  delete(@Param() params: { id: string }, @CurrentUser() user: UserPayload) {
-    if (
-      user.role !== UserRole.ADMIN &&
-      user.role !== UserRole.SUPERADMIN &&
-      user.role !== UserRole.MODERATOR
-    ) {
-      throw new ForbiddenException(ERRORS.FORBIDDEN_REVIEW_DELETION);
-    }
-
+  delete(@Param() params: { id: string }) {
     return this.reviewsService.delete(params.id);
   }
 

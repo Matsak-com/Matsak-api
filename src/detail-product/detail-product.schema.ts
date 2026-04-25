@@ -2,6 +2,17 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { Category } from '../categories/category.schema';
 import { SubCategory } from '../sub-categories/sub-category.schema';
+import {
+  DosageForm,
+  RouteOfAdministration,
+  TherapeuticClass,
+  PharmacologicalClass,
+  PregnancyCategory,
+  ControlledSubstanceSchedule,
+  PackagingType,
+  StorageConditionLight,
+  StorageConditionMoisture,
+} from '../common/constants/pharmaceutical.constants';
 
 export type DetailProductDocument = DetailProduct & Document;
 
@@ -34,42 +45,197 @@ export class Dimensions {
   unit?: string;
 }
 
+// Active ingredient subdocument schema
+@Schema({ _id: false })
+export class ActiveIngredient {
+  @Prop({ required: true })
+  name: string;
+
+  @Prop({ required: false, min: 0 })
+  amount?: number;
+
+  @Prop({ required: false })
+  unit?: string;
+}
+
+// Storage conditions subdocument schema
+@Schema({ _id: false })
+export class StorageConditions {
+  @Prop({ required: false })
+  minTemperature?: number;
+
+  @Prop({ required: false })
+  maxTemperature?: number;
+
+  @Prop({
+    required: false,
+    enum: Object.values(StorageConditionLight),
+    default: StorageConditionLight.NO_RESTRICTION,
+  })
+  lightCondition: StorageConditionLight;
+
+  @Prop({
+    required: false,
+    enum: Object.values(StorageConditionMoisture),
+    default: StorageConditionMoisture.NO_RESTRICTION,
+  })
+  moistureCondition: StorageConditionMoisture;
+
+  @Prop({ required: false })
+  specialInstructions?: string;
+}
+
 @Schema({ timestamps: true })
 export class DetailProduct {
   @Prop({ required: true })
   name: string;
 
-  @Prop({ required: true })
+  @Prop({ required: false, default: '' })
   description: string;
 
-  @Prop()
-  composition: string;
+  // ------------------------------------------------------------------
+  // Core pharmaceutical identifiers
+  // ------------------------------------------------------------------
+  @Prop({ required: false })
+  genericName?: string;
 
-  @Prop()
-  form: string;
+  /** Anatomical Therapeutic Chemical classification code */
+  @Prop({ required: false, index: true })
+  atcCode?: string;
 
-  @Prop()
-  indications: string;
+  @Prop({ required: false })
+  registrationNumber?: string;
 
-  @Prop()
-  contraindications: string;
+  @Prop({ required: false })
+  countryOfOrigin?: string;
 
-  @Prop()
-  sideEffects: string;
+  // ------------------------------------------------------------------
+  // Pharmaceutical form & strength
+  // ------------------------------------------------------------------
+  @Prop({
+    required: false,
+    enum: Object.values(DosageForm),
+  })
+  dosageForm?: DosageForm;
 
-  @Prop()
-  precautions: string;
+  /** @deprecated Use dosageForm */
+  @Prop({ required: false })
+  form?: string;
 
-  @Prop()
-  expirationDate: Date;
+  @Prop({ required: false })
+  strength?: string;
 
-  @Prop()
-  manufacturer: string;
+  @Prop({ type: [ActiveIngredient], default: [] })
+  activeIngredients: ActiveIngredient[];
 
-  @Prop({ default: false })
+  // ------------------------------------------------------------------
+  // Route & administration
+  // ------------------------------------------------------------------
+  @Prop({
+    required: false,
+    enum: Object.values(RouteOfAdministration),
+  })
+  routeOfAdministration?: RouteOfAdministration;
+
+  @Prop({ required: false })
+  dosageInstructions?: string;
+
+  // ------------------------------------------------------------------
+  // Therapeutic & pharmacological classification
+  // ------------------------------------------------------------------
+  @Prop({
+    required: false,
+    enum: Object.values(TherapeuticClass),
+    index: true,
+  })
+  therapeuticClass?: TherapeuticClass;
+
+  @Prop({
+    required: false,
+    enum: Object.values(PharmacologicalClass),
+    index: true,
+  })
+  pharmacologicalClass?: PharmacologicalClass;
+
+  // ------------------------------------------------------------------
+  // Clinical information
+  // ------------------------------------------------------------------
+  @Prop({ required: false })
+  contraindications?: string;
+
+  @Prop({ required: false })
+  sideEffects?: string;
+
+  @Prop({ type: [String], default: [] })
+  warningLabels: string[];
+
+  @Prop({ type: [String], default: [] })
+  drugInteractions: string[];
+
+  @Prop({
+    required: false,
+    enum: Object.values(PregnancyCategory),
+    default: PregnancyCategory.NA,
+  })
+  pregnancyCategory: PregnancyCategory;
+
+  // ------------------------------------------------------------------
+  // Regulatory & supply classification
+  // ------------------------------------------------------------------
+  @Prop({ required: false, default: false })
+  prescriptionRequired: boolean;
+
+  @Prop({ required: false, default: false })
+  controlledSubstance: boolean;
+
+  @Prop({
+    required: false,
+    enum: Object.values(ControlledSubstanceSchedule),
+  })
+  controlledSubstanceSchedule?: ControlledSubstanceSchedule;
+
+  @Prop({ required: false, default: false })
+  isNarcotic: boolean;
+
+  // ------------------------------------------------------------------
+  // Packaging & storage
+  // ------------------------------------------------------------------
+  @Prop({
+    required: false,
+    enum: Object.values(PackagingType),
+  })
+  packagingType?: PackagingType;
+
+  @Prop({ required: false })
+  packagingSize?: string;
+
+  @Prop({ type: StorageConditions, required: false })
+  storageConditions?: StorageConditions;
+
+  // ------------------------------------------------------------------
+  // Batch & expiry tracking
+  // ------------------------------------------------------------------
+  @Prop({ required: false })
+  batchNumber?: string;
+
+  @Prop({ required: false })
+  lotNumber?: string;
+
+  @Prop({ required: false })
+  expirationDate?: Date;
+
+  // ------------------------------------------------------------------
+  // Manufacturer
+  // ------------------------------------------------------------------
+  @Prop({ required: false })
+  manufacturer?: string;
+
+  @Prop({ required: false, default: false })
   isRepackaged: boolean;
 
-  // New properties added from the request
+  // ------------------------------------------------------------------
+  // Identifiers & advanced data
+  // ------------------------------------------------------------------
   @Prop({ required: false, unique: true, sparse: true })
   sku?: string;
 
@@ -88,7 +254,9 @@ export class DetailProduct {
   @Prop({ required: false, default: '' })
   additionalInfo?: string;
 
-  // Category reference (required)
+  // ------------------------------------------------------------------
+  // Category references
+  // ------------------------------------------------------------------
   @Prop({
     type: Types.ObjectId,
     ref: Category.name,
@@ -97,10 +265,6 @@ export class DetailProduct {
   })
   category: Types.ObjectId;
 
-  @Prop({
-    type: Types.ObjectId,
-  })
-  // SubCategory reference (optional - more specific categorization)
   @Prop({
     type: Types.ObjectId,
     ref: SubCategory.name,
@@ -115,10 +279,16 @@ export class DetailProduct {
 
 export const SEOSchema = SchemaFactory.createForClass(SEO);
 export const DimensionsSchema = SchemaFactory.createForClass(Dimensions);
+export const ActiveIngredientSchema =
+  SchemaFactory.createForClass(ActiveIngredient);
+export const StorageConditionsSchema =
+  SchemaFactory.createForClass(StorageConditions);
 export const DetailProductSchema = SchemaFactory.createForClass(DetailProduct);
 
 DetailProductSchema.index({ category: 1, subcategory: 1 });
-
+DetailProductSchema.index({ therapeuticClass: 1 });
+DetailProductSchema.index({ pharmacologicalClass: 1 });
+DetailProductSchema.index({ atcCode: 1 });
 DetailProductSchema.index({ sku: 1, barcode: 1 });
 
 DetailProductSchema.pre('save', async function () {

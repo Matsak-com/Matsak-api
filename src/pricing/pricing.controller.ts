@@ -7,9 +7,7 @@ import {
   Body,
   Param,
   Query,
-  Request,
   UseGuards,
-  ForbiddenException,
   HttpCode,
   HttpStatus,
   UsePipes,
@@ -18,7 +16,10 @@ import {
 import { IsMongoId } from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Public } from '../auth/decorator/public.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../users/user.schema';
+import { CurrentUser } from '../auth/decorator/current-user.decorator';
+import { UserPayload } from '../auth/jwt/jwt.strategy';
 import { PricingService } from './pricing.service';
 import {
   CreatePricingRuleDto,
@@ -29,20 +30,11 @@ import {
   UpdatePromoCodeDto,
   ValidatePromoCodeDto,
 } from './dto/promo-code.dto';
-import { RequestWithUser } from '../auth/jwt/jwt.strategy';
 
 // ─── Param DTO ────────────────────────────────────────────────────────────────
 class IdParamDto {
   @IsMongoId()
   id: string;
-}
-
-// ─── Admin guard helper (inline — no separate file needed) ───────────────────
-function assertAdmin(req: RequestWithUser): void {
-  const { role } = req.user;
-  if (role !== UserRole.ADMIN && role !== UserRole.SUPERADMIN) {
-    throw new ForbiddenException('Admin access required');
-  }
 }
 
 @UsePipes(
@@ -63,12 +55,12 @@ export class PricingController {
   // ══════════════════════════════════════════════════════════
 
   @Post('rules')
+  @Roles(UserRole.ADMIN)
   createRule(
     @Body() dto: CreatePricingRuleDto,
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
   ) {
-    assertAdmin(req);
-    return this.pricingService.createRule(dto, req.user.userId);
+    return this.pricingService.createRule(dto, user.userId);
   }
 
   @Get('rules')
@@ -77,19 +69,15 @@ export class PricingController {
   }
 
   @Patch('rules/:id')
-  updateRule(
-    @Param() params: IdParamDto,
-    @Body() dto: UpdatePricingRuleDto,
-    @Request() req: RequestWithUser,
-  ) {
-    assertAdmin(req);
+  @Roles(UserRole.ADMIN)
+  updateRule(@Param() params: IdParamDto, @Body() dto: UpdatePricingRuleDto) {
     return this.pricingService.updateRule(params.id, dto);
   }
 
   @Delete('rules/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  deleteRule(@Param() params: IdParamDto, @Request() req: RequestWithUser) {
-    assertAdmin(req);
+  @Roles(UserRole.ADMIN)
+  deleteRule(@Param() params: IdParamDto) {
     return this.pricingService.deleteRule(params.id);
   }
 
@@ -98,20 +86,17 @@ export class PricingController {
   // ══════════════════════════════════════════════════════════
 
   @Post('promo-codes')
+  @Roles(UserRole.ADMIN)
   createPromoCode(
     @Body() dto: CreatePromoCodeDto,
-    @Request() req: RequestWithUser,
+    @CurrentUser() user: UserPayload,
   ) {
-    assertAdmin(req);
-    return this.pricingService.createPromoCode(dto, req.user.userId);
+    return this.pricingService.createPromoCode(dto, user.userId);
   }
 
   @Get('promo-codes')
-  listPromoCodes(
-    @Query('teamId') teamId: string | undefined,
-    @Request() req: RequestWithUser,
-  ) {
-    assertAdmin(req);
+  @Roles(UserRole.ADMIN)
+  listPromoCodes(@Query('teamId') teamId: string | undefined) {
     return this.pricingService.listPromoCodes(teamId);
   }
 
@@ -121,22 +106,18 @@ export class PricingController {
   }
 
   @Patch('promo-codes/:id')
+  @Roles(UserRole.ADMIN)
   updatePromoCode(
     @Param() params: IdParamDto,
     @Body() dto: UpdatePromoCodeDto,
-    @Request() req: RequestWithUser,
   ) {
-    assertAdmin(req);
     return this.pricingService.updatePromoCode(params.id, dto);
   }
 
   @Delete('promo-codes/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  deletePromoCode(
-    @Param() params: IdParamDto,
-    @Request() req: RequestWithUser,
-  ) {
-    assertAdmin(req);
+  @Roles(UserRole.ADMIN)
+  deletePromoCode(@Param() params: IdParamDto) {
     return this.pricingService.deletePromoCode(params.id);
   }
 

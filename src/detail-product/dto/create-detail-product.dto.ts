@@ -7,8 +7,21 @@ import {
   IsNumber,
   ValidateNested,
   Min,
+  IsEnum,
+  IsArray,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import {
+  DosageForm,
+  RouteOfAdministration,
+  TherapeuticClass,
+  PharmacologicalClass,
+  PregnancyCategory,
+  ControlledSubstanceSchedule,
+  PackagingType,
+  StorageConditionLight,
+  StorageConditionMoisture,
+} from '../../common/constants/pharmaceutical.constants';
 
 export class SEODto {
   @IsOptional()
@@ -45,6 +58,42 @@ export class DimensionsDto {
   unit?: string;
 }
 
+export class ActiveIngredientDto {
+  @IsString()
+  name: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  amount?: number;
+
+  @IsOptional()
+  @IsString()
+  unit?: string;
+}
+
+export class StorageConditionsDto {
+  @IsOptional()
+  @IsNumber()
+  minTemperature?: number;
+
+  @IsOptional()
+  @IsNumber()
+  maxTemperature?: number;
+
+  @IsOptional()
+  @IsEnum(StorageConditionLight)
+  lightCondition?: StorageConditionLight;
+
+  @IsOptional()
+  @IsEnum(StorageConditionMoisture)
+  moistureCondition?: StorageConditionMoisture;
+
+  @IsOptional()
+  @IsString()
+  specialInstructions?: string;
+}
+
 export class CreateDetailProductDto {
   @IsString()
   name: string;
@@ -53,18 +102,72 @@ export class CreateDetailProductDto {
   @IsString()
   description?: string;
 
+  // ------------------------------------------------------------------
+  // Core pharmaceutical identifiers
+  // ------------------------------------------------------------------
   @IsOptional()
   @IsString()
-  composition?: string;
+  genericName?: string;
 
+  @IsOptional()
+  @IsString()
+  atcCode?: string;
+
+  @IsOptional()
+  @IsString()
+  registrationNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  countryOfOrigin?: string;
+
+  // ------------------------------------------------------------------
+  // Pharmaceutical form & strength
+  // ------------------------------------------------------------------
+  @IsOptional()
+  @IsEnum(DosageForm)
+  dosageForm?: DosageForm;
+
+  /** @deprecated Use dosageForm */
   @IsOptional()
   @IsString()
   form?: string;
 
   @IsOptional()
   @IsString()
-  indications?: string;
+  strength?: string;
 
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ActiveIngredientDto)
+  activeIngredients?: ActiveIngredientDto[];
+
+  // ------------------------------------------------------------------
+  // Route & administration
+  // ------------------------------------------------------------------
+  @IsOptional()
+  @IsEnum(RouteOfAdministration)
+  routeOfAdministration?: RouteOfAdministration;
+
+  @IsOptional()
+  @IsString()
+  dosageInstructions?: string;
+
+  // ------------------------------------------------------------------
+  // Therapeutic & pharmacological classification
+  // ------------------------------------------------------------------
+  @IsOptional()
+  @IsEnum(TherapeuticClass)
+  therapeuticClass?: TherapeuticClass;
+
+  @IsOptional()
+  @IsEnum(PharmacologicalClass)
+  pharmacologicalClass?: PharmacologicalClass;
+
+  // ------------------------------------------------------------------
+  // Clinical information
+  // ------------------------------------------------------------------
   @IsOptional()
   @IsString()
   contraindications?: string;
@@ -74,13 +177,72 @@ export class CreateDetailProductDto {
   sideEffects?: string;
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  warningLabels?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  drugInteractions?: string[];
+
+  @IsOptional()
+  @IsEnum(PregnancyCategory)
+  pregnancyCategory?: PregnancyCategory;
+
+  // ------------------------------------------------------------------
+  // Regulatory & supply classification
+  // ------------------------------------------------------------------
+  @IsOptional()
+  @IsBoolean()
+  prescriptionRequired?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  controlledSubstance?: boolean;
+
+  @IsOptional()
+  @IsEnum(ControlledSubstanceSchedule)
+  controlledSubstanceSchedule?: ControlledSubstanceSchedule;
+
+  @IsOptional()
+  @IsBoolean()
+  isNarcotic?: boolean;
+
+  // ------------------------------------------------------------------
+  // Packaging & storage
+  // ------------------------------------------------------------------
+  @IsOptional()
+  @IsEnum(PackagingType)
+  packagingType?: PackagingType;
+
+  @IsOptional()
   @IsString()
-  precautions?: string;
+  packagingSize?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => StorageConditionsDto)
+  storageConditions?: StorageConditionsDto;
+
+  // ------------------------------------------------------------------
+  // Batch & expiry tracking
+  // ------------------------------------------------------------------
+  @IsOptional()
+  @IsString()
+  batchNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  lotNumber?: string;
 
   @IsOptional()
   @IsDateString()
-  expirationDate?: Date;
+  expirationDate?: string;
 
+  // ------------------------------------------------------------------
+  // Manufacturer
+  // ------------------------------------------------------------------
   @IsOptional()
   @IsString()
   manufacturer?: string;
@@ -89,6 +251,9 @@ export class CreateDetailProductDto {
   @IsBoolean()
   isRepackaged?: boolean;
 
+  // ------------------------------------------------------------------
+  // Category references
+  // ------------------------------------------------------------------
   @IsMongoId()
   categoryId: string;
 
@@ -96,7 +261,9 @@ export class CreateDetailProductDto {
   @IsMongoId()
   subcategoryId?: string;
 
-  // New fields added
+  // ------------------------------------------------------------------
+  // Identifiers & advanced data
+  // ------------------------------------------------------------------
   @IsOptional()
   @IsString()
   sku?: string;
