@@ -114,6 +114,19 @@ export class CreateProductDto {
   isActive?: boolean;
 }
 
+/**
+ * Safely extract a string ObjectId from a plain string or a populated Mongoose document.
+ * Returns `undefined` when the input is an object without a valid `_id`.
+ */
+function extractIdString(value: unknown): string | undefined {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object' && value !== null) {
+    const id = (value as Record<string, unknown>)._id;
+    return id ? id.toString() : undefined;
+  }
+  return undefined;
+}
+
 // Preprocess schemas for multipart/form-data bodies (parse JSON strings, coerce dates/bools)
 export const createProductMultipartSchema = z.preprocess((raw) => {
   if (typeof raw !== 'object' || raw === null) return raw;
@@ -135,9 +148,7 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
       typeof cloned.detailData.team === 'object' &&
       cloned.detailData.team !== null
     ) {
-      cloned.teamId = cloned.detailData.team._id
-        ? cloned.detailData.team._id.toString()
-        : undefined;
+      cloned.teamId = extractIdString(cloned.detailData.team);
     } else {
       cloned.teamId = cloned.detailData.team;
     }
@@ -148,7 +159,7 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
     cloned.teamId !== null
   ) {
     // If teamId is sent as a populated team object at top level, extract _id
-    cloned.teamId = cloned.teamId._id ? cloned.teamId._id.toString() : undefined;
+    cloned.teamId = extractIdString(cloned.teamId);
   }
 
   // Handle category from detailData.category OR top level categoryId
@@ -159,9 +170,7 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
       typeof cloned.detailData.category === 'object' &&
       cloned.detailData.category !== null
     ) {
-      const catId = cloned.detailData.category._id
-        ? cloned.detailData.category._id.toString()
-        : undefined;
+      const catId = extractIdString(cloned.detailData.category);
       cloned.detailData.categoryId = catId;
       cloned.categoryId = catId;
     } else {
@@ -173,9 +182,7 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
     cloned.detailData = cloned.detailData || {};
     // If categoryId is an object (populated category), extract _id
     if (typeof cloned.categoryId === 'object' && cloned.categoryId !== null) {
-      const catId = cloned.categoryId._id
-        ? cloned.categoryId._id.toString()
-        : undefined;
+      const catId = extractIdString(cloned.categoryId);
       cloned.detailData.categoryId = catId;
       cloned.categoryId = catId;
     } else {
@@ -192,9 +199,7 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
       typeof cloned.subcategoryId === 'object' &&
       cloned.subcategoryId !== null
     ) {
-      cloned.detailData.subcategoryId = cloned.subcategoryId._id
-        ? cloned.subcategoryId._id.toString()
-        : undefined;
+      cloned.detailData.subcategoryId = extractIdString(cloned.subcategoryId);
     } else {
       cloned.detailData.subcategoryId = cloned.subcategoryId;
     }
@@ -216,9 +221,7 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
       typeof cloned.detailData.categoryId === 'object' &&
       cloned.detailData.categoryId !== null
     ) {
-      const catId = cloned.detailData.categoryId._id
-        ? cloned.detailData.categoryId._id.toString()
-        : undefined;
+      const catId = extractIdString(cloned.detailData.categoryId);
       cloned.detailData.categoryId = catId;
       cloned.categoryId = catId;
     }
@@ -226,9 +229,9 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
       typeof cloned.detailData.subcategoryId === 'object' &&
       cloned.detailData.subcategoryId !== null
     ) {
-      cloned.detailData.subcategoryId = cloned.detailData.subcategoryId._id
-        ? cloned.detailData.subcategoryId._id.toString()
-        : undefined;
+      cloned.detailData.subcategoryId = extractIdString(
+        cloned.detailData.subcategoryId,
+      );
     }
   }
 

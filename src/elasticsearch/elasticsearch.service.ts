@@ -167,7 +167,7 @@ export class SearchService implements OnModuleInit {
     try {
       await this.elasticsearchService.indices.putMapping({
         index: this.index,
-        properties: this.getIndexMappings() as any,
+        properties: this.getIndexMappings(),
       });
       this.logger.log(`Mappings updated for index "${this.index}"`);
     } catch (error) {
