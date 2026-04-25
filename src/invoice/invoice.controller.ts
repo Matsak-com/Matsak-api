@@ -57,9 +57,26 @@ export class InvoiceController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @Get('team/:teamId')
-  findByTeam(@Param() params: TeamParamDto) {
+  async findByTeam(
+    @Param() params: TeamParamDto,
+    @CurrentUser() user: UserPayload,
+  ) {
+    const isPrivileged =
+      user.role === UserRole.ADMIN || user.role === UserRole.SUPERADMIN;
+
+    if (!isPrivileged) {
+      const isMember = await this.invoiceService.isUserTeamMember(
+        params.teamId,
+        user.userId,
+      );
+      if (!isMember) {
+        throw new ForbiddenException(
+          'Vous ne pouvez consulter que les factures de votre équipe',
+        );
+      }
+    }
+
     return this.invoiceService.findByTeam(params.teamId);
   }
 

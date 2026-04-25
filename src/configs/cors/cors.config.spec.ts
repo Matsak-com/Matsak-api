@@ -171,9 +171,9 @@ describe('CORS Configuration', () => {
       const corsConfig = loadCorsConfig();
 
       disallowedOrigins.forEach((origin) => {
-        corsConfig.origin(origin, (err: Error | null) => {
-          expect(err).toBeInstanceOf(Error);
-          expect(err?.message).toBe('Not allowed by CORS');
+        corsConfig.origin(origin, (err: Error | null, allowed: boolean) => {
+          expect(err).toBeNull();
+          expect(allowed).toBe(false);
         });
       });
     });
@@ -198,9 +198,9 @@ describe('CORS Configuration', () => {
       const corsConfig = loadCorsConfig();
 
       similarButNotExact.forEach((origin) => {
-        corsConfig.origin(origin, (err: Error | null) => {
-          expect(err).toBeInstanceOf(Error);
-          expect(err?.message).toBe('Not allowed by CORS');
+        corsConfig.origin(origin, (err: Error | null, allowed: boolean) => {
+          expect(err).toBeNull();
+          expect(allowed).toBe(false);
         });
       });
     });
@@ -275,9 +275,13 @@ describe('CORS Configuration', () => {
       );
 
       // Non-allowed origins should be rejected
-      corsConfig.origin('https://evil.com', (err: Error | null) => {
-        expect(err).toBeInstanceOf(Error);
-      });
+      corsConfig.origin(
+        'https://evil.com',
+        (err: Error | null, allowed: boolean) => {
+          expect(err).toBeNull();
+          expect(allowed).toBe(false);
+        },
+      );
     });
   });
 });
