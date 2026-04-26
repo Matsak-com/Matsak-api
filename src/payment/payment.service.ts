@@ -139,14 +139,19 @@ export class PaymentService {
 
       // ── Racheter le promo code atomiquement ───────────────────────────────
       if (promoCode && pricing.promoCodeSnapshot) {
-        await this.pricingService
-          .redeemPromoCode(promoCode, pricing.subtotalEur, teamId ?? undefined)
-          .catch((err) =>
-            this.logger.error(
-              `Promo redemption failed for ${promoCode}`,
-              err.message,
-            ),
+        try {
+          await this.pricingService.redeemPromoCode(
+            promoCode,
+            pricing.subtotalEur,
+            teamId ?? undefined,
           );
+        } catch (err: any) {
+          this.logger.error(
+            `Promo redemption failed for ${promoCode}`,
+            err?.message,
+          );
+          throw new BadRequestException('Promo code could not be applied');
+        }
       }
 
       const totalAmount = pricing.totalLocal;
