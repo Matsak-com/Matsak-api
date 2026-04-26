@@ -148,7 +148,22 @@ export class InvoiceService {
 
         return invoice;
       } catch (error) {
-        this.logger.error('Erreur lors de la création de facture');
+        const err = error as { code?: number; message?: string; stack?: string };
+        const isDuplicateKeyError = err?.code === 11000;
+        const errorMessage = err?.message ?? 'Erreur inconnue';
+        const errorStack = err?.stack ?? errorMessage;
+
+        if (isDuplicateKeyError && attempt < this.MAX_INVOICE_RETRIES) {
+          this.logger.warn(
+            `Collision de numéro de facture détectée (tentative ${attempt}/${this.MAX_INVOICE_RETRIES}). Nouvelle tentative. Erreur: ${errorMessage}`,
+          );
+          continue;
+        }
+
+        this.logger.error(
+          `Erreur lors de la création de facture (tentative ${attempt}/${this.MAX_INVOICE_RETRIES}): ${errorMessage}`,
+          errorStack,
+        );
         throw error;
       }
     }
