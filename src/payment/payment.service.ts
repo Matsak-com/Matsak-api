@@ -154,15 +154,6 @@ export class PaymentService {
       if (totalAmount <= 0)
         throw new BadRequestException(ERRORS.INVALID_AMOUNT);
 
-      // ── Assertion : cohérence interne du pricing ──────────────────────────
-      // Pas de throw — log d'erreur uniquement pour ne pas bloquer le paiement
-      // si une floating-point imprecision se glisse dans le calcul.
-      if (Math.abs(pricing.totalLocal - totalAmount) > 0.01) {
-        this.logger.error(
-          `PRICING_MISMATCH: totalAmount=${totalAmount} !== pricing.totalLocal=${pricing.totalLocal}`,
-        );
-      }
-
       const existingActive = await this.paymentRepo.findOne({
         filter: {
           cartId: new Types.ObjectId(cartId),
