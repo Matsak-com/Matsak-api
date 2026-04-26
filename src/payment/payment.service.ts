@@ -490,7 +490,15 @@ export class PaymentService {
       // Plus de promoCode ici — il est déjà dans payment.pricingSnapshot
       await this.invoiceService.createInvoiceFromPayment({ paymentId });
     } catch (error) {
-      this.logger.error(`Erreur création facture pour paiement ${paymentId}:`);
+      const errorDetails =
+        (error as Error)?.stack ||
+        (error as Error)?.message ||
+        String(error);
+
+      this.logger.error(
+        `Erreur création facture pour paiement ${paymentId}:`,
+        errorDetails,
+      );
       throw error;
     }
   }
