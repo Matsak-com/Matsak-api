@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
-import {
+import type {
   PricingLineSnapshot,
   PromoCodeSnapshot,
 } from '../invoice/invoice.schema';
