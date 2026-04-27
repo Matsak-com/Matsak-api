@@ -113,4 +113,7 @@ export const DeliveryCheckSchema = SchemaFactory.createForClass(DeliveryCheck);
 // Compound index for admin queries (team invoices, etc.)
 DeliveryCheckSchema.index({ invoiceId: 1, type: 1, teamId: 1 });
 // TTL: automatically purge records 30 days after expiry (optional cleanup)
-DeliveryCheckSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 30 });
+DeliveryCheckSchema.index(
+  { expiresAt: 1 },
+  { expireAfterSeconds: 60 * 60 * 24 * 30 },
+);

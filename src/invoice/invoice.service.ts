@@ -151,7 +151,11 @@ export class InvoiceService {
 
         return invoice;
       } catch (error) {
-        const err = error as { code?: number; message?: string; stack?: string };
+        const err = error as {
+          code?: number;
+          message?: string;
+          stack?: string;
+        };
         const isDuplicateKeyError = err?.code === 11000;
         const errorMessage = err?.message ?? 'Erreur inconnue';
         const errorStack = err?.stack ?? errorMessage;
@@ -300,11 +304,13 @@ export class InvoiceService {
             invoiceId: new Types.ObjectId(invoice._id.toString()),
             invoiceNumber: invoice.invoiceNumber,
             type: DeliveryCheckType.PICKUP,
-            teamId: teamId !== 'sans-team' ? new Types.ObjectId(teamId) : undefined,
+            teamId:
+              teamId !== 'sans-team' ? new Types.ObjectId(teamId) : undefined,
             items: teamItems,
           });
 
-          const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+          const frontendUrl =
+            process.env.FRONTEND_URL ?? 'http://localhost:3000';
           const qrUrl = `${frontendUrl}/delivery/${token}`;
 
           const buffer = await this.generateQRCodeBuffer(qrUrl);

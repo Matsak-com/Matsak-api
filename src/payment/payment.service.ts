@@ -496,9 +496,7 @@ export class PaymentService {
       await this.invoiceService.createInvoiceFromPayment({ paymentId });
     } catch (error) {
       const errorDetails =
-        (error as Error)?.stack ||
-        (error as Error)?.message ||
-        String(error);
+        (error as Error)?.stack || (error as Error)?.message || String(error);
 
       this.logger.error(
         `Erreur création facture pour paiement ${paymentId}:`,

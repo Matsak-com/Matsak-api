@@ -229,9 +229,7 @@ export class DeliveryCheckService {
       throw new ForbiddenException(ERRORS.DELIVERY_CHECK_ALREADY_COMPLETED);
     }
 
-    const item = doc.items.find(
-      (i) => i.productId.toString() === productId,
-    );
+    const item = doc.items.find((i) => i.productId.toString() === productId);
     if (!item) {
       throw new NotFoundException(ERRORS.DELIVERY_PRODUCT_NOT_FOUND);
     }
@@ -399,8 +397,7 @@ export class DeliveryCheckService {
     let deliveryAddress: Record<string, string> | null = null;
     if (invoice.deliveryAddressId && Array.isArray(user.addresses)) {
       const addr = user.addresses.find(
-        (a: any) =>
-          a._id?.toString() === invoice.deliveryAddressId?.toString(),
+        (a: any) => a._id?.toString() === invoice.deliveryAddressId?.toString(),
       );
       if (addr) {
         deliveryAddress = {
@@ -409,9 +406,7 @@ export class DeliveryCheckService {
           city: addr.city ?? '',
           ...(addr.state ? { state: addr.state } : {}),
           ...(addr.phone ? { phone: addr.phone } : {}),
-          ...(addr.deliveryNotes
-            ? { deliveryNotes: addr.deliveryNotes }
-            : {}),
+          ...(addr.deliveryNotes ? { deliveryNotes: addr.deliveryNotes } : {}),
         };
       }
     }
@@ -437,9 +432,7 @@ export class DeliveryCheckService {
     // ── 7) Pricing ─────────────────────────────────────────────────────────
     const currency: string = invoice.currency ?? 'MGA';
     const fmt = (n: unknown): string =>
-      (Math.round(((n as number) ?? 0) * 100) / 100).toLocaleString(
-        dateLocale,
-      );
+      (Math.round(((n as number) ?? 0) * 100) / 100).toLocaleString(dateLocale);
 
     const pricingLines: Array<{ name: string; localPrice: string }> = (
       invoice.pricingLines ?? []
