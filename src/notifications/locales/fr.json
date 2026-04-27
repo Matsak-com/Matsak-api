@@ -84,6 +84,8 @@
       "unitPrice": "Prix unit.",
       "total": "Total",
       "subtotal": "Sous-total",
+      "subtotalItems": "Sous-total articles",
+      "promoCode": "Code promo",
       "totalPaid": "Total payé",
       "shippingAddress": "Adresse de livraison",
       "support": "Pour toute question concernant votre facture, n'hésitez pas à contacter notre équipe.",

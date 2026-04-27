@@ -84,6 +84,8 @@
       "unitPrice": "Unit price",
       "total": "Total",
       "subtotal": "Subtotal",
+      "subtotalItems": "Items subtotal",
+      "promoCode": "Promo code",
       "totalPaid": "Total paid",
       "shippingAddress": "Shipping address",
       "support": "If you have any questions about your invoice, feel free to contact our team.",
@@ -106,7 +108,7 @@
       "privacy": "Privacy",
       "terms": "Terms",
       "autoEmailNotice": "This email was sent from an automated system. Please do not reply."
-    }, 
+    },
     "invoiceDeleted": {
       "title": "Invoice deleted",
       "greeting": "Hello",
