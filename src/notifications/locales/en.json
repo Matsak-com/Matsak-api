@@ -91,13 +91,13 @@
       "support": "If you have any questions about your invoice, feel free to contact our team.",
       "signature": "Best regards,<br>The Matsak Team",
 
-      "deliveryQrTitle": "Delivery QR Code",
-      "deliveryQrDescription": "The delivery driver will scan this QR code upon delivery to confirm receipt of your order.",
-      "deliveryQrMeta": "Contains: invoice number · address · amount — Show to delivery driver",
+      "deliveryQrTitle": "Delivery Verification QR Code",
+      "deliveryQrDescription": "The delivery driver will scan this QR code upon delivery and check off each item in your order one by one.",
+      "deliveryQrMeta": "Secure code · valid for 7 days — Show to delivery driver",
 
-      "pickupQrTitle": "Pickup QR Codes",
-      "pickupQrDescription": "Show the QR code for each pharmacy when you pick up your medications.",
-      "pickupQrMeta": "Show at pharmacy"
+      "pickupQrTitle": "Pharmacy Pickup Verification QR Codes",
+      "pickupQrDescription": "Show the QR code for each pharmacy. Staff will check off each item one by one as they hand over your medications.",
+      "pickupQrMeta": "Secure code · valid for 7 days — Show at pharmacy"
     },
     "common": {
       "footer": "© {{year}} Matsak. All rights reserved.",
@@ -149,6 +149,34 @@
       "customerEmail": "Email",
       "teamsLabel": "Pharmacies involved",
       "autoNotice": "You are receiving this email as an administrator of the Matsak platform. No action is required on your part unless otherwise stated.",
+      "signature": "Best regards,<br>The Matsak Team"
+    },
+    "deliveryConfirmed": {
+      "subject": "Delivery confirmed — Invoice {{invoiceNumber}}",
+      "title": "Delivery Confirmed",
+      "greeting": "Hello",
+      "intro": "Great news! Your delivery has been validated and all your items have been handed over.",
+      "statusLabel": "Delivery validated",
+      "invoiceNumber": "Invoice no.",
+      "deliveryType": "Mode",
+      "typeDelivery": "Home delivery",
+      "typePickup": "Pharmacy pickup",
+      "pharmacy": "Pharmacy",
+      "completedAt": "Validated on",
+      "validatedBy": "Validated by",
+      "itemsTitle": "Items delivered",
+      "itemName": "Item",
+      "quantity": "Qty",
+      "checkedBy": "Handed by",
+      "checkedAt": "Time",
+      "itemsChecked": "item(s) confirmed",
+      "orderSummaryTitle": "Order summary",
+      "shippingAddressTitle": "Delivery address",
+      "subtotalItems": "Items subtotal",
+      "promoCode": "Promo code",
+      "totalPaid": "Total paid",
+      "confirmationMessage": "This delivery is now closed. If you did not receive all your items or notice any discrepancy, please contact our support team immediately.",
+      "support": "If you have any questions, our team is here to help.",
       "signature": "Best regards,<br>The Matsak Team"
     }
   }
