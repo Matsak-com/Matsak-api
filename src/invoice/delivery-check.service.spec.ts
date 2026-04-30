@@ -364,6 +364,8 @@ describe('DeliveryCheckService', () => {
     });
 
     it('does NOT send email when not all items are checked', async () => {
+      // verifyToken: returns unchecked doc
+      mockVerifyToken(TOKEN);
       mockDeliveryCheckModel.updateOne.mockResolvedValue({ matchedCount: 1 });
       // Re-fetch: item still unchecked
       mockDeliveryCheckModel.findById.mockResolvedValueOnce(
