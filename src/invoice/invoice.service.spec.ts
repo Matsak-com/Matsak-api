@@ -6,6 +6,7 @@ import { Types } from 'mongoose';
 import { InvoiceService } from './invoice.service';
 import { InvoiceRepository } from './invoice.repository';
 import { NotificationService } from '../notifications/notification.service';
+import { DeliveryCheckService } from './delivery-check.service';
 import { Payment, DeliveryMethod } from '../payment/payment.schema';
 import { Invoice, InvoiceStatus } from './invoice.schema';
 
@@ -31,7 +32,10 @@ const mockPricingSnapshot = {
     {
       type: 'delivery',
       name: 'Frais de livraison',
+      baseType: 'FIXED',
       basePriceEur: 5,
+      basePercentage: null,
+      resolvedEur: 5,
       localPrice: 24000,
     },
   ],
@@ -122,6 +126,10 @@ const mockNotificationService = {
   sendEmail: jest.fn(),
 };
 
+const mockDeliveryCheckService = {
+  createDeliveryToken: jest.fn().mockResolvedValue('mock-token'),
+};
+
 // Modèle Payment : chaîning findById().populate().lean()
 const mockPaymentLean = jest.fn();
 const mockPaymentPopulate = jest
@@ -168,6 +176,7 @@ describe('InvoiceService', () => {
         InvoiceService,
         { provide: InvoiceRepository, useValue: mockInvoiceRepo },
         { provide: NotificationService, useValue: mockNotificationService },
+        { provide: DeliveryCheckService, useValue: mockDeliveryCheckService },
         { provide: getModelToken(Payment.name), useValue: MockPaymentModel },
         { provide: getModelToken('User'), useValue: mockUserModel },
         { provide: getModelToken('Member'), useValue: mockMemberModel },

@@ -10,6 +10,8 @@ import { DeliveryMethod } from '../payment/payment.schema';
 import { User, UserRole } from '../users/user.schema';
 import { Member, MemberStatus } from '../members/member.schema';
 import { Role } from '../roles/role.schema';
+import { DeliveryCheckService } from './delivery-check.service';
+import { DeliveryCheckType } from './delivery-check.schema';
 
 interface CreateInvoiceFromPaymentDto {
   paymentId: string;
@@ -23,6 +25,7 @@ export class InvoiceService {
   constructor(
     private readonly invoiceRepo: InvoiceRepository,
     private readonly notificationService: NotificationService,
+    private readonly deliveryCheckService: DeliveryCheckService,
     @InjectModel(Payment.name) private readonly paymentModel: Model<Payment>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectModel(Member.name) private readonly memberModel: Model<Member>,
@@ -148,7 +151,11 @@ export class InvoiceService {
 
         return invoice;
       } catch (error) {
-        const err = error as { code?: number; message?: string; stack?: string };
+        const err = error as {
+          code?: number;
+          message?: string;
+          stack?: string;
+        };
         const isDuplicateKeyError = err?.code === 11000;
         const errorMessage = err?.message ?? 'Erreur inconnue';
         const errorStack = err?.stack ?? errorMessage;
@@ -171,8 +178,13 @@ export class InvoiceService {
 
   // ─── Génération QR code ───────────────────────────────────────────────────
 
-  private async generateQRCodeBuffer(data: object): Promise<Buffer> {
-    return QRCode.toBuffer(JSON.stringify(data), {
+  /**
+   * Accepts either a plain string (e.g. a URL) or a JSON-serialisable object.
+   * For delivery verification, always pass the URL string — never raw payload.
+   */
+  private async generateQRCodeBuffer(data: string | object): Promise<Buffer> {
+    const content = typeof data === 'string' ? data : JSON.stringify(data);
+    return QRCode.toBuffer(content, {
       errorCorrectionLevel: 'M',
       width: 300,
       margin: 2,
@@ -222,6 +234,7 @@ export class InvoiceService {
 
       teamMap.get(teamId).subtotalRaw += lineTotal;
       teamMap.get(teamId).items.push({
+        productIdRaw: product?._id?.toString() ?? null,
         name: product?.name ?? 'Produit',
         quantity,
         unitPrice: this.formatAmount(unitPrice),
@@ -246,28 +259,31 @@ export class InvoiceService {
         };
       }
 
-      const qrPayload = {
-        type: 'DELIVERY',
-        invoiceNumber: invoice.invoiceNumber,
-        paymentId: payment._id?.toString() ?? '',
-        customerName: customer.name ?? 'Client',
-        deliveryAddress: deliveryAddress
-          ? [
-              deliveryAddress.addressLine,
-              deliveryAddress.city,
-              deliveryAddress.state,
-            ]
-              .filter(Boolean)
-              .join(', ')
-          : '',
-        amount: payment.amount,
-        currency: payment.currency?.toUpperCase() ?? 'Ar',
-      };
-
       try {
-        const buffer = await this.generateQRCodeBuffer(qrPayload);
+        // Build the signed delivery checklist — no customer PII in the QR.
+        const allItems = (cart?.items ?? [])
+          .filter((item: any) => item.product?._id)
+          .map((item: any) => ({
+            productId: new Types.ObjectId(item.product._id.toString()),
+            name: item.product?.name ?? 'Produit',
+            quantity: item.quantity ?? 1,
+          }));
+
+        const token = await this.deliveryCheckService.createDeliveryToken({
+          invoiceId: new Types.ObjectId(invoice._id.toString()),
+          invoiceNumber: invoice.invoiceNumber,
+          type: DeliveryCheckType.DELIVERY,
+          items: allItems,
+        });
+
+        const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+        const qrUrl = `${frontendUrl}/delivery/${token}`;
+
+        const buffer = await this.generateQRCodeBuffer(qrUrl);
         deliveryQrDataUri = `data:image/png;base64,${buffer.toString('base64')}`;
-        this.logger.log(`✅ QR livraison généré pour ${invoice.invoiceNumber}`);
+        this.logger.log(
+          `✅ QR livraison signé généré pour ${invoice.invoiceNumber}`,
+        );
       } catch (err) {
         this.logger.error(`Erreur génération QR livraison`, err);
       }
@@ -275,25 +291,31 @@ export class InvoiceService {
 
     if (isPickup) {
       for (const [teamId, teamData] of teamMap.entries()) {
-        const qrPayload = {
-          type: 'PICKUP',
-          invoiceNumber: invoice.invoiceNumber,
-          paymentId: payment._id?.toString() ?? '',
-          teamId,
-          teamName: teamData.teamName,
-          customerName: customer.name ?? 'Client',
-          items: teamData.items.map((i) => ({
-            name: i.name,
-            quantity: i.quantity,
-          })),
-          subtotal: teamData.subtotalRaw,
-          currency: payment.currency?.toUpperCase() ?? 'Ar',
-        };
-
         try {
-          const buffer = await this.generateQRCodeBuffer(qrPayload);
+          const teamItems = teamData.items
+            .filter((i: any) => i.productIdRaw)
+            .map((i: any) => ({
+              productId: new Types.ObjectId(i.productIdRaw),
+              name: i.name,
+              quantity: i.quantity,
+            }));
+
+          const token = await this.deliveryCheckService.createDeliveryToken({
+            invoiceId: new Types.ObjectId(invoice._id.toString()),
+            invoiceNumber: invoice.invoiceNumber,
+            type: DeliveryCheckType.PICKUP,
+            teamId:
+              teamId !== 'sans-team' ? new Types.ObjectId(teamId) : undefined,
+            items: teamItems,
+          });
+
+          const frontendUrl =
+            process.env.FRONTEND_URL ?? 'http://localhost:3000';
+          const qrUrl = `${frontendUrl}/delivery/${token}`;
+
+          const buffer = await this.generateQRCodeBuffer(qrUrl);
           teamData.qrDataUri = `data:image/png;base64,${buffer.toString('base64')}`;
-          this.logger.log(`✅ QR retrait généré pour team ${teamId}`);
+          this.logger.log(`✅ QR retrait signé généré pour team ${teamId}`);
         } catch (err) {
           this.logger.error(`Erreur génération QR retrait team ${teamId}`, err);
         }

@@ -134,7 +134,10 @@ export class Payment {
         {
           type: { type: String, required: true },
           name: { type: String, required: true },
-          basePriceEur: { type: Number, required: true },
+          baseType: { type: String, required: true, default: 'FIXED' },
+          basePriceEur: { type: Number, default: null },
+          basePercentage: { type: Number, default: null },
+          resolvedEur: { type: Number, required: true },
           localPrice: { type: Number, required: true },
           _id: false,
         },

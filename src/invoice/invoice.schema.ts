@@ -19,7 +19,11 @@ export enum InvoiceStatus {
 export class PricingLineSnapshot {
   type: PricingRuleType;
   name: string;
-  basePriceEur: number;
+  baseType: string;
+  basePriceEur: number | null;
+  basePercentage: number | null;
+  /** Resolved surcharge amount in EUR at the time of the invoice */
+  resolvedEur: number;
   localPrice: number;
 }
 
@@ -168,7 +172,10 @@ export class Invoice {
       {
         type: { type: String, required: true },
         name: { type: String, required: true },
-        basePriceEur: { type: Number, required: true },
+        baseType: { type: String, required: true, default: 'FIXED' },
+        basePriceEur: { type: Number, default: null },
+        basePercentage: { type: Number, default: null },
+        resolvedEur: { type: Number, required: false, default: null },
         localPrice: { type: Number, required: true },
         _id: false,
       },

@@ -4,6 +4,8 @@ import { InvoiceController } from './invoice.controller';
 import { InvoiceService } from './invoice.service';
 import { InvoiceRepository } from './invoice.repository';
 import { Invoice, InvoiceSchema } from './invoice.schema';
+import { DeliveryCheck, DeliveryCheckSchema } from './delivery-check.schema';
+import { DeliveryCheckService } from './delivery-check.service';
 import { ProductModule } from '../product/product.module';
 import { Counter, CounterSchema } from './counter.schema';
 import { NotificationModule } from '../notifications/notification.module';
@@ -24,13 +26,14 @@ import { Role, RoleSchema } from '../roles/role.schema';
       { name: User.name, schema: UserSchema },
       { name: Member.name, schema: MemberSchema },
       { name: Role.name, schema: RoleSchema },
+      { name: DeliveryCheck.name, schema: DeliveryCheckSchema },
     ]),
     ProductModule,
     NotificationModule,
     PricingModule,
   ],
   controllers: [InvoiceController],
-  providers: [InvoiceService, InvoiceRepository],
-  exports: [InvoiceService, InvoiceRepository],
+  providers: [InvoiceService, InvoiceRepository, DeliveryCheckService],
+  exports: [InvoiceService, InvoiceRepository, DeliveryCheckService],
 })
 export class InvoiceModule {}
