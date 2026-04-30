@@ -11,7 +11,10 @@ import {
   Max,
   ValidateIf,
 } from 'class-validator';
-import { PricingRuleType, PricingRuleBaseType } from '../schemas/pricing-rule.schema';
+import {
+  PricingRuleType,
+  PricingRuleBaseType,
+} from '../schemas/pricing-rule.schema';
 
 export class CreatePricingRuleDto {
   /** Team scope — omit for a global rule */

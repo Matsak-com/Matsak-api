@@ -9,7 +9,10 @@ import { Types } from 'mongoose';
 import { CurrencyService } from '../currency/currency.service';
 import { PricingRuleRepository } from './pricing-rule.repository';
 import { PromoCodeRepository } from './promo-code.repository';
-import { PricingRuleBaseType, PricingRuleType } from './schemas/pricing-rule.schema';
+import {
+  PricingRuleBaseType,
+  PricingRuleType,
+} from './schemas/pricing-rule.schema';
 import { DiscountType, PromoCodeDocument } from './schemas/promo-code.schema';
 import {
   CreatePricingRuleDto,
@@ -165,10 +168,16 @@ export class PricingService {
         update.basePriceEur = null;
       }
     }
-    if (dto.basePriceEur !== undefined && effectiveBaseType === PricingRuleBaseType.FIXED) {
+    if (
+      dto.basePriceEur !== undefined &&
+      effectiveBaseType === PricingRuleBaseType.FIXED
+    ) {
       update.basePriceEur = dto.basePriceEur;
     }
-    if (dto.basePercentage !== undefined && effectiveBaseType === PricingRuleBaseType.PERCENTAGE) {
+    if (
+      dto.basePercentage !== undefined &&
+      effectiveBaseType === PricingRuleBaseType.PERCENTAGE
+    ) {
       update.basePercentage = dto.basePercentage;
     }
     if (dto.isActive !== undefined) update.isActive = dto.isActive;

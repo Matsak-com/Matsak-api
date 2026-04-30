@@ -9,7 +9,10 @@ import { PricingService, DEFAULT_CURRENCY } from './pricing.service';
 import { PricingRuleRepository } from './pricing-rule.repository';
 import { PromoCodeRepository } from './promo-code.repository';
 import { CurrencyService } from '../currency/currency.service';
-import { PricingRuleType, PricingRuleBaseType } from './schemas/pricing-rule.schema';
+import {
+  PricingRuleType,
+  PricingRuleBaseType,
+} from './schemas/pricing-rule.schema';
 import { DiscountType } from './schemas/promo-code.schema';
 
 // ── Shared helpers ─────────────────────────────────────────────────────────

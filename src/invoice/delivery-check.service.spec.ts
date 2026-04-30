@@ -125,7 +125,10 @@ describe('DeliveryCheckService', () => {
    * Uses mockReturnValueOnce so it doesn't interfere with subsequent findById
    * calls in the same test (e.g. re-fetch inside checkItem).
    */
-  function mockVerifyToken(token: string, docOverrides: Record<string, any> = {}) {
+  function mockVerifyToken(
+    token: string,
+    docOverrides: Record<string, any> = {},
+  ) {
     const tokenHash_ = hashToken(token);
     const doc = makeDoc({ tokenHash: tokenHash_, ...docOverrides });
 
@@ -296,15 +299,19 @@ describe('DeliveryCheckService', () => {
 
     it('auto-completes and triggers confirmation email when all items are checked', async () => {
       const checkedItem = makeItem(true);
-      const completedDoc = makeDoc({ completedAt: new Date(), items: [checkedItem] });
+      const completedDoc = makeDoc({
+        completedAt: new Date(),
+        items: [checkedItem],
+      });
 
       // verifyToken: returns doc where item is unchecked
       mockVerifyToken(TOKEN);
       mockDeliveryCheckModel.updateOne.mockResolvedValue({ matchedCount: 1 });
 
       // Re-fetch: all items are now checked, completedAt still null
-      mockDeliveryCheckModel.findById
-        .mockResolvedValueOnce(makeDoc({ items: [checkedItem] }));
+      mockDeliveryCheckModel.findById.mockResolvedValueOnce(
+        makeDoc({ items: [checkedItem] }),
+      );
 
       // Atomic completion: this caller wins the race
       mockDeliveryCheckModel.findOneAndUpdate.mockResolvedValue(completedDoc);
@@ -339,9 +346,15 @@ describe('DeliveryCheckService', () => {
         }),
       });
       mockNotificationService.sendEmail.mockResolvedValue(undefined);
-      mockI18nService.translate.mockReturnValue('Livraison confirmée — Facture INV-2026-0001');
+      mockI18nService.translate.mockReturnValue(
+        'Livraison confirmée — Facture INV-2026-0001',
+      );
 
-      const result = await service.checkItem(TOKEN, PRODUCT_ID.toString(), 'Livreur B');
+      const result = await service.checkItem(
+        TOKEN,
+        PRODUCT_ID.toString(),
+        'Livreur B',
+      );
 
       expect(result.completedAt).toBeTruthy();
 
@@ -351,7 +364,6 @@ describe('DeliveryCheckService', () => {
     });
 
     it('does NOT send email when not all items are checked', async () => {
-      const doc = mockVerifyToken(TOKEN);
       mockDeliveryCheckModel.updateOne.mockResolvedValue({ matchedCount: 1 });
       // Re-fetch: item still unchecked
       mockDeliveryCheckModel.findById.mockResolvedValueOnce(
@@ -380,7 +392,10 @@ describe('DeliveryCheckService', () => {
       mockDeliveryCheckModel.findOneAndUpdate.mockResolvedValue(null);
 
       // Final reload: document was completed by the other caller
-      const completedDoc = makeDoc({ completedAt: new Date(), items: [checkedItem] });
+      const completedDoc = makeDoc({
+        completedAt: new Date(),
+        items: [checkedItem],
+      });
       mockDeliveryCheckModel.findById.mockResolvedValueOnce(completedDoc);
 
       // Email chain (the loser still sends the email — the guard in the service fires for both)
