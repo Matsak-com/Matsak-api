@@ -12,8 +12,10 @@ import { ROLES_KEY } from '../decorators/roles.decorator';
 /**
  * Global roles guard.
  * - SUPERADMIN bypasses ALL role restrictions automatically.
- * - Routes without @Roles() are accessible to any authenticated user.
- * - Routes with @Roles(...) require a valid JWT AND at least one matching role.
+ * - Routes WITHOUT @Roles() are publicly accessible — no JWT is validated here.
+ *   Any route-level JwtAuthGuard (or equivalent) is solely responsible for
+ *   enforcing authentication on those routes.
+ * - Routes WITH @Roles(...) require a valid JWT AND at least one matching role.
  *
  * Extends AuthGuard('jwt') so that when @Roles() is present the JWT is
  * validated inline — regardless of whether a route-level JwtAuthGuard also

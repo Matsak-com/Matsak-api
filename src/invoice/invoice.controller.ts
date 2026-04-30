@@ -29,6 +29,7 @@ import { CurrentUser } from '../auth/decorator/current-user.decorator';
 import { UserPayload } from '../auth/jwt/jwt.strategy';
 import { UserRole } from '../users/user.schema';
 import { Roles } from '../common/decorators/roles.decorator';
+import { SkipAuditLog } from '../audit-log/decorators/skip-audit-log.decorator';
 
 class UpdateInvoiceStatusDto {
   @IsEnum(InvoiceStatus, {
@@ -115,7 +116,10 @@ export class InvoiceController {
    *
    * Marks one item as checked.  Accepts an optional `checkerName` in the body
    * (the delivery person's name or employee ID — no account needed).
+   * @SkipAuditLog() prevents the signed token (= credential) from being
+   * persisted in audit logs.
    */
+  @SkipAuditLog()
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 120, ttl: 60 } })
   @Patch('delivery/:token/items/:productId')
@@ -135,7 +139,10 @@ export class InvoiceController {
    *
    * Closes the delivery — marks all remaining items as checked and sets
    * `completedAt`.
+   * @SkipAuditLog() prevents the signed token (= credential) from being
+   * persisted in audit logs.
    */
+  @SkipAuditLog()
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 30, ttl: 60 } })
   @Post('delivery/:token/complete')

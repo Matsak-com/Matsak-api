@@ -17,6 +17,7 @@ import {
 } from './delivery-check.schema';
 import { ERRORS } from '../common/errors';
 import { NotificationService } from '../notifications/notification.service';
+import { I18nService, SupportedLocale } from '../notifications/i18n.service';
 import { Invoice, InvoiceDocument } from './invoice.schema';
 import { User } from '../users/user.schema';
 
@@ -95,6 +96,7 @@ export class DeliveryCheckService {
     private readonly userModel: Model<User>,
     private readonly jwtService: JwtService,
     private readonly notificationService: NotificationService,
+    private readonly i18nService: I18nService,
   ) {}
 
   // ── Secret ─────────────────────────────────────────────────────────────────
@@ -212,6 +214,7 @@ export class DeliveryCheckService {
 
   /**
    * Marks a single item as checked.
+   * Uses atomic MongoDB operations to prevent concurrent-update races.
    * Auto-completes the entire delivery if all items are now checked.
    */
   async checkItem(
@@ -234,30 +237,67 @@ export class DeliveryCheckService {
       throw new NotFoundException(ERRORS.DELIVERY_PRODUCT_NOT_FOUND);
     }
 
-    item.checkedAt = new Date();
-    item.checkedBy = checkerName?.trim() || 'Livreur';
-    doc.markModified('items');
+    const checkedAt = new Date();
+    const checkedBy = checkerName?.trim() || 'Livreur';
 
-    const allChecked = doc.items.every((i) => !!i.checkedAt);
-    if (allChecked) {
-      doc.completedAt = new Date();
-      this.logger.log(
-        `✅ Livraison complète (auto) pour facture ${doc.invoiceNumber}`,
-      );
+    // Atomic update using positional operator — safe under concurrent requests.
+    const updateResult = await this.model.updateOne(
+      {
+        _id: doc._id,
+        completedAt: null,
+        'items.productId': new Types.ObjectId(productId),
+      },
+      {
+        $set: {
+          'items.$.checkedAt': checkedAt,
+          'items.$.checkedBy': checkedBy,
+        },
+      },
+    );
+
+    if (updateResult.matchedCount === 0) {
+      throw new ForbiddenException(ERRORS.DELIVERY_CHECK_ALREADY_COMPLETED);
     }
 
-    await doc.save();
+    // Re-fetch the fresh document to compute completion state.
+    let freshDoc = await this.model.findById(doc._id);
+    if (!freshDoc) {
+      throw new NotFoundException(ERRORS.DELIVERY_PRODUCT_NOT_FOUND);
+    }
 
-    if (doc.completedAt) {
-      this.sendDeliveryConfirmationEmail(doc).catch((err) =>
+    const allChecked = freshDoc.items.every((i) => !!i.checkedAt);
+    if (allChecked && !freshDoc.completedAt) {
+      // Atomic completion — only one concurrent caller will win this update.
+      const completedDoc = await this.model.findOneAndUpdate(
+        { _id: freshDoc._id, completedAt: null },
+        { $set: { completedAt: new Date() } },
+        { new: true },
+      );
+
+      if (completedDoc) {
+        freshDoc = completedDoc;
+        this.logger.log(
+          `✅ Livraison complète (auto) pour facture ${freshDoc.invoiceNumber}`,
+        );
+      } else {
+        // Another concurrent request already completed it — reload the latest state.
+        const reloadedDoc = await this.model.findById(doc._id);
+        if (reloadedDoc) {
+          freshDoc = reloadedDoc;
+        }
+      }
+    }
+
+    if (freshDoc.completedAt) {
+      this.sendDeliveryConfirmationEmail(freshDoc).catch((err) =>
         this.logger.error(
-          `Échec envoi email confirmation livraison ${doc.invoiceNumber}`,
+          `Échec envoi email confirmation livraison ${freshDoc.invoiceNumber}`,
           err.stack,
         ),
       );
     }
 
-    return this.toResponse(doc);
+    return this.toResponse(freshDoc);
   }
 
   /**
@@ -484,9 +524,16 @@ export class DeliveryCheckService {
       })),
     };
 
+    const subject =
+      this.i18nService.translate(
+        'email.deliveryConfirmed.subject',
+        locale as SupportedLocale,
+        { invoiceNumber: doc.invoiceNumber },
+      ) || `Livraison confirmée — Facture ${doc.invoiceNumber}`;
+
     await this.notificationService.sendEmail({
       to: user.email,
-      subject: `Livraison confirmée — Facture ${doc.invoiceNumber}`,
+      subject,
       template: 'delivery-confirmed',
       context,
       locale,

@@ -24,15 +24,22 @@ const AUTH_ACTION_MAP: Record<string, AuditAction> = {
   'auth/change-password': AuditAction.PASSWORD_CHANGE,
 };
 
+/** Strip any querystring/hash and return pathname-only for route-based audit parsing. */
+function getPathname(path: string): string {
+  return path.split(/[?#]/, 1)[0];
+}
+
 /** Derive the resource name from the request path (first path segment after /api/). */
 function extractResource(path: string): string {
-  const parts = path.replace(/^\/api\//, '').split('/');
+  const pathname = getPathname(path);
+  const parts = pathname.replace(/^\/api\//, '').split('/');
   return parts[0] || 'unknown';
 }
 
 /** Derive the action from method + path. */
 function resolveAction(method: string, path: string): AuditAction {
-  const normalised = path.toLowerCase().replace(/^\/api\//, '');
+  const pathname = getPathname(path);
+  const normalised = pathname.toLowerCase().replace(/^\/api\//, '');
 
   for (const [segment, action] of Object.entries(AUTH_ACTION_MAP)) {
     if (normalised.startsWith(segment)) {
@@ -89,10 +96,11 @@ export class AuditLogInterceptor implements NestInterceptor {
     const request = httpCtx.getRequest<Record<string, any>>();
     const method: string = request.method ?? 'GET';
     const path: string = request.url ?? '';
+    const pathname: string = getPathname(path);
 
     const shouldLog =
       WRITE_METHODS.has(method.toUpperCase()) ||
-      path.toLowerCase().includes('/auth/');
+      pathname.toLowerCase().includes('/auth/');
 
     if (!shouldLog) {
       return next.handle();
@@ -128,7 +136,7 @@ export class AuditLogInterceptor implements NestInterceptor {
           resource,
           resourceId: createdId,
           method,
-          path,
+          path: pathname,
           statusCode,
           status: AuditStatus.SUCCESS,
           requestBody: request.body ?? null,
@@ -148,7 +156,7 @@ export class AuditLogInterceptor implements NestInterceptor {
           resource,
           resourceId,
           method,
-          path,
+          path: pathname,
           statusCode,
           status: AuditStatus.FAILURE,
           requestBody: request.body ?? null,

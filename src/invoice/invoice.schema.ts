@@ -175,7 +175,7 @@ export class Invoice {
         baseType: { type: String, required: true, default: 'FIXED' },
         basePriceEur: { type: Number, default: null },
         basePercentage: { type: Number, default: null },
-        resolvedEur: { type: Number, required: true },
+        resolvedEur: { type: Number, required: false, default: null },
         localPrice: { type: Number, required: true },
         _id: false,
       },

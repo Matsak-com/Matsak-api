@@ -130,8 +130,10 @@ export class PricingService {
     const rule = await this.pricingRuleRepo.findById({ id });
     if (!rule) throw new NotFoundException(`Pricing rule ${id} not found`);
 
+    // Default legacy rules without baseType to FIXED during update handling
+    const currentBaseType = rule.baseType ?? PricingRuleBaseType.FIXED;
     // When switching baseType, enforce that the matching amount field is provided
-    const effectiveBaseType = dto.baseType ?? rule.baseType;
+    const effectiveBaseType = dto.baseType ?? currentBaseType;
     if (
       dto.baseType === PricingRuleBaseType.PERCENTAGE &&
       dto.basePercentage === undefined &&
