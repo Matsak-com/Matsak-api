@@ -304,7 +304,7 @@ describe('DeliveryCheckService', () => {
 
       // Re-fetch: all items are now checked, completedAt still null
       mockDeliveryCheckModel.findById
-        .mockResolvedValueOnce(makeDoc({ items: [checkedItem] }))
+        .mockResolvedValueOnce(makeDoc({ items: [checkedItem] }));
 
       // Atomic completion: this caller wins the race
       mockDeliveryCheckModel.findOneAndUpdate.mockResolvedValue(completedDoc);

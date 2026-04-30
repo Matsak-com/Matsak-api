@@ -262,7 +262,7 @@ export class DeliveryCheckService {
     // Re-fetch the fresh document to compute completion state.
     let freshDoc = await this.model.findById(doc._id);
     if (!freshDoc) {
-      throw new NotFoundException(ERRORS.DELIVERY_PRODUCT_NOT_FOUND);
+      throw new NotFoundException(ERRORS.DELIVERY_CHECK_NOT_FOUND);
     }
 
     const allChecked = freshDoc.items.every((i) => !!i.checkedAt);
