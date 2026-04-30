@@ -9,6 +9,17 @@ export enum PricingRuleType {
   HIGH_DEMAND_SURCHARGE = 'HIGH_DEMAND_SURCHARGE',
 }
 
+/**
+ * Determines how the surcharge amount is computed:
+ *  - FIXED      → `basePriceEur` is used as a fixed EUR amount.
+ *  - PERCENTAGE → `basePercentage` is applied against the invoice subtotal
+ *                 (e.g. 5 means 5% of the cart subtotal in EUR).
+ */
+export enum PricingRuleBaseType {
+  FIXED = 'FIXED',
+  PERCENTAGE = 'PERCENTAGE',
+}
+
 @Schema({ timestamps: true })
 export class PricingRule {
   /** Team owning this rule. Null → global rule applied to everyone. */
@@ -25,9 +36,30 @@ export class PricingRule {
   })
   type: PricingRuleType;
 
-  /** Base price in EUR (canonical currency) */
-  @Prop({ required: true, type: Number, min: 0 })
-  basePriceEur: number;
+  /**
+   * How the surcharge amount is computed.
+   * Defaults to FIXED for backward compatibility.
+   */
+  @Prop({
+    required: true,
+    enum: Object.values(PricingRuleBaseType),
+    default: PricingRuleBaseType.FIXED,
+  })
+  baseType: PricingRuleBaseType;
+
+  /**
+   * Fixed surcharge amount in EUR (canonical currency).
+   * Required when baseType = FIXED. Null when baseType = PERCENTAGE.
+   */
+  @Prop({ type: Number, min: 0, default: null })
+  basePriceEur: number | null;
+
+  /**
+   * Percentage of the invoice subtotal to charge as surcharge (0–100).
+   * Required when baseType = PERCENTAGE. Null when baseType = FIXED.
+   */
+  @Prop({ type: Number, min: 0, max: 100, default: null })
+  basePercentage: number | null;
 
   @Prop({ required: true, default: true })
   isActive: boolean;

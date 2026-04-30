@@ -31,7 +31,10 @@ const mockPricingSnapshot = {
     {
       type: 'delivery',
       name: 'Frais de livraison',
+      baseType: 'FIXED',
       basePriceEur: 5,
+      basePercentage: null,
+      resolvedEur: 5,
       localPrice: 24000,
     },
   ],

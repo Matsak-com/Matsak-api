@@ -9,7 +9,7 @@ import { Types } from 'mongoose';
 import { CurrencyService } from '../currency/currency.service';
 import { PricingRuleRepository } from './pricing-rule.repository';
 import { PromoCodeRepository } from './promo-code.repository';
-import { PricingRuleType } from './schemas/pricing-rule.schema';
+import { PricingRuleBaseType, PricingRuleType } from './schemas/pricing-rule.schema';
 import { DiscountType, PromoCodeDocument } from './schemas/promo-code.schema';
 import {
   CreatePricingRuleDto,
@@ -26,7 +26,14 @@ export const DEFAULT_CURRENCY = 'MGA';
 export interface PricingLine {
   type: PricingRuleType;
   name: string;
-  basePriceEur: number;
+  /** How the surcharge was computed */
+  baseType: PricingRuleBaseType;
+  /** Fixed EUR amount (only when baseType = FIXED) */
+  basePriceEur: number | null;
+  /** Percentage of subtotal (only when baseType = PERCENTAGE) */
+  basePercentage: number | null;
+  /** Resolved surcharge amount in EUR */
+  resolvedEur: number;
   /** Price in the target local currency */
   localPrice: number;
 }
@@ -81,12 +88,36 @@ export class PricingService {
   // ═══════════════════════════════════════════════════════════
 
   async createRule(dto: CreatePricingRuleDto, createdBy: string) {
+    const baseType = dto.baseType ?? PricingRuleBaseType.FIXED;
+
+    if (baseType === PricingRuleBaseType.PERCENTAGE) {
+      if (dto.basePercentage === undefined || dto.basePercentage === null) {
+        throw new BadRequestException(
+          'basePercentage is required when baseType is PERCENTAGE',
+        );
+      }
+    } else {
+      if (dto.basePriceEur === undefined || dto.basePriceEur === null) {
+        throw new BadRequestException(
+          'basePriceEur is required when baseType is FIXED',
+        );
+      }
+    }
+
     return this.pricingRuleRepo.create({
       doc: {
         teamId: dto.teamId ? new Types.ObjectId(dto.teamId) : null,
         name: dto.name,
         type: dto.type,
-        basePriceEur: dto.basePriceEur,
+        baseType,
+        basePriceEur:
+          baseType === PricingRuleBaseType.FIXED
+            ? (dto.basePriceEur as number)
+            : null,
+        basePercentage:
+          baseType === PricingRuleBaseType.PERCENTAGE
+            ? (dto.basePercentage as number)
+            : null,
         isActive: dto.isActive ?? true,
         validFrom: dto.validFrom ? new Date(dto.validFrom) : null,
         validUntil: dto.validUntil ? new Date(dto.validUntil) : null,
@@ -99,10 +130,45 @@ export class PricingService {
     const rule = await this.pricingRuleRepo.findById({ id });
     if (!rule) throw new NotFoundException(`Pricing rule ${id} not found`);
 
+    // When switching baseType, enforce that the matching amount field is provided
+    const effectiveBaseType = dto.baseType ?? rule.baseType;
+    if (
+      dto.baseType === PricingRuleBaseType.PERCENTAGE &&
+      dto.basePercentage === undefined &&
+      rule.basePercentage === null
+    ) {
+      throw new BadRequestException(
+        'basePercentage is required when switching baseType to PERCENTAGE',
+      );
+    }
+    if (
+      dto.baseType === PricingRuleBaseType.FIXED &&
+      dto.basePriceEur === undefined &&
+      rule.basePriceEur === null
+    ) {
+      throw new BadRequestException(
+        'basePriceEur is required when switching baseType to FIXED',
+      );
+    }
+
     const update: Record<string, any> = {};
     if (dto.name !== undefined) update.name = dto.name;
     if (dto.type !== undefined) update.type = dto.type;
-    if (dto.basePriceEur !== undefined) update.basePriceEur = dto.basePriceEur;
+    if (dto.baseType !== undefined) {
+      update.baseType = dto.baseType;
+      // Clear the opposite field when switching modes
+      if (dto.baseType === PricingRuleBaseType.FIXED) {
+        update.basePercentage = null;
+      } else {
+        update.basePriceEur = null;
+      }
+    }
+    if (dto.basePriceEur !== undefined && effectiveBaseType === PricingRuleBaseType.FIXED) {
+      update.basePriceEur = dto.basePriceEur;
+    }
+    if (dto.basePercentage !== undefined && effectiveBaseType === PricingRuleBaseType.PERCENTAGE) {
+      update.basePercentage = dto.basePercentage;
+    }
     if (dto.isActive !== undefined) update.isActive = dto.isActive;
     if (dto.validFrom !== undefined)
       update.validFrom = dto.validFrom ? new Date(dto.validFrom) : null;
@@ -373,16 +439,31 @@ export class PricingService {
       ) {
         continue;
       }
+
+      const baseType = rule.baseType ?? PricingRuleBaseType.FIXED;
+      let resolvedEur: number;
+
+      if (baseType === PricingRuleBaseType.PERCENTAGE) {
+        const pct = rule.basePercentage ?? 0;
+        resolvedEur =
+          Math.round(subtotalEurNormalised * (pct / 100) * 10000) / 10000;
+      } else {
+        resolvedEur = rule.basePriceEur ?? 0;
+      }
+
       pricingLines.push({
         type: rule.type,
         name: rule.name,
-        basePriceEur: rule.basePriceEur,
-        localPrice: Math.round(rule.basePriceEur * exchangeRate * 100) / 100,
+        baseType,
+        basePriceEur: rule.basePriceEur ?? null,
+        basePercentage: rule.basePercentage ?? null,
+        resolvedEur,
+        localPrice: Math.round(resolvedEur * exchangeRate * 100) / 100,
       });
     }
 
     const surchargesTotalEur = pricingLines.reduce(
-      (acc, l) => acc + l.basePriceEur,
+      (acc, l) => acc + l.resolvedEur,
       0,
     );
     const surchargesTotalLocal =
