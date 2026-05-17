@@ -419,30 +419,6 @@ export class PaymentService {
     return this.paymentRepo.findById({ id: paymentId });
   }
 
-  // ── Régénérer une facture manuellement ────────────────────────────────────
-  async regenerateInvoice(paymentId: string): Promise<void> {
-    const payment = await this.paymentRepo.findById({ id: paymentId });
-
-    if (!payment)
-      throw new NotFoundException(`Paiement ${paymentId} introuvable`);
-
-    if (payment.status !== PaymentStatus.SUCCESS) {
-      throw new BadRequestException(
-        'Impossible de créer une facture pour un paiement non réussi',
-      );
-    }
-
-    const existingInvoice =
-      await this.invoiceService.findByPaymentId(paymentId);
-    if (existingInvoice) {
-      throw new BadRequestException(
-        `Une facture existe déjà pour ce paiement: ${existingInvoice.invoiceNumber}`,
-      );
-    }
-
-    await this.createInvoiceForPayment(paymentId);
-  }
-
   // ── Résoudre le message client pour une erreur de doublon MongoDB ─────────
   private resolveDuplicateClientMessage(duplicateField: string): string {
     const messages: Record<string, string> = {
