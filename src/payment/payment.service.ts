@@ -356,7 +356,7 @@ export class PaymentService {
       await this.deductStockFromCart(cartId, userId);
       this.logger.log(`✅ Stock déduit pour paiement ${paymentId}`);
 
-      await this.createInvoiceForPayment(paymentId);
+      await this.createInvoiceForPayment(paymentId, userId);
       this.logger.log(`✅ Facture créée pour paiement ${paymentId}`);
 
       await this.cartService.softDeleteCartById(cartId);
@@ -395,9 +395,9 @@ export class PaymentService {
   }
 
   // ── Créer une facture ─────────────────────────────────────────────────────
-  private async createInvoiceForPayment(paymentId: string): Promise<void> {
+  private async createInvoiceForPayment(paymentId: string, userId?: string): Promise<void> {
     try {
-      await this.invoiceService.createInvoiceFromPayment({ paymentId });
+      await this.invoiceService.createInvoiceFromPayment({ paymentId }, userId);
     } catch (error) {
       this.logger.error(
         `Erreur création facture pour paiement ${paymentId}:`,
@@ -408,7 +408,7 @@ export class PaymentService {
   }
 
   // ── Régénérer une facture manuellement ────────────────────────────────────
-  async regenerateInvoice(paymentId: string): Promise<void> {
+  async regenerateInvoice(paymentId: string, userId?: string,): Promise<void> {
     const payment = await this.paymentRepo.findById({ id: paymentId });
 
     if (!payment)
@@ -428,7 +428,8 @@ export class PaymentService {
       );
     }
 
-    await this.createInvoiceForPayment(paymentId);
+    const currentUserId = userId ?? undefined;
+    await this.createInvoiceForPayment(paymentId, currentUserId);
   }
 
   // ── Déduire le stock ──────────────────────────────────────────────────────

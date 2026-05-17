@@ -124,7 +124,10 @@ export class InvoiceController {
     ) {
       throw new ForbiddenException(ERRORS.FORBIDDEN_INVOICE_UPDATE);
     }
-    return this.invoiceService.updateStatus(params.id, dto.status);
+
+    const currentUserId = req.user?.userId ?? req.user?._id;
+
+    return this.invoiceService.updateStatus(params.id, dto.status, currentUserId);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -143,6 +146,7 @@ export class InvoiceController {
       }
     }
 
-    return this.invoiceService.remove(params.id);
+    const currentUserId = req.user?.userId ?? req.user?._id;
+    return this.invoiceService.remove(params.id, currentUserId);
   }
 }

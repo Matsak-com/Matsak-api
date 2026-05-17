@@ -111,9 +111,7 @@ describe('PaymentService', () => {
         { provide: CartRepository, useValue: { findById: jest.fn() } },
         {
           provide: CartService,
-          useValue: {
-            softDeleteCartById: jest.fn(),
-          },
+          useValue: { softDeleteCartById: jest.fn() },
         },
         { provide: ProductService, useValue: { calculatePrice: jest.fn() } },
         {
@@ -151,11 +149,10 @@ describe('PaymentService', () => {
   // ── initiate ─────────────────────────────────────────────────────────────────
 
   describe('initiate', () => {
-    // Input valide par défaut — inclut deliveryAddressId car deliveryMethod = DELIVERY
     // Ordre des validations dans le service :
     //   1. cart existe et non supprimé    → NotFoundException
     //   2. cart.items non vide            → BadRequestException
-    //   3. deliveryAddressId si DELIVERY  → BadRequestException  ← vient APRÈS le cart
+    //   3. deliveryAddressId si DELIVERY  → BadRequestException
     //   4. totalAmount > 0                → BadRequestException
     //   5. pas de paiement actif          → BadRequestException
     const validInput = {
@@ -175,10 +172,7 @@ describe('PaymentService', () => {
         id: mockCartId,
         options: { populate: [{ path: 'items.product' }] },
       });
-      expect(productService.calculatePrice).toHaveBeenCalledWith(
-        mockProduct,
-        2,
-      );
+      expect(productService.calculatePrice).toHaveBeenCalledWith(mockProduct, 2);
       expect(paymentRepo.findOne).toHaveBeenCalled();
       expect(paymentRepo.create).toHaveBeenCalled();
       expect(mvolaApiService.initMerchantPay).toHaveBeenCalled();
@@ -199,7 +193,6 @@ describe('PaymentService', () => {
         userId: mockUserId.toString(),
         customerPhone: '0340000000',
         deliveryMethod: DeliveryMethod.PICKUP,
-        // deliveryAddressId absent — valide pour PICKUP
       };
 
       cartRepo.findById.mockResolvedValue(mockCart as any);
@@ -229,9 +222,7 @@ describe('PaymentService', () => {
     it('should throw NotFoundException when cart not found', async () => {
       cartRepo.findById.mockResolvedValue(null);
 
-      await expect(service.initiate(validInput)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.initiate(validInput)).rejects.toThrow(NotFoundException);
       expect(paymentRepo.create).not.toHaveBeenCalled();
     });
 
@@ -241,29 +232,23 @@ describe('PaymentService', () => {
         deleted_at: new Date(),
       } as any);
 
-      await expect(service.initiate(validInput)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.initiate(validInput)).rejects.toThrow(NotFoundException);
       expect(paymentRepo.create).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException when cart is empty', async () => {
       cartRepo.findById.mockResolvedValue({ ...mockCart, items: [] } as any);
 
-      await expect(service.initiate(validInput)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.initiate(validInput)).rejects.toThrow(BadRequestException);
       expect(paymentRepo.create).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException when deliveryMethod is DELIVERY without deliveryAddressId', async () => {
-      // Cart mocké car la validation adresse vient APRÈS la validation cart (ligne 76 du service)
       cartRepo.findById.mockResolvedValue(mockCart as any);
 
       await expect(
         service.initiate({ ...validInput, deliveryAddressId: undefined }),
       ).rejects.toThrow(BadRequestException);
-
       expect(paymentRepo.create).not.toHaveBeenCalled();
     });
 
@@ -278,20 +263,16 @@ describe('PaymentService', () => {
       });
       paymentRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.initiate(validInput)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.initiate(validInput)).rejects.toThrow(BadRequestException);
       expect(paymentRepo.create).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException when a payment is already in progress', async () => {
       cartRepo.findById.mockResolvedValue(mockCart as any);
       mockPrice();
-      paymentRepo.findOne.mockResolvedValue(mockPayment as any); // paiement actif existant
+      paymentRepo.findOne.mockResolvedValue(mockPayment as any);
 
-      await expect(service.initiate(validInput)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.initiate(validInput)).rejects.toThrow(BadRequestException);
       expect(paymentRepo.create).not.toHaveBeenCalled();
     });
 
@@ -310,9 +291,7 @@ describe('PaymentService', () => {
         status: PaymentStatus.FAILED,
       } as any);
 
-      await expect(service.initiate(validInput)).rejects.toThrow(
-        'Mvola initiation error',
-      );
+      await expect(service.initiate(validInput)).rejects.toThrow('Mvola initiation error');
 
       expect(paymentRepo.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -331,7 +310,6 @@ describe('PaymentService', () => {
       paymentRepo.findOne.mockResolvedValue(null);
       paymentRepo.create.mockResolvedValue(mockPayment as any);
       mockSuccessfulMvola();
-      // 1er update (→ WAITING) échoue, 2ème (rollback → FAILED) réussit
       paymentRepo.update
         .mockRejectedValueOnce(new Error('DB write error'))
         .mockResolvedValueOnce({
@@ -339,9 +317,7 @@ describe('PaymentService', () => {
           status: PaymentStatus.FAILED,
         } as any);
 
-      await expect(service.initiate(validInput)).rejects.toThrow(
-        'DB write error',
-      );
+      await expect(service.initiate(validInput)).rejects.toThrow('DB write error');
 
       expect(paymentRepo.update).toHaveBeenCalledTimes(2);
       expect(paymentRepo.update).toHaveBeenLastCalledWith(
@@ -363,16 +339,12 @@ describe('PaymentService', () => {
       mvolaApiService.initMerchantPay.mockRejectedValue(
         new Error('Mvola unreachable'),
       );
-      paymentRepo.update.mockRejectedValue(new Error('DB unavailable')); // rollback échoue aussi
+      paymentRepo.update.mockRejectedValue(new Error('DB unavailable'));
 
-      // L'erreur originale doit remonter, pas l'erreur du rollback
-      await expect(service.initiate(validInput)).rejects.toThrow(
-        'Mvola unreachable',
-      );
+      await expect(service.initiate(validInput)).rejects.toThrow('Mvola unreachable');
     });
 
     it('should NOT attempt rollback when error occurs before payment creation', async () => {
-      // totalAmount = 0 → BadRequestException avant paymentRepo.create → paymentId est null
       cartRepo.findById.mockResolvedValue(mockCart as any);
       productService.calculatePrice.mockReturnValue({
         basePrice: 0,
@@ -383,9 +355,7 @@ describe('PaymentService', () => {
       });
       paymentRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.initiate(validInput)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.initiate(validInput)).rejects.toThrow(BadRequestException);
 
       expect(paymentRepo.create).not.toHaveBeenCalled();
       expect(paymentRepo.update).not.toHaveBeenCalledWith(
@@ -473,15 +443,38 @@ describe('PaymentService', () => {
         }),
       );
       expect(inventoryService.stockOut).toHaveBeenCalled();
-      expect(invoiceService.createInvoiceFromPayment).toHaveBeenCalledWith({
-        paymentId: mockPaymentId.toString(),
-      });
+      // userId passé en 2ème argument, pas dans le dto
+      expect(invoiceService.createInvoiceFromPayment).toHaveBeenCalledWith(
+        { paymentId: mockPaymentId.toString() },
+        mockUserId.toString(),
+      );
       expect(cartService.softDeleteCartById).toHaveBeenCalledWith(mockCartId);
+    });
+
+    it('should pass undefined as userId when payment has no userId', async () => {
+      const paymentWithoutUser = { ...mockPayment, userId: undefined };
+      paymentRepo.findOne.mockResolvedValue(paymentWithoutUser as any);
+      paymentRepo.transitionStatus.mockResolvedValue({
+        ...paymentWithoutUser,
+        status: PaymentStatus.SUCCESS,
+      } as any);
+      cartRepo.findById.mockResolvedValue({ ...mockCart, items: [] } as any);
+      invoiceService.createInvoiceFromPayment.mockResolvedValue({
+        invoiceNumber: 'INV-001',
+      } as any);
+      cartService.softDeleteCartById.mockResolvedValue(undefined);
+
+      await service.handleCallback(completedCallback);
+
+      expect(invoiceService.createInvoiceFromPayment).toHaveBeenCalledWith(
+        { paymentId: mockPaymentId.toString() },
+        undefined,
+      );
     });
 
     it('should skip post-processing when transitionStatus returns null (already transitioned)', async () => {
       paymentRepo.findOne.mockResolvedValue(mockPayment as any);
-      paymentRepo.transitionStatus.mockResolvedValue(null as any); // un autre process a déjà transitionné
+      paymentRepo.transitionStatus.mockResolvedValue(null as any);
 
       await service.handleCallback(completedCallback);
 
@@ -495,9 +488,9 @@ describe('PaymentService', () => {
   describe('pollStatus', () => {
     it('should throw NotFoundException when payment not found', async () => {
       paymentRepo.findById.mockResolvedValue(null);
-      await expect(
-        service.pollStatus(mockPaymentId.toString()),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.pollStatus(mockPaymentId.toString())).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should return immediately when payment already in terminal state', async () => {
@@ -516,9 +509,9 @@ describe('PaymentService', () => {
         status: PaymentStatus.WAITING,
         serverCorrelationId: undefined,
       } as any);
-      await expect(
-        service.pollStatus(mockPaymentId.toString()),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.pollStatus(mockPaymentId.toString())).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should poll Mvola and transition to SUCCESS on COMPLETED', async () => {
@@ -530,10 +523,7 @@ describe('PaymentService', () => {
 
       paymentRepo.findById
         .mockResolvedValueOnce(waitingPayment as any)
-        .mockResolvedValueOnce({
-          ...waitingPayment,
-          status: PaymentStatus.SUCCESS,
-        } as any);
+        .mockResolvedValueOnce({ ...waitingPayment, status: PaymentStatus.SUCCESS } as any);
 
       mvolaApiService.getTransactionStatus.mockResolvedValue({
         status: 'COMPLETED',
@@ -563,6 +553,11 @@ describe('PaymentService', () => {
           toStatus: PaymentStatus.SUCCESS,
         }),
       );
+      // userId passé en 2ème argument
+      expect(invoiceService.createInvoiceFromPayment).toHaveBeenCalledWith(
+        { paymentId: mockPaymentId.toString() },
+        mockUserId.toString(),
+      );
       expect(result.status).toBe(PaymentStatus.SUCCESS);
     });
 
@@ -575,16 +570,13 @@ describe('PaymentService', () => {
 
       paymentRepo.findById
         .mockResolvedValueOnce(waitingPayment as any)
-        .mockResolvedValueOnce({
-          ...waitingPayment,
-          status: PaymentStatus.SUCCESS,
-        } as any);
+        .mockResolvedValueOnce({ ...waitingPayment, status: PaymentStatus.SUCCESS } as any);
 
       mvolaApiService.getTransactionStatus.mockResolvedValue({
         status: 'COMPLETED',
         serverCorrelationId: 'server-correlation-id',
       });
-      paymentRepo.transitionStatus.mockResolvedValue(null as any); // déjà pris par le callback
+      paymentRepo.transitionStatus.mockResolvedValue(null as any);
 
       await service.pollStatus(mockPaymentId.toString());
 
@@ -601,10 +593,7 @@ describe('PaymentService', () => {
 
       paymentRepo.findById
         .mockResolvedValueOnce(waitingPayment as any)
-        .mockResolvedValueOnce({
-          ...waitingPayment,
-          status: PaymentStatus.FAILED,
-        } as any);
+        .mockResolvedValueOnce({ ...waitingPayment, status: PaymentStatus.FAILED } as any);
 
       mvolaApiService.getTransactionStatus.mockResolvedValue({
         status: 'FAILED',
@@ -634,10 +623,7 @@ describe('PaymentService', () => {
     it('should expire a PENDING payment successfully', async () => {
       paymentRepo.findById
         .mockResolvedValueOnce(mockPayment as any)
-        .mockResolvedValueOnce({
-          ...mockPayment,
-          status: PaymentStatus.EXPIRED,
-        } as any);
+        .mockResolvedValueOnce({ ...mockPayment, status: PaymentStatus.EXPIRED } as any);
       paymentRepo.update.mockResolvedValue({
         ...mockPayment,
         status: PaymentStatus.EXPIRED,
@@ -656,10 +642,7 @@ describe('PaymentService', () => {
       const waitingPayment = { ...mockPayment, status: PaymentStatus.WAITING };
       paymentRepo.findById
         .mockResolvedValueOnce(waitingPayment as any)
-        .mockResolvedValueOnce({
-          ...waitingPayment,
-          status: PaymentStatus.EXPIRED,
-        } as any);
+        .mockResolvedValueOnce({ ...waitingPayment, status: PaymentStatus.EXPIRED } as any);
       paymentRepo.update.mockResolvedValue({
         ...waitingPayment,
         status: PaymentStatus.EXPIRED,
@@ -672,9 +655,7 @@ describe('PaymentService', () => {
 
     it('should throw NotFoundException when payment not found', async () => {
       paymentRepo.findById.mockResolvedValue(null);
-      await expect(service.expire(mockPaymentId.toString())).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.expire(mockPaymentId.toString())).rejects.toThrow(NotFoundException);
     });
 
     it('should throw BadRequestException when payment is already SUCCESS', async () => {
@@ -713,9 +694,32 @@ describe('PaymentService', () => {
 
       await service.regenerateInvoice(mockPaymentId.toString());
 
-      expect(invoiceService.createInvoiceFromPayment).toHaveBeenCalledWith({
-        paymentId: mockPaymentId.toString(),
-      });
+      // userId undefined car non fourni → currentUserId = undefined
+      expect(invoiceService.createInvoiceFromPayment).toHaveBeenCalledWith(
+        { paymentId: mockPaymentId.toString() },
+        undefined,
+      );
+    });
+
+    it('should pass userId to createInvoiceFromPayment when provided', async () => {
+      paymentRepo.findById.mockResolvedValue({
+        ...mockPayment,
+        status: PaymentStatus.SUCCESS,
+      } as any);
+      invoiceService.findByPaymentId.mockResolvedValue(null);
+      invoiceService.createInvoiceFromPayment.mockResolvedValue({
+        invoiceNumber: 'INV-001',
+      } as any);
+
+      await service.regenerateInvoice(
+        mockPaymentId.toString(),
+        mockUserId.toString(),
+      );
+
+      expect(invoiceService.createInvoiceFromPayment).toHaveBeenCalledWith(
+        { paymentId: mockPaymentId.toString() },
+        mockUserId.toString(),
+      );
     });
 
     it('should throw NotFoundException when payment not found', async () => {
@@ -791,9 +795,7 @@ describe('PaymentService', () => {
       setupSuccessfulCallback();
       cartRepo.findById.mockResolvedValue({
         ...mockCart,
-        items: [
-          { product: { ...mockProduct, trackStock: false }, quantity: 2 },
-        ],
+        items: [{ product: { ...mockProduct, trackStock: false }, quantity: 2 }],
       } as any);
 
       await service.handleCallback(completedCallback);
@@ -804,9 +806,7 @@ describe('PaymentService', () => {
     it('should continue post-processing even if stock deduction fails', async () => {
       setupSuccessfulCallback();
       cartRepo.findById.mockResolvedValue(mockCart as any);
-      inventoryService.stockOut.mockRejectedValue(
-        new Error('Insufficient stock'),
-      );
+      inventoryService.stockOut.mockRejectedValue(new Error('Insufficient stock'));
 
       await service.handleCallback(completedCallback);
 

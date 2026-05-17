@@ -11,12 +11,12 @@ import { PricingService, DEFAULT_CURRENCY } from '../pricing/pricing.service';
 import { User, UserRole } from '../users/user.schema';
 import { Member, MemberStatus } from '../members/member.schema';
 import { Role } from '../roles/role.schema';
+import { HistoryService } from '../history/history.service';
+import { HistoryAction, HistoryEntityType } from '../history/history.schema';
 
 interface CreateInvoiceFromPaymentDto {
   paymentId: string;
-  /** Optional promo code to apply */
   promoCode?: string;
-  /** Target display currency — defaults to MGA */
   currency?: string;
 }
 
@@ -28,6 +28,7 @@ export class InvoiceService {
   constructor(
     private readonly invoiceRepo: InvoiceRepository,
     private readonly notificationService: NotificationService,
+    private readonly historyService: HistoryService,
     @InjectModel(Payment.name) private readonly paymentModel: Model<Payment>,
     private readonly pricingService: PricingService,
     @InjectModel(User.name) private readonly userModel: Model<User>,
@@ -35,8 +36,13 @@ export class InvoiceService {
     @InjectModel(Role.name) private readonly roleModel: Model<Role>,
   ) {}
 
+  // ══════════════════════════════════════════════════════════════
+  // CRÉATION
+  // ══════════════════════════════════════════════════════════════
+
   async createInvoiceFromPayment(
     dto: CreateInvoiceFromPaymentDto,
+    currentUserId?: string,
   ): Promise<Invoice> {
     for (let attempt = 1; attempt <= this.MAX_INVOICE_RETRIES; attempt++) {
       try {
@@ -60,8 +66,6 @@ export class InvoiceService {
 
         const cart = payment.cartId as any;
 
-        // Compute cart subtotal in the products' own currency (basePrice is
-        // stored in the product's `currency` field, which defaults to 'MGA').
         const cartItems = cart.items as any[];
         const currencies = [
           ...new Set(
@@ -85,13 +89,11 @@ export class InvoiceService {
           0,
         );
 
-        // Determine team from first item (all items belong to same team typically)
         const teamId: string | null =
           cart.items?.[0]?.product?.team?._id?.toString() ?? null;
 
         const currency = dto.currency ?? DEFAULT_CURRENCY;
 
-        // Calculate full pricing summary (rates, surcharges, promo)
         const pricing = await this.pricingService.calculateTotal({
           cartSubtotalEur: cartSubtotal,
           currentCurrency: productCurrency,
@@ -101,7 +103,6 @@ export class InvoiceService {
           deliveryMethod: payment.deliveryMethod ?? 'delivery',
         });
 
-        // Redeem promo code atomically (fire only if provided and valid)
         if (dto.promoCode && pricing.promoCodeSnapshot) {
           await this.pricingService
             .redeemPromoCode(
@@ -120,6 +121,9 @@ export class InvoiceService {
         const invoiceDoc = {
           payment: new Types.ObjectId(dto.paymentId),
           userId: payment.userId ?? undefined,
+          createdBy: currentUserId
+            ? new Types.ObjectId(currentUserId)
+            : undefined,
           deliveryMethod: payment.deliveryMethod ?? DeliveryMethod.DELIVERY,
           deliveryAddressId: payment.deliveryAddressId
             ? new Types.ObjectId(payment.deliveryAddressId.toString())
@@ -145,7 +149,6 @@ export class InvoiceService {
           invoiceNumber,
           status: InvoiceStatus.PAID,
           invoiceDate: new Date(),
-          // ── Pricing snapshot ───────────────────────────────────
           currency: pricing.currency,
           exchangeRate: pricing.exchangeRate,
           exchangeRateSnapshotAt: pricing.exchangeRateSnapshotAt,
@@ -164,7 +167,33 @@ export class InvoiceService {
         const invoice = await this.invoiceRepo.create({ doc: invoiceDoc });
         this.logger.log(`✅ Facture ${invoiceNumber} créée avec succès`);
 
-        // ── Email envoyé en fire-and-forget — ne bloque pas le post-traitement
+        // ── Historique — CREATED ──────────────────────────────────
+        this.historyService.recordAsync({
+          entityType: HistoryEntityType.INVOICE,
+          entityId: invoice._id,
+          entityLabel: invoice.invoiceNumber,
+          action: HistoryAction.CREATED,
+          performedBy: currentUserId,
+          isSystemAction: !currentUserId,
+          newValue: {
+            invoiceNumber: invoice.invoiceNumber,
+            status: invoice.status,
+            deliveryMethod: invoice.deliveryMethod,
+            currency: invoice.currency,
+            subtotalEur: invoice.subtotalEur,
+            subtotalLocal: invoice.subtotalLocal,
+            totalEur: invoice.totalEur,
+            totalLocal: invoice.totalLocal,
+            promoCode: dto.promoCode ?? null,
+          },
+          metadata: {
+            paymentId: dto.paymentId,
+            cartId: cart._id?.toString(),
+            itemCount: cart.items?.length ?? 0,
+          },
+        });
+
+        // ── Email fire-and-forget ─────────────────────────────────
         const fullInvoice = await this.findOne(invoice._id.toString());
         this.sendInvoiceEmail(fullInvoice).catch((err) =>
           this.logger.error(
@@ -190,7 +219,150 @@ export class InvoiceService {
     }
   }
 
-  // ─── Génération QR code ───────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════
+  // CHANGEMENT DE STATUT
+  // ══════════════════════════════════════════════════════════════
+
+  async updateStatus(
+    id: string,
+    status: InvoiceStatus,
+    currentUserId?: string,
+  ): Promise<Invoice> {
+    const invoice = await this.invoiceRepo.findById({ id });
+    if (!invoice) throw new NotFoundException(`Facture ${id} introuvable`);
+
+    // ← Snapshot du statut AVANT la modification
+    const previousStatus = invoice.status;
+
+    const updateData: any = {
+      status,
+      updatedBy: currentUserId
+        ? new Types.ObjectId(currentUserId)
+        : undefined,
+    };
+    if (status === InvoiceStatus.REFUNDED) updateData.refundedAt = new Date();
+
+    const updated = await this.invoiceRepo.update({ id, update: updateData });
+    this.logger.log(`Facture ${invoice.invoiceNumber} → statut: ${status}`);
+
+    // ── Historique — STATUS_CHANGED ───────────────────────────────
+    this.historyService.recordAsync({
+      entityType: HistoryEntityType.INVOICE,
+      entityId: new Types.ObjectId(id),
+      entityLabel: invoice.invoiceNumber,
+      action: HistoryAction.STATUS_CHANGED,
+      performedBy: currentUserId,
+      previousValue: { status: previousStatus },
+      newValue: {
+        status,
+        ...(status === InvoiceStatus.REFUNDED && { refundedAt: updateData.refundedAt }),
+      },
+      changedFields: ['status'],
+      metadata: {
+        previousStatus,
+        newStatus: status,
+      },
+    });
+
+    // ── Emails fire-and-forget ────────────────────────────────────
+    this.findOne(id)
+      .then((fullInvoice) => this.sendStatusUpdateEmails(fullInvoice, status))
+      .catch((err) =>
+        this.logger.error(
+          `Erreur envoi emails statut ${invoice.invoiceNumber}`,
+          err.stack,
+        ),
+      );
+
+    return updated;
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // SUPPRESSION (soft delete)
+  // ══════════════════════════════════════════════════════════════
+
+  async remove(id: string, currentUserId?: string): Promise<void> {
+    // ← Snapshot complet AVANT le soft-delete
+    const fullInvoice = await this.findOne(id);
+
+    const deletedAt = new Date();
+
+    await this.invoiceRepo.update({
+      id,
+      update: {
+        deleted_at: deletedAt,
+        deletedBy: currentUserId
+          ? new Types.ObjectId(currentUserId)
+          : undefined,
+        updatedBy: currentUserId
+          ? new Types.ObjectId(currentUserId)
+          : undefined,
+      },
+    });
+    this.logger.log(
+      `Facture ${fullInvoice.invoiceNumber} supprimée (soft delete)`,
+    );
+
+    // ── Historique — DELETED ──────────────────────────────────────
+    this.historyService.recordAsync({
+      entityType: HistoryEntityType.INVOICE,
+      entityId: new Types.ObjectId(id),
+      entityLabel: fullInvoice.invoiceNumber,
+      action: HistoryAction.DELETED,
+      performedBy: currentUserId,
+      previousValue: {
+        status: fullInvoice.status,
+        invoiceNumber: fullInvoice.invoiceNumber,
+        totalLocal: fullInvoice.totalLocal,
+        totalEur: fullInvoice.totalEur,
+        currency: fullInvoice.currency,
+        deliveryMethod: fullInvoice.deliveryMethod,
+      },
+      changedFields: ['deleted_at', 'deletedBy'],
+      metadata: {
+        deletedAt,
+        customerEmail: fullInvoice.customer?.email ?? null,
+        customerName: fullInvoice.customer?.name ?? null,
+      },
+    });
+
+    // ── Email client fire-and-forget ──────────────────────────────
+    const customerEmail = fullInvoice.customer?.email;
+    if (customerEmail) {
+      this.notificationService
+        .sendEmail({
+          to: customerEmail,
+          subject: `Suppression de la facture ${fullInvoice.invoiceNumber}`,
+          template: 'invoice-deleted',
+          locale: 'fr',
+          context: {
+            user: {
+              name: fullInvoice.customer?.name ?? 'Client',
+              email: customerEmail,
+            },
+            invoice: {
+              number: fullInvoice.invoiceNumber,
+              amount: this.formatAmount(fullInvoice.payment?.amount ?? 0),
+              currency: fullInvoice.payment?.currency?.toUpperCase() ?? 'MGA',
+              deletedAt: deletedAt.toLocaleDateString('fr-FR', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              }),
+            },
+          },
+        })
+        .catch((err) =>
+          this.logger.warn(
+            `Email suppression non envoyé pour ${fullInvoice.invoiceNumber}: ${err.message}`,
+          ),
+        );
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // QR CODE
+  // ══════════════════════════════════════════════════════════════
 
   private async generateQRCodeBuffer(data: object): Promise<Buffer> {
     return QRCode.toBuffer(JSON.stringify(data), {
@@ -201,7 +373,9 @@ export class InvoiceService {
     });
   }
 
-  // ─── Email principal ──────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════
+  // EMAIL PRINCIPAL
+  // ══════════════════════════════════════════════════════════════
 
   private async sendInvoiceEmail(invoice: any): Promise<void> {
     const { customer, payment, cart } = invoice;
@@ -222,15 +396,13 @@ export class InvoiceService {
         teamName: string;
         items: any[];
         subtotalRaw: number;
-        // QR code embedded as data URI — avoids CID attachments which force
-        // a multipart/related MIME envelope that breaks HTML rendering.
         qrDataUri?: string;
       }
     >();
 
     for (const item of cart?.items ?? []) {
       const product = item.product;
-      const team = product?.team; // déjà { _id, name } dans le snapshot
+      const team = product?.team;
 
       const teamId = team?._id?.toString() ?? 'sans-team';
       const teamName = team?.name ?? 'Autres produits';
@@ -239,13 +411,13 @@ export class InvoiceService {
         teamMap.set(teamId, { teamId, teamName, items: [], subtotalRaw: 0 });
       }
 
-      const unitPrice = item.price ?? 0; // ← prix figé dans le snapshot
+      const unitPrice = item.price ?? 0;
       const quantity = item.quantity ?? 1;
       const lineTotal = unitPrice * quantity;
 
       teamMap.get(teamId).subtotalRaw += lineTotal;
       teamMap.get(teamId).items.push({
-        name: product?.name ?? 'Produit', // ← name déjà dans le snapshot
+        name: product?.name ?? 'Produit',
         quantity,
         unitPrice: this.formatAmount(unitPrice),
         totalPrice: this.formatAmount(lineTotal),
@@ -331,6 +503,12 @@ export class InvoiceService {
       }),
     );
 
+    const resolvedCurrency = (
+      invoice.currency ??
+      payment.currency ??
+      'MGA'
+    ).toUpperCase();
+
     const context = {
       invoiceNumber: invoice.invoiceNumber,
       invoiceDate: new Date(invoice.invoiceDate).toLocaleDateString('fr-FR', {
@@ -353,6 +531,15 @@ export class InvoiceService {
       deliveryAddress,
       deliveryQrDataUri,
       teams,
+      currency: resolvedCurrency,
+      subtotalLocal: this.formatAmount(invoice.subtotalLocal ?? 0),
+      pricingLines: (invoice.pricingLines ?? []).map((line: any) => ({
+        name: line.label ?? line.name ?? '',
+        localPrice: this.formatAmount(line.localAmount ?? line.localPrice ?? 0),
+      })),
+      promoCodeSnapshot: invoice.promoCodeSnapshot ?? null,
+      discountLocal: this.formatAmount(invoice.discountLocal ?? 0),
+      totalLocal: this.formatAmount(invoice.totalLocal ?? payment.amount ?? 0),
     };
 
     await this.notificationService.sendEmail({
@@ -368,7 +555,9 @@ export class InvoiceService {
     );
   }
 
-  // ─── Formatters ───────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════
+  // FORMATTERS
+  // ══════════════════════════════════════════════════════════════
 
   private formatAmount(amount: number): string {
     return new Intl.NumberFormat('fr-FR', {
@@ -389,20 +578,25 @@ export class InvoiceService {
     return map[method] ?? method ?? '-';
   }
 
-  // ─── Populate commun ──────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════
+  // POPULATE COMMUN
+  // ══════════════════════════════════════════════════════════════
+
   private get populateOptions() {
     return [
       {
         path: 'payment',
         populate: [
           { path: 'userId', select: 'name email addresses' },
-          // cartId gardé comme fallback uniquement
           { path: 'cartId', select: '_id' },
         ],
       },
     ];
   }
-  // ─── CRUD ─────────────────────────────────────────────────────────────────
+
+  // ══════════════════════════════════════════════════════════════
+  // CRUD
+  // ══════════════════════════════════════════════════════════════
 
   async findAll(): Promise<any[]> {
     const invoices = await this.invoiceRepo.findAll({
@@ -436,285 +630,6 @@ export class InvoiceService {
     });
   }
 
-  async updateStatus(id: string, status: InvoiceStatus): Promise<Invoice> {
-    const invoice = await this.invoiceRepo.findById({ id });
-    if (!invoice) throw new NotFoundException(`Facture ${id} introuvable`);
-
-    const updateData: any = { status };
-    if (status === InvoiceStatus.REFUNDED) updateData.refundedAt = new Date();
-
-    const updated = await this.invoiceRepo.update({ id, update: updateData });
-    this.logger.log(`Facture ${invoice.invoiceNumber} → statut: ${status}`);
-
-    // Fire-and-forget — does not block the response
-    this.findOne(id)
-      .then((fullInvoice) => this.sendStatusUpdateEmails(fullInvoice, status))
-      .catch((err) =>
-        this.logger.error(
-          `Erreur envoi emails statut ${invoice.invoiceNumber}`,
-          err.stack,
-        ),
-      );
-
-    return updated;
-  }
-
-  // ─── Status email helpers ─────────────────────────────────────────────────
-
-  /**
-   * Returns status-specific display data for both locales.
-   * All values are pre-computed so templates stay logic-free.
-   */
-  private getStatusConfig(status: InvoiceStatus): {
-    color: string;
-    shadow: string;
-    bg: string;
-    label: Record<string, string>;
-    message: Record<string, string>;
-  } {
-    const configs: Record<
-      InvoiceStatus,
-      ReturnType<InvoiceService['getStatusConfig']>
-    > = {
-      [InvoiceStatus.PAID]: {
-        color: '#27ae60',
-        shadow: 'rgba(39, 174, 96, 0.30)',
-        bg: 'rgba(39, 174, 96, 0.07)',
-        label: { fr: 'Payé', en: 'Paid' },
-        message: {
-          fr: 'Votre paiement a bien été confirmé et votre facture est désormais clôturée. Merci pour votre confiance.',
-          en: 'Your payment has been confirmed and your invoice is now closed. Thank you for your trust.',
-        },
-      },
-      [InvoiceStatus.REFUNDED]: {
-        color: '#e67e22',
-        shadow: 'rgba(230, 126, 34, 0.30)',
-        bg: 'rgba(230, 126, 34, 0.07)',
-        label: { fr: 'Remboursé', en: 'Refunded' },
-        message: {
-          fr: 'Un remboursement a été initié pour cette facture. Le montant sera restitué selon les délais habituels de votre moyen de paiement. Si vous avez des questions, contactez notre équipe.',
-          en: "A refund has been initiated for this invoice. The amount will be returned according to your payment method's usual processing time. If you have any questions, please contact our team.",
-        },
-      },
-      [InvoiceStatus.CANCELLED]: {
-        color: '#e74c3c',
-        shadow: 'rgba(231, 76, 60, 0.30)',
-        bg: 'rgba(231, 76, 60, 0.07)',
-        label: { fr: 'Annulé', en: 'Cancelled' },
-        message: {
-          fr: "Cette facture a été annulée. Si vous pensez qu'il s'agit d'une erreur ou si vous avez des questions, n'hésitez pas à contacter notre équipe de support.",
-          en: 'This invoice has been cancelled. If you believe this is an error or have any questions, please do not hesitate to contact our support team.',
-        },
-      },
-    };
-    return configs[status];
-  }
-
-  /**
-   * Builds formatted invoice context shared between customer and admin emails.
-   */
-  private buildInvoiceEmailContext(fullInvoice: any) {
-    return {
-      number: fullInvoice.invoiceNumber,
-      date: new Date(fullInvoice.invoiceDate).toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-      }),
-      paymentMethod: this.formatPaymentMethod(fullInvoice.payment?.method),
-      amount: this.formatAmount(
-        fullInvoice.totalLocal ?? fullInvoice.payment?.amount ?? 0,
-      ),
-      currency: (
-        fullInvoice.currency ??
-        fullInvoice.payment?.currency ??
-        'MGA'
-      ).toUpperCase(),
-    };
-  }
-
-  /**
-   * Collects distinct team names referenced in the invoice cart snapshot.
-   */
-  private extractTeamNames(fullInvoice: any): string[] {
-    const teams = new Map<string, string>();
-    for (const item of fullInvoice.cart?.items ?? []) {
-      const team = item.product?.team;
-      if (team?._id) {
-        teams.set(team._id.toString(), team.name ?? 'Pharmacie');
-      }
-    }
-    return Array.from(teams.values());
-  }
-
-  /**
-   * Resolves the MongoDB ObjectId of the role named "admin" (case-insensitive).
-   * Returns null if the role does not exist.
-   */
-  private async resolveAdminRoleId(): Promise<Types.ObjectId | null> {
-    const adminRole = await this.roleModel
-      .findOne({ name: /^admin$/i, deleted_at: { $exists: false } })
-      .select('_id')
-      .lean();
-    return adminRole ? (adminRole._id as Types.ObjectId) : null;
-  }
-
-  /**
-   * Returns distinct email addresses of active team admins for a set of team IDs.
-   */
-  private async getTeamAdminEmails(
-    teamIds: Types.ObjectId[],
-    adminRoleId: Types.ObjectId,
-  ): Promise<Array<{ name: string; email: string }>> {
-    if (!teamIds.length) return [];
-
-    const members = await this.memberModel
-      .find({
-        team: { $in: teamIds },
-        role: adminRoleId,
-        status: MemberStatus.ACTIVE,
-        deleted_at: { $exists: false },
-      })
-      .populate<{ user: User }>({ path: 'user', select: 'name email role' })
-      .lean();
-
-    const seen = new Set<string>();
-    const result: Array<{ name: string; email: string }> = [];
-
-    for (const m of members) {
-      const user = m.user as any;
-      if (user?.email && !seen.has(user.email)) {
-        seen.add(user.email);
-        result.push({ name: user.name ?? 'Admin', email: user.email });
-      }
-    }
-    return result;
-  }
-
-  /**
-   * Returns the email addresses of all active superadmins.
-   */
-  private async getSuperadminEmails(): Promise<
-    Array<{ name: string; email: string }>
-  > {
-    const superadmins = await this.userModel
-      .find({ role: UserRole.SUPERADMIN, deleted_at: { $exists: false } })
-      .select('name email')
-      .lean();
-
-    return superadmins.map((u) => ({
-      name: (u as any).name ?? 'Superadmin',
-      email: (u as any).email,
-    }));
-  }
-
-  /**
-   * Sends status-change notification emails to:
-   *  1. The customer (if they have an email on file)
-   *  2. Active team admins for every team on the invoice
-   *  3. All superadmins
-   */
-  private async sendStatusUpdateEmails(
-    fullInvoice: any,
-    newStatus: InvoiceStatus,
-  ): Promise<void> {
-    const cfg = this.getStatusConfig(newStatus);
-    const invoiceCtx = this.buildInvoiceEmailContext(fullInvoice);
-    const teamNames = this.extractTeamNames(fullInvoice);
-
-    // ── 1. Customer email ────────────────────────────────────────
-    const customerEmail = fullInvoice.customer?.email;
-    if (customerEmail) {
-      const locale: 'fr' | 'en' = 'fr';
-      await this.notificationService
-        .sendEmail({
-          to: customerEmail,
-          subject: `Mise à jour de votre facture ${fullInvoice.invoiceNumber}`,
-          template: 'invoice-status-update',
-          locale,
-          context: {
-            customer: {
-              name: fullInvoice.customer?.name ?? 'Client',
-              email: customerEmail,
-            },
-            invoice: invoiceCtx,
-            statusLabel: cfg.label[locale],
-            statusMessage: cfg.message[locale],
-            statusColor: cfg.color,
-            statusShadow: cfg.shadow,
-            statusBg: cfg.bg,
-          },
-        })
-        .catch((err) =>
-          this.logger.warn(
-            `Email statut client non envoyé ${fullInvoice.invoiceNumber}: ${err.message}`,
-          ),
-        );
-
-      this.logger.log(
-        `📧 Email statut (${newStatus}) envoyé au client ${customerEmail}`,
-      );
-    }
-
-    // ── 2 & 3. Admin / Superadmin emails ─────────────────────────
-    const teamIds = (fullInvoice.cart?.items ?? [])
-      .map((item: any) => item.product?.team?._id)
-      .filter(Boolean)
-      .map((id: any) => new Types.ObjectId(id.toString()));
-
-    const adminRoleId = await this.resolveAdminRoleId();
-
-    const [teamAdmins, superadmins] = await Promise.all([
-      adminRoleId ? this.getTeamAdminEmails(teamIds, adminRoleId) : [],
-      this.getSuperadminEmails(),
-    ]);
-
-    // Merge and deduplicate by email
-    const seen = new Set<string>();
-    const adminRecipients: Array<{ name: string; email: string }> = [];
-    for (const r of [...teamAdmins, ...superadmins]) {
-      if (r.email && !seen.has(r.email)) {
-        seen.add(r.email);
-        adminRecipients.push(r);
-      }
-    }
-
-    for (const recipient of adminRecipients) {
-      const locale: 'fr' | 'en' = 'fr';
-      await this.notificationService
-        .sendEmail({
-          to: recipient.email,
-          subject: `[Admin] Changement de statut — Facture ${fullInvoice.invoiceNumber}`,
-          template: 'invoice-status-update-admin',
-          locale,
-          context: {
-            recipient: { name: recipient.name },
-            customer: {
-              name: fullInvoice.customer?.name ?? 'Client',
-              email: fullInvoice.customer?.email ?? '-',
-            },
-            invoice: invoiceCtx,
-            teams: teamNames,
-            statusLabel: cfg.label[locale],
-            statusColor: cfg.color,
-            statusShadow: cfg.shadow,
-            statusBg: cfg.bg,
-          },
-        })
-        .catch((err) =>
-          this.logger.warn(
-            `Email statut admin non envoyé à ${recipient.email}: ${err.message}`,
-          ),
-        );
-    }
-
-    if (adminRecipients.length) {
-      this.logger.log(
-        `📧 Email statut (${newStatus}) envoyé à ${adminRecipients.length} admin(s)`,
-      );
-    }
-  }
-
   async findByCustomer(customerId: string): Promise<any[]> {
     const invoices = await this.invoiceRepo.findAll({
       filter: {
@@ -723,7 +638,6 @@ export class InvoiceService {
       },
       options: { sort: { invoiceDate: -1 }, populate: this.populateOptions },
     });
-
     return invoices.map((invoice) => this.formatInvoiceResponse(invoice));
   }
 
@@ -735,11 +649,14 @@ export class InvoiceService {
       },
       options: { sort: { invoiceDate: -1 }, populate: this.populateOptions },
     });
-
     return invoices.map((invoice) =>
       this.formatInvoiceResponseForTeam(invoice, teamId),
     );
   }
+
+  // ══════════════════════════════════════════════════════════════
+  // FORMATTERS DE RÉPONSE
+  // ══════════════════════════════════════════════════════════════
 
   private formatInvoiceResponse(invoice: any): any {
     const payment = invoice.payment as any;
@@ -761,6 +678,19 @@ export class InvoiceService {
       refundedAt: invoice.refundedAt,
       createdAt: invoice.createdAt,
       updatedAt: invoice.updatedAt,
+      // ── Pricing snapshot ──────────────────────────────────────
+      currency: invoice.currency,
+      exchangeRate: invoice.exchangeRate,
+      subtotalEur: invoice.subtotalEur,
+      subtotalLocal: invoice.subtotalLocal,
+      pricingLines: invoice.pricingLines,
+      surchargesTotalEur: invoice.surchargesTotalEur,
+      surchargesTotalLocal: invoice.surchargesTotalLocal,
+      discountEur: invoice.discountEur,
+      discountLocal: invoice.discountLocal,
+      promoCodeSnapshot: invoice.promoCodeSnapshot,
+      totalEur: invoice.totalEur,
+      totalLocal: invoice.totalLocal,
       payment: {
         _id: payment._id,
         method: payment.method,
@@ -819,46 +749,234 @@ export class InvoiceService {
     };
   }
 
-  async remove(id: string): Promise<void> {
-    // Récupérer le document formaté AVANT le soft-delete
-    const fullInvoice = await this.findOne(id);
+  // ══════════════════════════════════════════════════════════════
+  // STATUS EMAIL HELPERS
+  // ══════════════════════════════════════════════════════════════
 
-    await this.invoiceRepo.update({ id, update: { deleted_at: new Date() } });
-    this.logger.log(
-      `Facture ${fullInvoice.invoiceNumber} supprimée (soft delete)`,
-    );
+  private getStatusConfig(status: InvoiceStatus): {
+    color: string;
+    shadow: string;
+    bg: string;
+    label: Record<string, string>;
+    message: Record<string, string>;
+  } {
+    const configs: Record<
+      InvoiceStatus,
+      ReturnType<InvoiceService['getStatusConfig']>
+    > = {
+      [InvoiceStatus.PAID]: {
+        color: '#27ae60',
+        shadow: 'rgba(39, 174, 96, 0.30)',
+        bg: 'rgba(39, 174, 96, 0.07)',
+        label: { fr: 'Payé', en: 'Paid' },
+        message: {
+          fr: 'Votre paiement a bien été confirmé et votre facture est désormais clôturée. Merci pour votre confiance.',
+          en: 'Your payment has been confirmed and your invoice is now closed. Thank you for your trust.',
+        },
+      },
+      [InvoiceStatus.REFUNDED]: {
+        color: '#e67e22',
+        shadow: 'rgba(230, 126, 34, 0.30)',
+        bg: 'rgba(230, 126, 34, 0.07)',
+        label: { fr: 'Remboursé', en: 'Refunded' },
+        message: {
+          fr: 'Un remboursement a été initié pour cette facture. Le montant sera restitué selon les délais habituels de votre moyen de paiement. Si vous avez des questions, contactez notre équipe.',
+          en: "A refund has been initiated for this invoice. The amount will be returned according to your payment method's usual processing time. If you have any questions, please contact our team.",
+        },
+      },
+      [InvoiceStatus.CANCELLED]: {
+        color: '#e74c3c',
+        shadow: 'rgba(231, 76, 60, 0.30)',
+        bg: 'rgba(231, 76, 60, 0.07)',
+        label: { fr: 'Annulé', en: 'Cancelled' },
+        message: {
+          fr: "Cette facture a été annulée. Si vous pensez qu'il s'agit d'une erreur ou si vous avez des questions, n'hésitez pas à contacter notre équipe de support.",
+          en: 'This invoice has been cancelled. If you believe this is an error or have any questions, please do not hesitate to contact our support team.',
+        },
+      },
+    };
+    return configs[status];
+  }
 
+  private buildInvoiceEmailContext(fullInvoice: any) {
+    return {
+      number: fullInvoice.invoiceNumber,
+      date: new Date(fullInvoice.invoiceDate).toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+      }),
+      paymentMethod: this.formatPaymentMethod(fullInvoice.payment?.method),
+      amount: this.formatAmount(
+        fullInvoice.totalLocal ?? fullInvoice.payment?.amount ?? 0,
+      ),
+      currency: (
+        fullInvoice.currency ??
+        fullInvoice.payment?.currency ??
+        'MGA'
+      ).toUpperCase(),
+    };
+  }
+
+  private extractTeamNames(fullInvoice: any): string[] {
+    const teams = new Map<string, string>();
+    for (const item of fullInvoice.cart?.items ?? []) {
+      const team = item.product?.team;
+      if (team?._id) {
+        teams.set(team._id.toString(), team.name ?? 'Pharmacie');
+      }
+    }
+    return Array.from(teams.values());
+  }
+
+  private async resolveAdminRoleId(): Promise<Types.ObjectId | null> {
+    const adminRole = await this.roleModel
+      .findOne({ name: /^admin$/i, deleted_at: { $exists: false } })
+      .select('_id')
+      .lean();
+    return adminRole ? (adminRole._id as Types.ObjectId) : null;
+  }
+
+  private async getTeamAdminEmails(
+    teamIds: Types.ObjectId[],
+    adminRoleId: Types.ObjectId,
+  ): Promise<Array<{ name: string; email: string }>> {
+    if (!teamIds.length) return [];
+
+    const members = await this.memberModel
+      .find({
+        team: { $in: teamIds },
+        role: adminRoleId,
+        status: MemberStatus.ACTIVE,
+        deleted_at: { $exists: false },
+      })
+      .populate<{ user: User }>({ path: 'user', select: 'name email role' })
+      .lean();
+
+    const seen = new Set<string>();
+    const result: Array<{ name: string; email: string }> = [];
+
+    for (const m of members) {
+      const user = m.user as any;
+      if (user?.email && !seen.has(user.email)) {
+        seen.add(user.email);
+        result.push({ name: user.name ?? 'Admin', email: user.email });
+      }
+    }
+    return result;
+  }
+
+  private async getSuperadminEmails(): Promise<
+    Array<{ name: string; email: string }>
+  > {
+    const superadmins = await this.userModel
+      .find({ role: UserRole.SUPERADMIN, deleted_at: { $exists: false } })
+      .select('name email')
+      .lean();
+
+    return superadmins.map((u) => ({
+      name: (u as any).name ?? 'Superadmin',
+      email: (u as any).email,
+    }));
+  }
+
+  private async sendStatusUpdateEmails(
+    fullInvoice: any,
+    newStatus: InvoiceStatus,
+  ): Promise<void> {
+    const cfg = this.getStatusConfig(newStatus);
+    const invoiceCtx = this.buildInvoiceEmailContext(fullInvoice);
+    const teamNames = this.extractTeamNames(fullInvoice);
+
+    // ── 1. Email client ───────────────────────────────────────────
     const customerEmail = fullInvoice.customer?.email;
     if (customerEmail) {
-      const deletedAt = new Date();
-      this.notificationService
+      const locale: 'fr' | 'en' = 'fr';
+      await this.notificationService
         .sendEmail({
           to: customerEmail,
-          subject: `Suppression de la facture ${fullInvoice.invoiceNumber}`,
-          template: 'invoice-deleted',
-          locale: 'fr',
+          subject: `Mise à jour de votre facture ${fullInvoice.invoiceNumber}`,
+          template: 'invoice-status-update',
+          locale,
           context: {
-            user: {
+            customer: {
               name: fullInvoice.customer?.name ?? 'Client',
               email: customerEmail,
             },
-            invoice: {
-              number: fullInvoice.invoiceNumber,
-              amount: this.formatAmount(fullInvoice.payment?.amount ?? 0),
-              currency: fullInvoice.payment?.currency?.toUpperCase() ?? 'MGA',
-              deletedAt: deletedAt.toLocaleDateString('fr-FR', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              }),
-            },
+            invoice: invoiceCtx,
+            statusLabel: cfg.label[locale],
+            statusMessage: cfg.message[locale],
+            statusColor: cfg.color,
+            statusShadow: cfg.shadow,
+            statusBg: cfg.bg,
           },
         })
         .catch((err) =>
           this.logger.warn(
-            `Email suppression non envoyé pour ${fullInvoice.invoiceNumber}: ${err.message}`,
+            `Email statut client non envoyé ${fullInvoice.invoiceNumber}: ${err.message}`,
           ),
         );
+
+      this.logger.log(
+        `📧 Email statut (${newStatus}) envoyé au client ${customerEmail}`,
+      );
+    }
+
+    // ── 2 & 3. Emails admin / superadmin ─────────────────────────
+    const teamIds = (fullInvoice.cart?.items ?? [])
+      .map((item: any) => item.product?.team?._id)
+      .filter(Boolean)
+      .map((id: any) => new Types.ObjectId(id.toString()));
+
+    const adminRoleId = await this.resolveAdminRoleId();
+
+    const [teamAdmins, superadmins] = await Promise.all([
+      adminRoleId ? this.getTeamAdminEmails(teamIds, adminRoleId) : [],
+      this.getSuperadminEmails(),
+    ]);
+
+    const seen = new Set<string>();
+    const adminRecipients: Array<{ name: string; email: string }> = [];
+    for (const r of [...teamAdmins, ...superadmins]) {
+      if (r.email && !seen.has(r.email)) {
+        seen.add(r.email);
+        adminRecipients.push(r);
+      }
+    }
+
+    for (const recipient of adminRecipients) {
+      const locale: 'fr' | 'en' = 'fr';
+      await this.notificationService
+        .sendEmail({
+          to: recipient.email,
+          subject: `[Admin] Changement de statut — Facture ${fullInvoice.invoiceNumber}`,
+          template: 'invoice-status-update-admin',
+          locale,
+          context: {
+            recipient: { name: recipient.name },
+            customer: {
+              name: fullInvoice.customer?.name ?? 'Client',
+              email: fullInvoice.customer?.email ?? '-',
+            },
+            invoice: invoiceCtx,
+            teams: teamNames,
+            statusLabel: cfg.label[locale],
+            statusColor: cfg.color,
+            statusShadow: cfg.shadow,
+            statusBg: cfg.bg,
+          },
+        })
+        .catch((err) =>
+          this.logger.warn(
+            `Email statut admin non envoyé à ${recipient.email}: ${err.message}`,
+          ),
+        );
+    }
+
+    if (adminRecipients.length) {
+      this.logger.log(
+        `📧 Email statut (${newStatus}) envoyé à ${adminRecipients.length} admin(s)`,
+      );
     }
   }
 }

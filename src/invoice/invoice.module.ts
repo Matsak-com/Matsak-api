@@ -13,6 +13,7 @@ import { PricingModule } from '../pricing/pricing.module';
 import { User, UserSchema } from '../users/user.schema';
 import { Member, MemberSchema } from '../members/member.schema';
 import { Role, RoleSchema } from '../roles/role.schema';
+import { HistoryModule } from 'src/history/history.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { Role, RoleSchema } from '../roles/role.schema';
     ProductModule,
     NotificationModule,
     PricingModule,
+    HistoryModule
   ],
   controllers: [InvoiceController],
   providers: [InvoiceService, InvoiceRepository],

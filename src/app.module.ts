@@ -38,6 +38,7 @@ import { CurrencyModule } from './currency/currency.module';
 import Redis from 'ioredis';
 import { ThrottlerStorageRedisService } from './throttler/throttler.storage';
 import { RedisModule } from './common/redis.module';
+import { HistoryModule } from './history/history.module';
 
 /**
  * Parse and validate Redis configuration
@@ -120,6 +121,7 @@ export function getRedisConfig() {
     PricingModule,
     CurrencyModule,
     RedisModule,
+    HistoryModule,
   ],
   controllers: [AppController, CookieConsentController],
   providers: [

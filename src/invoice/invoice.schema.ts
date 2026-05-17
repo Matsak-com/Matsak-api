@@ -129,6 +129,15 @@ export class Invoice {
   @Prop({ required: false })
   deleted_at?: Date;
 
+  @Prop({ type: Types.ObjectId, ref: 'User', required: false })
+  createdBy?: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'User', required: false })
+  updatedBy?: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'User', required: false })
+  deletedBy?: Types.ObjectId;
+
   // ══════════════════════════════════════════════════════════════
   // PRICING SUMMARY (frozen at invoice creation)
   // ══════════════════════════════════════════════════════════════
@@ -208,3 +217,6 @@ export const InvoiceSchema = SchemaFactory.createForClass(Invoice);
 InvoiceSchema.index({ userId: 1, invoiceDate: -1 });
 InvoiceSchema.index({ 'cartSnapshot.cartId': 1 });
 InvoiceSchema.index({ 'cartSnapshot.items.product.team._id': 1 });
+InvoiceSchema.index({ createdBy: 1 });
+InvoiceSchema.index({ updatedBy: 1 });
+InvoiceSchema.index({ deletedBy: 1 });
