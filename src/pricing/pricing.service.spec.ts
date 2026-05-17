@@ -9,7 +9,10 @@ import { PricingService, DEFAULT_CURRENCY } from './pricing.service';
 import { PricingRuleRepository } from './pricing-rule.repository';
 import { PromoCodeRepository } from './promo-code.repository';
 import { CurrencyService } from '../currency/currency.service';
-import { PricingRuleType } from './schemas/pricing-rule.schema';
+import {
+  PricingRuleType,
+  PricingRuleBaseType,
+} from './schemas/pricing-rule.schema';
 import { DiscountType } from './schemas/promo-code.schema';
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
@@ -46,7 +49,9 @@ function buildRule(overrides: Partial<any> = {}): any {
     teamId: null,
     name: 'Delivery fee',
     type: PricingRuleType.DELIVERY,
+    baseType: PricingRuleBaseType.FIXED,
     basePriceEur: 2,
+    basePercentage: null,
     isActive: true,
     validFrom: null,
     validUntil: null,
@@ -122,16 +127,15 @@ describe('PricingService', () => {
     currencyService = module.get(CurrencyService);
   });
 
-  // ── createRule ────────────────────────────────────────────────────────────
-
   describe('createRule', () => {
-    it('creates a pricing rule', async () => {
+    it('creates a FIXED pricing rule', async () => {
       const rule = buildRule();
       pricingRuleRepo.create.mockResolvedValue(rule);
 
       const dto = {
         name: 'Delivery fee',
         type: PricingRuleType.DELIVERY,
+        baseType: PricingRuleBaseType.FIXED,
         basePriceEur: 2,
       };
       const result = await service.createRule(dto, userId);
@@ -140,11 +144,66 @@ describe('PricingService', () => {
           doc: expect.objectContaining({
             name: 'Delivery fee',
             basePriceEur: 2,
+            basePercentage: null,
+            baseType: PricingRuleBaseType.FIXED,
             type: PricingRuleType.DELIVERY,
           }),
         }),
       );
       expect(result).toEqual(rule);
+    });
+
+    it('creates a PERCENTAGE pricing rule', async () => {
+      const rule = buildRule({
+        baseType: PricingRuleBaseType.PERCENTAGE,
+        basePriceEur: null,
+        basePercentage: 5,
+      });
+      pricingRuleRepo.create.mockResolvedValue(rule);
+
+      const dto = {
+        name: 'Service 5%',
+        type: PricingRuleType.SERVICE,
+        baseType: PricingRuleBaseType.PERCENTAGE,
+        basePercentage: 5,
+      };
+      const result = await service.createRule(dto, userId);
+      expect(pricingRuleRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          doc: expect.objectContaining({
+            basePriceEur: null,
+            basePercentage: 5,
+            baseType: PricingRuleBaseType.PERCENTAGE,
+          }),
+        }),
+      );
+      expect(result).toEqual(rule);
+    });
+
+    it('throws if PERCENTAGE rule has no basePercentage', async () => {
+      await expect(
+        service.createRule(
+          {
+            name: 'Service',
+            type: PricingRuleType.SERVICE,
+            baseType: PricingRuleBaseType.PERCENTAGE,
+          },
+          userId,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws if FIXED rule has no basePriceEur', async () => {
+      await expect(
+        service.createRule(
+          {
+            name: 'Delivery',
+            type: PricingRuleType.DELIVERY,
+            baseType: PricingRuleBaseType.FIXED,
+          },
+          userId,
+        ),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -160,7 +219,7 @@ describe('PricingService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('updates the rule', async () => {
+    it('updates a FIXED rule amount', async () => {
       const rule = buildRule();
       pricingRuleRepo.findById.mockResolvedValue(rule);
       pricingRuleRepo.update.mockResolvedValue({ ...rule, basePriceEur: 5 });
@@ -169,6 +228,17 @@ describe('PricingService', () => {
         basePriceEur: 5,
       });
       expect(result.basePriceEur).toBe(5);
+    });
+
+    it('throws when switching to PERCENTAGE without basePercentage', async () => {
+      const rule = buildRule({ basePercentage: null });
+      pricingRuleRepo.findById.mockResolvedValue(rule);
+
+      await expect(
+        service.updateRule(rule._id.toString(), {
+          baseType: PricingRuleBaseType.PERCENTAGE,
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -303,7 +373,7 @@ describe('PricingService', () => {
       expect(summary.totalLocal).toBe(10 * 4800);
     });
 
-    it('applies surcharge lines', async () => {
+    it('applies surcharge lines (FIXED)', async () => {
       pricingRuleRepo.findActiveForTeam.mockResolvedValue([
         buildRule({ basePriceEur: 2, type: PricingRuleType.DELIVERY }),
         buildRule({
@@ -316,6 +386,43 @@ describe('PricingService', () => {
       const summary = await service.calculateTotal({ cartSubtotalEur: 10 });
       expect(summary.surchargesTotalEur).toBe(3);
       expect(summary.totalEur).toBe(13);
+    });
+
+    it('applies PERCENTAGE surcharge rule correctly', async () => {
+      pricingRuleRepo.findActiveForTeam.mockResolvedValue([
+        buildRule({
+          baseType: PricingRuleBaseType.PERCENTAGE,
+          basePriceEur: null,
+          basePercentage: 5,
+          type: PricingRuleType.SERVICE,
+          name: 'Service 5%',
+        }),
+      ]);
+
+      // 5% of 100 EUR subtotal = 5 EUR surcharge
+      const summary = await service.calculateTotal({ cartSubtotalEur: 100 });
+      expect(summary.surchargesTotalEur).toBe(5);
+      expect(summary.totalEur).toBe(105);
+      expect(summary.pricingLines[0].resolvedEur).toBe(5);
+      expect(summary.pricingLines[0].basePercentage).toBe(5);
+    });
+
+    it('mixes FIXED and PERCENTAGE surcharge rules', async () => {
+      pricingRuleRepo.findActiveForTeam.mockResolvedValue([
+        buildRule({ basePriceEur: 2, type: PricingRuleType.DELIVERY }),
+        buildRule({
+          baseType: PricingRuleBaseType.PERCENTAGE,
+          basePriceEur: null,
+          basePercentage: 10,
+          type: PricingRuleType.SERVICE,
+          name: 'Service 10%',
+        }),
+      ]);
+
+      // subtotal=50, delivery=2, service=10% of 50=5, total=57
+      const summary = await service.calculateTotal({ cartSubtotalEur: 50 });
+      expect(summary.surchargesTotalEur).toBe(7);
+      expect(summary.totalEur).toBe(57);
     });
 
     it('skips DELIVERY rule for pickup orders', async () => {

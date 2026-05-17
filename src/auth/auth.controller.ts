@@ -25,7 +25,10 @@ import { UserRole } from '../users/user.schema';
 import { FacebookProvider } from '../sso/facebook/facebook.provider';
 import { generateRandomPassword } from '../users/utils/password.utils';
 import { GoogleService } from '../sso/google/google.service';
-import { ZodValidation } from '../common/decorators/zod-validation.decorator';
+import {
+  ZodValidation,
+  CompoundZodValidation,
+} from '../common/decorators/zod-validation.decorator';
 import {
   createUserSchema,
   loginUserSchema,
@@ -34,6 +37,7 @@ import {
   googleCallbackSchema,
   tokenQuerySchema,
   updateLocaleSchema,
+  type TokenQuery,
 } from '../common/schemas/auth.schemas';
 
 @Controller('auth')
@@ -128,10 +132,10 @@ export class AuthController {
 
   @Get('verify-reset-password-token')
   @HttpCode(HttpStatus.OK)
-  @ZodValidation(tokenQuerySchema)
-  async verifyResetPasswordToken(@Query('token') token: string) {
+  @CompoundZodValidation({ query: tokenQuerySchema })
+  async verifyResetPasswordToken(@Query() query: TokenQuery) {
     return await this.authService.verifyResetPasswordToken({
-      token,
+      token: query.token,
     });
   }
 

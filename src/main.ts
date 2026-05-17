@@ -13,24 +13,34 @@ async function bootstrap() {
   }
 
   // ✅ Crée le dossier au démarrage s'il n'existe pas
-  fs.mkdirSync(join(__dirname, '..', 'uploads', 'prescriptions'), { recursive: true });
+  fs.mkdirSync(join(__dirname, '..', 'uploads', 'prescriptions'), {
+    recursive: true,
+  });
 
   const app = await NestFactory.create(AppModule, {
-    cors: corsConfig,
     bodyParser: false,
   });
 
+  // Enable CORS first — before any other middleware so preflight OPTIONS
+  // requests are handled before guards, filters, and body parsers run.
+  app.enableCors(corsConfig);
+
   app.setGlobalPrefix('api');
+
+  // 50 MB limit to accommodate base64-encoded product images.
+  // Adjust via BODY_SIZE_LIMIT env var (e.g. "100mb") if needed.
+  const bodySizeLimit = process.env.BODY_SIZE_LIMIT ?? '50mb';
 
   app.use(
     express.json({
+      limit: bodySizeLimit,
       verify: (req: any, _res, buf) => {
         req.rawBody = buf;
       },
     }),
   );
 
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.urlencoded({ extended: true, limit: bodySizeLimit }));
 
   app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
   // Serve email logo and other static assets (used as URL in email templates)

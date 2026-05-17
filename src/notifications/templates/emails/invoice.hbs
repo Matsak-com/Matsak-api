@@ -51,27 +51,62 @@
                 <tr>
                     <td class="col-name">{{this.name}}</td>
                     <td class="col-qty">{{this.quantity}}</td>
-                    <td class="col-price">{{this.unitPrice}} {{../../payment.currency}}</td>
-                    <td class="col-total">{{this.totalPrice}} {{../../payment.currency}}</td>
+                    <td class="col-price">{{this.unitPrice}} {{../../currency}}</td>
+                    <td class="col-total">{{this.totalPrice}} {{../../currency}}</td>
                 </tr>
                 {{/each}}
             </tbody>
             <tfoot>
                 <tr class="subtotal-row">
                     <td colspan="3" class="subtotal-label">{{../t.subtotal}} — {{this.teamName}}</td>
-                    <td class="subtotal-value">{{this.subtotal}} {{../payment.currency}}</td>
+                    <td class="subtotal-value">{{this.subtotal}} {{../currency}}</td>
                 </tr>
             </tfoot>
         </table>
     </div>
     {{/each}}
 
-    {{!-- Total général --}}
-    <table class="grand-total-table">
-        <tr>
-            <td class="grand-label">{{t.totalPaid}}</td>
-            <td class="grand-value">{{payment.amount}} {{payment.currency}}</td>
+    {{!-- ════════════════════════════════════════════════════════ --}}
+    {{!-- RÉCAPITULATIF PRICING                                    --}}
+    {{!-- Sous-total → surcharges → remise → TOTAL                 --}}
+    {{!-- ════════════════════════════════════════════════════════ --}}
+    <table class="pricing-summary-table">
+
+        {{!-- Sous-total articles --}}
+        <tr class="pricing-row">
+            <td class="pricing-label">{{t.subtotalItems}}</td>
+            <td class="pricing-value">{{subtotalLocal}} {{currency}}</td>
         </tr>
+
+        {{!-- Lignes de surcharges (livraison, service, haute demande…) --}}
+        {{#each pricingLines}}
+        <tr class="pricing-row pricing-surcharge">
+            <td class="pricing-label">{{this.name}}</td>
+            <td class="pricing-value">+ {{this.localPrice}} {{../currency}}</td>
+        </tr>
+        {{/each}}
+
+        {{!-- Remise promo code --}}
+        {{#if promoCodeSnapshot}}
+        <tr class="pricing-row pricing-discount">
+            <td class="pricing-label">
+                {{t.promoCode}} <span class="promo-code-badge">{{promoCodeSnapshot.code}}</span>
+            </td>
+            <td class="pricing-value pricing-discount-value">− {{discountLocal}} {{currency}}</td>
+        </tr>
+        {{/if}}
+
+        {{!-- Séparateur visuel avant le total --}}
+        <tr class="pricing-divider">
+            <td colspan="2"><hr/></td>
+        </tr>
+
+        {{!-- Total final — correspond exactement à ce que le client a payé --}}
+        <tr class="pricing-row pricing-total">
+            <td class="pricing-label">{{t.totalPaid}}</td>
+            <td class="pricing-value">{{totalLocal}} {{currency}}</td>
+        </tr>
+
     </table>
 
     {{!-- ════════════════════════════════════ --}}

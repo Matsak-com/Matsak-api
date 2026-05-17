@@ -7,6 +7,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
+import type { MappingProperty } from '@elastic/elasticsearch/lib/api/types';
 import { ProductDocument } from '../product/product.schema';
 import { ERRORS } from '../common/errors';
 import { ImageProductService } from '../image-product/image-product.service';
@@ -50,88 +51,129 @@ export class SearchService implements OnModuleInit {
             },
           },
           mappings: {
-            properties: {
-              basePrice: { type: 'float' },
-              currency: { type: 'keyword' },
-              discounts: { type: 'object' },
-              team: { type: 'keyword' },
-              createdAt: { type: 'date' },
-              updatedAt: { type: 'date' },
-              stockQuantity: { type: 'integer' },
-              lowStockThreshold: { type: 'integer' },
-              trackStock: { type: 'boolean' },
-              detail: {
-                properties: {
-                  _id: { type: 'keyword' },
-                  name: {
-                    type: 'text',
-                    analyzer: 'custom_analyzer',
-                    fields: {
-                      keyword: { type: 'keyword' },
-                    },
-                  },
-                  description: {
-                    type: 'text',
-                    analyzer: 'custom_analyzer',
-                  },
-                  composition: {
-                    type: 'text',
-                    analyzer: 'custom_analyzer',
-                  },
-                  form: { type: 'text' },
-                  indications: {
-                    type: 'text',
-                    analyzer: 'custom_analyzer',
-                  },
-                  contraindications: { type: 'text' },
-                  sideEffects: { type: 'text' },
-                  precautions: { type: 'text' },
-                  expirationDate: { type: 'date' },
-                  manufacturer: {
-                    type: 'text',
-                    analyzer: 'custom_analyzer',
-                    fields: {
-                      keyword: { type: 'keyword' },
-                    },
-                  },
-                  isRepackaged: { type: 'boolean' },
-                  sku: { type: 'keyword' },
-                  barcode: { type: 'keyword' },
-                  category: {
-                    properties: {
-                      _id: { type: 'keyword' },
-                      name: { type: 'text', analyzer: 'custom_analyzer' },
-                    },
-                  },
-                  subcategory: {
-                    properties: {
-                      _id: { type: 'keyword' },
-                      name: { type: 'text', analyzer: 'custom_analyzer' },
-                    },
-                  },
-                },
-              },
-              images: {
-                type: 'nested',
-                properties: {
-                  _id: { type: 'keyword' },
-                  name: { type: 'text' },
-                  mimeType: { type: 'keyword' },
-                  altText: { type: 'text' },
-                  // Note: 'data' field (base64) is intentionally excluded to reduce index size
-                  // Image data can be retrieved from MongoDB using the _id reference
-                },
-              },
-            },
+            properties: this.getIndexMappings(),
           },
         });
         this.logger.log(`Index "${this.index}" created successfully`);
       } else {
-        this.logger.log(`Index "${this.index}" already exists`);
+        this.logger.log(
+          `Index "${this.index}" already exists — applying mapping updates`,
+        );
+        await this.updateMappings();
       }
     } catch (error) {
       this.logger.error(
         `Failed to create index: ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /**
+   * Returns the Elasticsearch field mappings for the products index.
+   * Centralised so both create and put-mapping paths use the same definition.
+   */
+  private getIndexMappings(): Record<string, MappingProperty> {
+    return {
+      basePrice: { type: 'float' },
+      currency: { type: 'keyword' },
+      discounts: { type: 'object' },
+      team: { type: 'keyword' },
+      createdAt: { type: 'date' },
+      updatedAt: { type: 'date' },
+      stockQuantity: { type: 'integer' },
+      lowStockThreshold: { type: 'integer' },
+      trackStock: { type: 'boolean' },
+      detail: {
+        properties: {
+          _id: { type: 'keyword' },
+          name: {
+            type: 'text',
+            analyzer: 'custom_analyzer',
+            fields: {
+              keyword: { type: 'keyword' },
+            },
+          },
+          description: {
+            type: 'text',
+            analyzer: 'custom_analyzer',
+          },
+          genericName: {
+            type: 'text',
+            analyzer: 'custom_analyzer',
+            fields: { keyword: { type: 'keyword' } },
+          },
+          dosageForm: { type: 'keyword' },
+          strength: { type: 'text', analyzer: 'custom_analyzer' },
+          routeOfAdministration: { type: 'keyword' },
+          dosageInstructions: {
+            type: 'text',
+            analyzer: 'custom_analyzer',
+          },
+          therapeuticClass: { type: 'keyword' },
+          pharmacologicalClass: { type: 'keyword' },
+          contraindications: { type: 'text' },
+          sideEffects: { type: 'text' },
+          warningLabels: { type: 'text' },
+          drugInteractions: { type: 'text' },
+          prescriptionRequired: { type: 'boolean' },
+          controlledSubstance: { type: 'boolean' },
+          packagingType: { type: 'keyword' },
+          atcCode: { type: 'keyword' },
+          form: { type: 'text' },
+          expirationDate: { type: 'date' },
+          manufacturer: {
+            type: 'text',
+            analyzer: 'custom_analyzer',
+            fields: {
+              keyword: { type: 'keyword' },
+            },
+          },
+          isRepackaged: { type: 'boolean' },
+          sku: { type: 'keyword' },
+          barcode: { type: 'keyword' },
+          category: {
+            properties: {
+              _id: { type: 'keyword' },
+              name: { type: 'text', analyzer: 'custom_analyzer' },
+            },
+          },
+          subcategory: {
+            properties: {
+              _id: { type: 'keyword' },
+              name: { type: 'text', analyzer: 'custom_analyzer' },
+            },
+          },
+        },
+      },
+      images: {
+        type: 'nested',
+        properties: {
+          _id: { type: 'keyword' },
+          name: { type: 'text' },
+          mimeType: { type: 'keyword' },
+          altText: { type: 'text' },
+          // Note: 'data' field (base64) is intentionally excluded to reduce index size
+          // Image data can be retrieved from MongoDB using the _id reference
+        },
+      },
+    };
+  }
+
+  /**
+   * Update the mappings of an existing index by calling the put mapping API.
+   * Existing fields are not affected; only new fields are added.
+   */
+  async updateMappings() {
+    try {
+      await this.elasticsearchService.indices.putMapping({
+        index: this.index,
+        properties: this.getIndexMappings(),
+      });
+      this.logger.log(`Mappings updated for index "${this.index}"`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to update mappings for index "${this.index}": ${error.message}`,
         error.stack,
       );
     }
@@ -205,12 +247,22 @@ export class SearchService implements OnModuleInit {
                 _id: detail._id?.toString(),
                 name: detail.name || '',
                 description: detail.description || '',
-                composition: detail.composition || '',
-                form: detail.form || '',
-                indications: detail.indications || '',
+                genericName: detail.genericName || '',
+                atcCode: detail.atcCode || '',
+                dosageForm: detail.dosageForm || '',
+                strength: detail.strength || '',
+                routeOfAdministration: detail.routeOfAdministration || '',
+                dosageInstructions: detail.dosageInstructions || '',
+                therapeuticClass: detail.therapeuticClass || '',
+                pharmacologicalClass: detail.pharmacologicalClass || '',
                 contraindications: detail.contraindications || '',
                 sideEffects: detail.sideEffects || '',
-                precautions: detail.precautions || '',
+                warningLabels: detail.warningLabels || [],
+                drugInteractions: detail.drugInteractions || [],
+                prescriptionRequired: detail.prescriptionRequired || false,
+                controlledSubstance: detail.controlledSubstance || false,
+                packagingType: detail.packagingType || '',
+                form: detail.form || '',
                 expirationDate: detail.expirationDate,
                 manufacturer: detail.manufacturer || '',
                 isRepackaged: detail.isRepackaged || false,
@@ -298,9 +350,10 @@ export class SearchService implements OnModuleInit {
                   fields: [
                     'detail.name^3',
                     'detail.description^2',
-                    'detail.composition',
+                    'detail.genericName^2',
+                    'detail.strength',
+                    'detail.dosageInstructions',
                     'detail.manufacturer',
-                    'detail.indications',
                   ],
                   type: 'best_fields',
                   fuzziness: 'AUTO',

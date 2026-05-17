@@ -18,10 +18,10 @@ import {
 } from './payment.schema';
 import { MvolaApiService } from './Mvola/mvola-api.service';
 import { CartRepository } from '../cart-item/cart.repository';
-import { ProductService } from '../product/product.service';
 import { InvoiceService } from '../invoice/invoice.service';
 import { CartService } from '../cart-item/cart.service';
 import { InventoryService } from '../inventory/inventory.service';
+import { PricingService, DEFAULT_CURRENCY } from '../pricing/pricing.service';
 
 export interface InitPaymentInput {
   cartId: string;
@@ -29,6 +29,10 @@ export interface InitPaymentInput {
   customerPhone: string;
   deliveryMethod: DeliveryMethod;
   deliveryAddressId?: string;
+  /** Promo code saisi par le client — stocké dans pricingSnapshot */
+  promoCode?: string;
+  /** Devise d'affichage — défaut MGA */
+  currency?: string;
 }
 
 @Injectable()
@@ -36,20 +40,17 @@ export class PaymentService {
   private readonly logger = new Logger(PaymentService.name);
   private readonly callbackBaseUrl: string;
 
-  // ── Set en mémoire des paymentId en cours de post-traitement ──────────────
-  // Protège contre la race condition callback + polling simultanés.
-  // En multi-instance, remplacer par un verrou Redis (redlock).
   private readonly processingLocks = new Set<string>();
 
   constructor(
     private readonly paymentRepo: PaymentRepository,
     private readonly cartRepo: CartRepository,
     private readonly cartService: CartService,
-    private readonly productService: ProductService,
     private readonly mvolaApiService: MvolaApiService,
     private readonly configService: ConfigService,
     private readonly invoiceService: InvoiceService,
     private readonly inventoryService: InventoryService,
+    private readonly pricingService: PricingService,
   ) {
     this.callbackBaseUrl = this.configService.get<string>(
       'APP_CALLBACK_BASE_URL',
@@ -59,14 +60,32 @@ export class PaymentService {
 
   // ── 1. Initier un paiement Mvola ───────────────────────────────────────────
   async initiate(input: InitPaymentInput): Promise<Payment> {
-    const { cartId, userId, customerPhone, deliveryMethod, deliveryAddressId } =
-      input;
+    const {
+      cartId,
+      userId,
+      customerPhone,
+      deliveryMethod,
+      deliveryAddressId,
+      promoCode,
+      currency = DEFAULT_CURRENCY,
+    } = input;
+
     let paymentId: string | null = null;
 
     try {
       const cart = await this.cartRepo.findById({
         id: new Types.ObjectId(cartId),
-        options: { populate: [{ path: 'items.product' }] },
+        options: {
+          populate: [
+            {
+              path: 'items.product',
+              populate: [
+                { path: 'detail', select: 'name' },
+                { path: 'team', select: '_id name' },
+              ],
+            },
+          ],
+        },
       });
 
       if (!cart || cart.deleted_at)
@@ -77,15 +96,65 @@ export class PaymentService {
         throw new BadRequestException('Une adresse de livraison est requise');
       }
 
-      let totalAmount = 0;
-      for (const item of cart.items) {
-        const product = item.product as any;
-        const pricing = this.productService.calculatePrice(
-          product,
-          item.quantity,
+      // ── Calcul du pricing complet ─────────────────────────────────────────
+      // Ce calcul a lieu UNE SEULE FOIS, ici, avant l'envoi à Mvola.
+      // Le résultat est figé dans pricingSnapshot et ne sera jamais recalculé.
+      const cartItems = cart.items as any[];
+
+      const currencies = [
+        ...new Set(
+          cartItems.map((item: any) => item.product?.currency).filter(Boolean),
+        ),
+      ] as string[];
+
+      if (currencies.length > 1) {
+        this.logger.warn(
+          `Panier ${cartId} contient des produits en devises mixtes (${currencies.join(', ')}); ` +
+            `défaut MGA pour le sous-total`,
         );
-        totalAmount += pricing.totalPrice;
       }
+
+      const productCurrency: string = currencies[0] ?? 'MGA';
+
+      const cartSubtotal = cartItems.reduce(
+        (sum: number, item: any) =>
+          sum + (item.product?.basePrice ?? 0) * (item.quantity ?? 1),
+        0,
+      );
+
+      if (cartSubtotal <= 0)
+        throw new BadRequestException(ERRORS.INVALID_AMOUNT);
+
+      const teamId: string | null =
+        cartItems[0]?.product?.team?._id?.toString() ?? null;
+
+      const pricing = await this.pricingService.calculateTotal({
+        cartSubtotalEur: cartSubtotal,
+        currentCurrency: productCurrency,
+        teamId,
+        promoCode: promoCode ?? null,
+        currency,
+        deliveryMethod,
+      });
+
+      // ── Racheter le promo code atomiquement ───────────────────────────────
+      if (promoCode && pricing.promoCodeSnapshot) {
+        try {
+          await this.pricingService.redeemPromoCode(
+            promoCode,
+            pricing.subtotalEur,
+            teamId ?? undefined,
+          );
+        } catch (err: any) {
+          this.logger.error(
+            `Promo redemption failed for ${promoCode}`,
+            err?.message,
+          );
+          throw new BadRequestException('Promo code could not be applied');
+        }
+      }
+
+      const totalAmount = pricing.totalLocal;
 
       if (totalAmount <= 0)
         throw new BadRequestException(ERRORS.INVALID_AMOUNT);
@@ -118,6 +187,25 @@ export class PaymentService {
           ...(deliveryMethod === DeliveryMethod.DELIVERY && deliveryAddressId
             ? { deliveryAddressId: new Types.ObjectId(deliveryAddressId) }
             : {}),
+
+          // ── Pricing snapshot figé ────────────────────────────────────────
+          // Source de vérité pour la création de la facture.
+          // InvoiceService copie ce bloc sans jamais recalculer.
+          pricingSnapshot: {
+            currency: pricing.currency,
+            exchangeRate: pricing.exchangeRate,
+            exchangeRateSnapshotAt: pricing.exchangeRateSnapshotAt,
+            subtotalEur: pricing.subtotalEur,
+            subtotalLocal: pricing.subtotalLocal,
+            pricingLines: pricing.pricingLines,
+            surchargesTotalEur: pricing.surchargesTotalEur,
+            surchargesTotalLocal: pricing.surchargesTotalLocal,
+            discountEur: pricing.discountEur,
+            discountLocal: pricing.discountLocal,
+            promoCodeSnapshot: pricing.promoCodeSnapshot,
+            totalEur: pricing.totalEur,
+            totalLocal: pricing.totalLocal, // === amount
+          },
         },
       });
 
@@ -149,7 +237,6 @@ export class PaymentService {
             id: paymentId,
             update: {
               status: PaymentStatus.FAILED,
-              failureReason: error.message,
             },
           });
         } catch (cleanupError) {
@@ -167,13 +254,11 @@ export class PaymentService {
         const duplicateField = keyValue ? Object.keys(keyValue)[0] : 'unknown';
         const duplicateValue = keyValue?.[duplicateField];
 
-        // Log interne détaillé — utile pour déboguer sans exposer au client
         this.logger.error(
           `Duplicate key error — field: "${duplicateField}", value: "${duplicateValue}"`,
           { keyValue, collection: 'payments' },
         );
 
-        // Message client : précis selon le champ, sans exposer l'architecture interne
         const clientMessage =
           this.resolveDuplicateClientMessage(duplicateField);
         throw new BadRequestException(clientMessage);
@@ -241,7 +326,6 @@ export class PaymentService {
       return;
     }
 
-    // transitionStatus a réussi → ce processus est le seul propriétaire
     await this.runPostPaymentProcessing(
       payment._id.toString(),
       payment.cartId,
@@ -296,7 +380,6 @@ export class PaymentService {
       });
 
       if (!transitioned) {
-        // Un autre processus (callback) a déjà transitionné — pas de post-traitement ici
         this.logger.warn(
           `Payment ${paymentId} already transitioned (poll), skipping`,
         );
@@ -315,17 +398,55 @@ export class PaymentService {
     return this.paymentRepo.findById({ id: paymentId });
   }
 
-  // ── Résoudre le message client pour une erreur de doublon MongoDB ────────────
-  // Sépare ce qui est loggé en interne (champ exact, valeur) de ce qui
-  // est retourné au client (message métier sans détail d'implémentation).
+  // ── 4. Expirer un paiement ────────────────────────────────────────────────
+  async expire(paymentId: string): Promise<Payment> {
+    const payment = await this.paymentRepo.findById({ id: paymentId });
+
+    if (!payment) throw new NotFoundException(ERRORS.PAYMENT_NOT_FOUND);
+
+    if (
+      ![PaymentStatus.PENDING, PaymentStatus.WAITING].includes(payment.status)
+    ) {
+      throw new BadRequestException(
+        'Seul un paiement en cours peut être marqué comme expiré',
+      );
+    }
+
+    await this.paymentRepo.update({
+      id: paymentId,
+      update: { status: PaymentStatus.EXPIRED },
+    });
+    return this.paymentRepo.findById({ id: paymentId });
+  }
+
+  // ── Régénérer une facture manuellement ────────────────────────────────────
+  async regenerateInvoice(paymentId: string): Promise<void> {
+    const payment = await this.paymentRepo.findById({ id: paymentId });
+
+    if (!payment)
+      throw new NotFoundException(`Paiement ${paymentId} introuvable`);
+
+    if (payment.status !== PaymentStatus.SUCCESS) {
+      throw new BadRequestException(
+        'Impossible de créer une facture pour un paiement non réussi',
+      );
+    }
+
+    const existingInvoice =
+      await this.invoiceService.findByPaymentId(paymentId);
+    if (existingInvoice) {
+      throw new BadRequestException(
+        `Une facture existe déjà pour ce paiement: ${existingInvoice.invoiceNumber}`,
+      );
+    }
+
+    await this.createInvoiceForPayment(paymentId);
+  }
+
+  // ── Résoudre le message client pour une erreur de doublon MongoDB ─────────
   private resolveDuplicateClientMessage(duplicateField: string): string {
     const messages: Record<string, string> = {
-      // Index unique sur transactionReference — ne devrait jamais arriver
-      // car on génère un uuidv4 frais à chaque initiate()
       transactionReference: ERRORS.PAYMENT_DUPLICATE,
-
-      // Index partiel unique_active_payment_per_cart — un paiement
-      // PENDING/WAITING existe déjà pour ce panier
       cartId_1_status_1: ERRORS.PAYMENT_ALREADY_IN_PROGRESS,
     };
 
@@ -333,9 +454,6 @@ export class PaymentService {
   }
 
   // ── Post-traitement unifié avec verrou en mémoire ──────────────────────────
-  // Appelé uniquement par le processus qui a réussi transitionStatus.
-  // Le verrou en mémoire évite la double exécution si callback + poll
-  // arrivent dans la même instance Node.js avec un léger décalage.
   private async runPostPaymentProcessing(
     paymentId: string,
     cartId: Types.ObjectId,
@@ -367,31 +485,8 @@ export class PaymentService {
         error,
       );
     } finally {
-      // Libérer le verrou après un délai court pour absorber
-      // d'éventuels appels en double arrivant avec ≤ 500ms d'écart
       setTimeout(() => this.processingLocks.delete(paymentId), 500);
     }
-  }
-
-  // ── 4. Expirer un paiement ────────────────────────────────────────────────
-  async expire(paymentId: string): Promise<Payment> {
-    const payment = await this.paymentRepo.findById({ id: paymentId });
-
-    if (!payment) throw new NotFoundException(ERRORS.PAYMENT_NOT_FOUND);
-
-    if (
-      ![PaymentStatus.PENDING, PaymentStatus.WAITING].includes(payment.status)
-    ) {
-      throw new BadRequestException(
-        'Seul un paiement en cours peut être marqué comme expiré',
-      );
-    }
-
-    await this.paymentRepo.update({
-      id: paymentId,
-      update: { status: PaymentStatus.EXPIRED },
-    });
-    return this.paymentRepo.findById({ id: paymentId });
   }
 
   // ── Créer une facture ─────────────────────────────────────────────────────
@@ -399,9 +494,12 @@ export class PaymentService {
     try {
       await this.invoiceService.createInvoiceFromPayment({ paymentId }, userId);
     } catch (error) {
+      const errorDetails =
+        (error as Error)?.stack || (error as Error)?.message || String(error);
+
       this.logger.error(
         `Erreur création facture pour paiement ${paymentId}:`,
-        error.stack || error.message,
+        errorDetails,
       );
       throw error;
     }
@@ -460,7 +558,7 @@ export class PaymentService {
         );
       } catch (error) {
         this.logger.error(
-          `❌ Échec déduction stock produit ${product._id}: ${error.message}`,
+          `❌ Échec déduction stock produit ${product._id}: ${(error as Error).message}`,
         );
       }
     }

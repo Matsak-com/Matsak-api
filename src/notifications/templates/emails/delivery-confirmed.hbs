@@ -1,0 +1,163 @@
+{{> header}}
+
+<div class="content">
+
+    {{!-- ── Title & greeting ──────────────────────────────────── --}}
+    <h2>{{t.title}}</h2>
+    <p class="greeting">{{t.greeting}}, <strong>{{customer.fullName}}</strong></p>
+    <p>{{t.intro}}</p>
+
+    {{!-- ── Success badge ───────────────────────────────────────── --}}
+    <div style="text-align: center; margin: 32px 0;">
+        <span style="
+            display: inline-block;
+            padding: 12px 36px;
+            background-color: #27ae60;
+            color: #ffffff;
+            border-radius: 50px;
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            box-shadow: 0 4px 14px rgba(39, 174, 96, 0.30);
+        ">
+            ✓ {{t.statusLabel}}
+        </span>
+    </div>
+
+    {{!-- ── Delivery summary ───────────────────────────────────── --}}
+    <table class="info-table">
+        <tr>
+            <td class="info-label">{{t.invoiceNumber}}</td>
+            <td class="info-value meta-mono">{{invoiceNumber}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">{{t.invoiceDate}}</td>
+            <td class="info-value">{{invoiceDate}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">{{t.deliveryType}}</td>
+            <td class="info-value">
+                {{#if isDelivery}}{{t.typeDelivery}}{{else}}{{t.typePickup}}{{/if}}
+            </td>
+        </tr>
+        {{#if teamName}}
+        <tr>
+            <td class="info-label">{{t.pharmacy}}</td>
+            <td class="info-value">{{teamName}}</td>
+        </tr>
+        {{/if}}
+        <tr>
+            <td class="info-label">{{t.completedAt}}</td>
+            <td class="info-value">{{completedAt}}</td>
+        </tr>
+        {{#if checkedBy}}
+        <tr>
+            <td class="info-label">{{t.validatedBy}}</td>
+            <td class="info-value">{{checkedBy}}</td>
+        </tr>
+        {{/if}}
+    </table>
+
+    {{!-- ── Delivery address (DELIVERY mode only) ─────────────── --}}
+    {{#if deliveryAddress}}
+    <div class="shipping-block">
+        <h3 class="section-title">{{t.shippingAddressTitle}}</h3>
+        <p class="shipping-info">
+            <strong>{{deliveryAddress.name}}</strong><br/>
+            {{deliveryAddress.addressLine}}<br/>
+            {{deliveryAddress.city}}{{#if deliveryAddress.state}}, {{deliveryAddress.state}}{{/if}}
+            {{#if deliveryAddress.phone}}<br/>📞 {{deliveryAddress.phone}}{{/if}}
+            {{#if deliveryAddress.deliveryNotes}}<br/><em style="color: #6b7280;">{{deliveryAddress.deliveryNotes}}</em>{{/if}}
+        </p>
+    </div>
+    {{/if}}
+
+    {{!-- ── Items checklist ────────────────────────────────────── --}}
+    <h3 class="section-title">{{t.itemsTitle}}</h3>
+
+    <table class="order-table">
+        <thead>
+            <tr>
+                <th style="width: 45%;">{{t.itemName}}</th>
+                <th style="width: 15%; text-align: center;">{{t.quantity}}</th>
+                <th style="width: 25%;">{{t.checkedBy}}</th>
+                <th style="width: 15%; text-align: center;">{{t.checkedAt}}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#each items}}
+            <tr>
+                <td>{{this.name}}</td>
+                <td style="text-align: center;">{{this.quantity}}</td>
+                <td style="font-size: 13px; color: #6b7280;">{{this.checkedBy}}</td>
+                <td style="text-align: center; font-size: 12px; color: #6b7280;">{{this.checkedAt}}</td>
+            </tr>
+            {{/each}}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="4" style="text-align: right; font-size: 13px; color: #6b7280; padding: 10px 12px;">
+                    {{itemCount}} {{t.itemsChecked}}
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+
+    {{!-- ── Order pricing summary ──────────────────────────────── --}}
+    <h3 class="section-title">{{t.orderSummaryTitle}}</h3>
+
+    <table class="pricing-summary-table">
+
+        {{!-- Sous-total articles --}}
+        <tr class="pricing-row">
+            <td class="pricing-label">{{t.subtotalItems}}</td>
+            <td class="pricing-value">{{subtotalLocal}} {{currency}}</td>
+        </tr>
+
+        {{!-- Surcharges (livraison, service…) --}}
+        {{#each pricingLines}}
+        <tr class="pricing-row pricing-surcharge">
+            <td class="pricing-label">{{this.name}}</td>
+            <td class="pricing-value">+ {{this.localPrice}} {{../currency}}</td>
+        </tr>
+        {{/each}}
+
+        {{!-- Remise promo code --}}
+        {{#if hasDiscount}}
+        <tr class="pricing-row pricing-discount">
+            <td class="pricing-label">
+                {{t.promoCode}}
+                {{#if promoCodeSnapshot}}
+                <span class="promo-code-badge">{{promoCodeSnapshot.code}}</span>
+                {{/if}}
+            </td>
+            <td class="pricing-value pricing-discount-value">− {{discountLocal}} {{currency}}</td>
+        </tr>
+        {{/if}}
+
+        <tr class="pricing-divider">
+            <td colspan="2"><hr/></td>
+        </tr>
+
+        {{!-- Total final --}}
+        <tr class="pricing-row pricing-total">
+            <td class="pricing-label">{{t.totalPaid}}</td>
+            <td class="pricing-value">{{totalLocal}} {{currency}}</td>
+        </tr>
+
+    </table>
+
+    {{!-- ── Confirmation message ───────────────────────────────── --}}
+    <div class="important" style="border-left-color: #27ae60; background-color: rgba(39, 174, 96, 0.07);">
+        <p style="margin: 0; color: #374151; font-size: 14.5px; line-height: 1.7;">
+            {{t.confirmationMessage}}
+        </p>
+    </div>
+
+    <p style="color: #6b7280; font-size: 14px;">{{t.support}}</p>
+
+    <p class="signature">{{{t.signature}}}</p>
+
+</div>
+
+{{> footer}}

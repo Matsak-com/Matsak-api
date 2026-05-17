@@ -22,7 +22,6 @@ export class Preference {
     ref: 'User',
     required: true,
     unique: true,
-    index: true,
   })
   user: User;
 

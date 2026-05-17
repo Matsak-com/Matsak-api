@@ -3,6 +3,7 @@ import { Document, Types } from 'mongoose';
 import { PricingRuleType } from '../pricing/schemas/pricing-rule.schema';
 import { DiscountType } from '../pricing/schemas/promo-code.schema';
 import { DeliveryMethod } from '../payment/payment.schema';
+
 export type InvoiceDocument = Invoice & Document;
 
 export enum InvoiceStatus {
@@ -12,11 +13,17 @@ export enum InvoiceStatus {
 }
 
 // ── Pricing sub-documents ─────────────────────────────────────────────────────
+// Ces classes sont aussi importées par payment.schema.ts (PaymentPricingSnapshot).
+// Ne pas les déplacer sans mettre à jour l'import dans payment.schema.ts.
 
 export class PricingLineSnapshot {
   type: PricingRuleType;
   name: string;
-  basePriceEur: number;
+  baseType: string;
+  basePriceEur: number | null;
+  basePercentage: number | null;
+  /** Resolved surcharge amount in EUR at the time of the invoice */
+  resolvedEur: number;
   localPrice: number;
 }
 
@@ -139,58 +146,67 @@ export class Invoice {
   deletedBy?: Types.ObjectId;
 
   // ══════════════════════════════════════════════════════════════
-  // PRICING SUMMARY (frozen at invoice creation)
+  // PRICING SUMMARY
+  // Ces champs sont TOUJOURS copiés depuis Payment.pricingSnapshot.
+  // Ils ne sont JAMAIS recalculés au moment de la création de l'Invoice.
+  //
+  // Flow :
+  //   Payment créé  → pricingSnapshot figé (subtotal, surcharges, discount, total)
+  //   Mvola SUCCESS → Invoice.fromPaymentSnapshot(payment.pricingSnapshot)
   // ══════════════════════════════════════════════════════════════
 
-  /** ISO currency code used by the team (default 'MGA') */
-  @Prop({ required: false, default: 'MGA' })
-  currency?: string;
+  /** ISO currency code copié depuis Payment.pricingSnapshot.currency */
+  @Prop({ required: true, default: 'MGA' })
+  currency: string;
 
-  /** Exchange rate snapshot: 1 EUR = X currency */
-  @Prop({ required: false, type: Number })
-  exchangeRate?: number;
+  /** 1 EUR = X currency — taux figé au moment du paiement */
+  @Prop({ required: true, type: Number })
+  exchangeRate: number;
 
-  @Prop({ required: false, type: Date })
-  exchangeRateSnapshotAt?: Date;
+  @Prop({ required: true, type: Date })
+  exchangeRateSnapshotAt: Date;
 
-  /** Cart items subtotal in EUR */
-  @Prop({ required: false, type: Number, min: 0 })
-  subtotalEur?: number;
+  /** Sous-total articles en EUR */
+  @Prop({ required: true, type: Number, min: 0 })
+  subtotalEur: number;
 
-  /** Cart items subtotal in local currency */
-  @Prop({ required: false, type: Number, min: 0 })
-  subtotalLocal?: number;
+  /** Sous-total articles en devise locale */
+  @Prop({ required: true, type: Number, min: 0 })
+  subtotalLocal: number;
 
-  /** Applied surcharge lines (delivery, services, high demand) */
+  /** Lignes de surcharges appliquées */
   @Prop({
-    required: false,
+    required: true,
     type: [
       {
         type: { type: String, required: true },
         name: { type: String, required: true },
-        basePriceEur: { type: Number, required: true },
+        baseType: { type: String, required: true, default: 'FIXED' },
+        basePriceEur: { type: Number, default: null },
+        basePercentage: { type: Number, default: null },
+        resolvedEur: { type: Number, required: false, default: null },
         localPrice: { type: Number, required: true },
         _id: false,
       },
     ],
     default: [],
   })
-  pricingLines?: PricingLineSnapshot[];
+  pricingLines: PricingLineSnapshot[];
 
-  @Prop({ required: false, type: Number, default: 0 })
-  surchargesTotalEur?: number;
+  @Prop({ required: true, type: Number, default: 0 })
+  surchargesTotalEur: number;
 
-  @Prop({ required: false, type: Number, default: 0 })
-  surchargesTotalLocal?: number;
+  @Prop({ required: true, type: Number, default: 0 })
+  surchargesTotalLocal: number;
 
-  /** Discount in EUR from promo code */
-  @Prop({ required: false, type: Number, default: 0 })
-  discountEur?: number;
+  /** Remise promo code en EUR */
+  @Prop({ required: true, type: Number, default: 0 })
+  discountEur: number;
 
-  @Prop({ required: false, type: Number, default: 0 })
-  discountLocal?: number;
+  @Prop({ required: true, type: Number, default: 0 })
+  discountLocal: number;
 
-  /** Promo code used (immutable snapshot) */
+  /** Snapshot immutable du promo code utilisé, null si aucun */
   @Prop({
     required: false,
     type: {
@@ -201,15 +217,23 @@ export class Invoice {
     default: null,
     _id: false,
   })
-  promoCodeSnapshot?: PromoCodeSnapshot | null;
+  promoCodeSnapshot: PromoCodeSnapshot | null;
 
-  /** Grand total in EUR */
-  @Prop({ required: false, type: Number, min: 0 })
-  totalEur?: number;
+  /**
+   * Total final en EUR.
+   * Doit correspondre à Payment.pricingSnapshot.totalEur.
+   */
+  @Prop({ required: true, type: Number, min: 0 })
+  totalEur: number;
 
-  /** Grand total in team currency */
-  @Prop({ required: false, type: Number, min: 0 })
-  totalLocal?: number;
+  /**
+   * Total final en devise locale.
+   * Doit être strictement égal à Payment.amount.
+   * Invariant vérifié dans InvoiceService.createFromPayment() :
+   *   assert(invoice.totalLocal === payment.amount)
+   */
+  @Prop({ required: true, type: Number, min: 0 })
+  totalLocal: number;
 }
 
 export const InvoiceSchema = SchemaFactory.createForClass(Invoice);

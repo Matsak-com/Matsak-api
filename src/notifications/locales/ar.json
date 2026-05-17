@@ -84,18 +84,18 @@
       "unitPrice": "سعر الوحدة",
       "total": "الإجمالي",
       "subtotal": "المجموع الفرعي",
+      "subtotalItems": "إجمالي المنتجات",
+      "promoCode": "رمز الخصم",
       "totalPaid": "إجمالي المدفوع",
       "shippingAddress": "عنوان التوصيل",
       "support": "إذا كان لديك أي استفسار حول فاتورتك، لا تتردد في التواصل مع فريقنا.",
       "signature": "مع أطيب التحيات،<br>فريق Matsak",
-
-      "deliveryQrTitle": "رمز QR للتوصيل",
-      "deliveryQrDescription": "سيقوم المندوب بمسح رمز QR هذا عند تسليم طلبك للتحقق من الاستلام.",
-      "deliveryQrMeta": "يحتوي على: رقم الفاتورة · العنوان · المبلغ — يُقدَّم للمندوب",
-
-      "pickupQrTitle": "رموز QR للاستلام من الصيدلية",
-      "pickupQrDescription": "قدّم رمز QR الخاص بكل صيدلية عند زيارتها لاستلام أدويتك.",
-      "pickupQrMeta": "يُقدَّم في الصيدلية"
+      "deliveryQrTitle": "رمز QR للتحقق من التوصيل",
+      "deliveryQrDescription": "سيقوم المندوب بمسح رمز QR هذا عند التسليم والتحقق من كل منتج في طلبك بشكل فردي.",
+      "deliveryQrMeta": "رمز آمن · صالح لمدة 7 أيام — يُقدَّم للمندوب",
+      "pickupQrTitle": "رموز QR للتحقق من الاستلام في الصيدلية",
+      "pickupQrDescription": "قدّم رمز QR الخاص بكل صيدلية؛ سيتحقق الموظف من كل دواء واحداً تلو الآخر عند التسليم.",
+      "pickupQrMeta": "رمز آمن · صالح لمدة 7 أيام — يُقدَّم في الصيدلية"
     },
     "common": {
       "footer": "© {{year}} Matsak. جميع الحقوق محفوظة.",
@@ -147,6 +147,35 @@
       "customerEmail": "البريد الإلكتروني",
       "teamsLabel": "الصيدليات المعنية",
       "autoNotice": "تتلقى هذا البريد الإلكتروني بصفتك مشرفاً على منصة Matsak. لا يلزم اتخاذ أي إجراء ما لم يُذكر خلاف ذلك.",
+      "signature": "مع أطيب التحيات،<br>فريق Matsak"
+    },
+    "deliveryConfirmed": {
+      "subject": "تم تأكيد التوصيل — الفاتورة {{invoiceNumber}}",
+      "title": "تم تأكيد التوصيل",
+      "greeting": "مرحباً",
+      "intro": "بشرى سارة! تم التحقق من تسليمك وتسليم جميع منتجاتك بنجاح.",
+      "statusLabel": "التوصيل مؤكد",
+      "invoiceNumber": "رقم الفاتورة",
+      "invoiceDate": "تاريخ الطلب",
+      "deliveryType": "النوع",
+      "typeDelivery": "توصيل للمنزل",
+      "typePickup": "استلام من الصيدلية",
+      "pharmacy": "الصيدلية",
+      "completedAt": "تاريخ التأكيد",
+      "validatedBy": "صادق عليه",
+      "itemsTitle": "المنتجات المسلّمة",
+      "itemName": "المنتج",
+      "quantity": "الكمية",
+      "checkedBy": "سلّم بواسطة",
+      "checkedAt": "الوقت",
+      "itemsChecked": "منتج(ات) مؤكد",
+      "orderSummaryTitle": "ملخص الطلب",
+      "shippingAddressTitle": "عنوان التوصيل",
+      "subtotalItems": "المجموع الفرعي للمنتجات",
+      "promoCode": "رمز الخصم",
+      "totalPaid": "المبلغ المدفوع",
+      "confirmationMessage": "تم إغلاق هذا التسليم. إذا لم تستلم جميع منتجاتك أو لاحظت أي خلل، يُرجى التواصل مع فريق الدعم فوراً.",
+      "support": "لأي استفسار، فريقنا متاح لمساعدتك.",
       "signature": "مع أطيب التحيات،<br>فريق Matsak"
     }
   }

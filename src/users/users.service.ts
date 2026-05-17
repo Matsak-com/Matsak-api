@@ -326,7 +326,10 @@ export class UsersService {
       updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
     }
 
-    Object.assign(user, updateUserDto);
+    // Explicitly strip `role` to prevent privilege escalation
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { role: _role, ...safeUpdate } = updateUserDto;
+    Object.assign(user, safeUpdate);
     return user.save();
   }
 
@@ -384,7 +387,7 @@ export class UsersService {
       },
     });
 
-    if (!membership) {
+    if (!membership && user.role !== UserRole.SUPERADMIN) {
       throw new BadRequestException(
         'You are not an active member of this team',
       );

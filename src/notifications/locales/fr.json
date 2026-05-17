@@ -84,18 +84,20 @@
       "unitPrice": "Prix unit.",
       "total": "Total",
       "subtotal": "Sous-total",
+      "subtotalItems": "Sous-total articles",
+      "promoCode": "Code promo",
       "totalPaid": "Total payé",
       "shippingAddress": "Adresse de livraison",
       "support": "Pour toute question concernant votre facture, n'hésitez pas à contacter notre équipe.",
       "signature": "Cordialement,<br>L'équipe Matsak",
 
-      "deliveryQrTitle": "QR Code de livraison",
-      "deliveryQrDescription": "Le livreur scannera ce QR code lors de la remise de votre commande pour valider la livraison.",
-      "deliveryQrMeta": "Contient : n° facture · adresse · montant — À présenter au livreur",
+      "deliveryQrTitle": "QR Code de vérification de livraison",
+      "deliveryQrDescription": "Le livreur scannera ce QR code à la livraison. Il pourra alors cocher chaque article de votre commande au fur et à mesure de la remise.",
+      "deliveryQrMeta": "Code sécurisé · valable 7 jours — À présenter au livreur",
 
-      "pickupQrTitle": "QR Codes de retrait en pharmacie",
-      "pickupQrDescription": "Présentez le QR code correspondant à chaque pharmacie lors de votre passage pour récupérer vos médicaments.",
-      "pickupQrMeta": "À présenter à la pharmacie"
+      "pickupQrTitle": "QR Codes de vérification de retrait en pharmacie",
+      "pickupQrDescription": "Présentez le QR code correspondant à chaque pharmacie. Le pharmacien cochera chaque article au moment de la remise de vos médicaments.",
+      "pickupQrMeta": "Code sécurisé · valable 7 jours — À présenter à la pharmacie"
     },
     "common": {
       "footer": "© {{year}} Matsak. Tous droits réservés.",
@@ -147,6 +149,35 @@
       "customerEmail": "Email",
       "teamsLabel": "Pharmacies concernées",
       "autoNotice": "Vous recevez cet email en tant qu'administrateur de la plateforme Matsak. Aucune action n'est requise de votre part sauf mention contraire.",
+      "signature": "Cordialement,<br>L'équipe Matsak"
+    },
+    "deliveryConfirmed": {
+      "subject": "Livraison confirmée — Facture {{invoiceNumber}}",
+      "title": "Livraison confirmée",
+      "greeting": "Bonjour",
+      "intro": "Bonne nouvelle ! Votre livraison a été validée et tous vos articles ont été remis.",
+      "statusLabel": "Livraison validée",
+      "invoiceNumber": "N° de facture",
+      "invoiceDate": "Date de commande",
+      "deliveryType": "Mode",
+      "typeDelivery": "Livraison à domicile",
+      "typePickup": "Retrait en pharmacie",
+      "pharmacy": "Pharmacie",
+      "completedAt": "Validée le",
+      "validatedBy": "Validé par",
+      "itemsTitle": "Articles remis",
+      "itemName": "Article",
+      "quantity": "Qté",
+      "checkedBy": "Remis par",
+      "checkedAt": "Heure",
+      "itemsChecked": "article(s) confirmé(s)",
+      "orderSummaryTitle": "Récapitulatif de commande",
+      "shippingAddressTitle": "Adresse de livraison",
+      "subtotalItems": "Sous-total articles",
+      "promoCode": "Code promo",
+      "totalPaid": "Total payé",
+      "confirmationMessage": "Cette livraison est désormais clôturée. Si vous n'avez pas reçu la totalité de vos articles ou si vous constatez une anomalie, contactez notre équipe de support immédiatement.",
+      "support": "Pour toute question, notre équipe est disponible pour vous aider.",
       "signature": "Cordialement,<br>L'équipe Matsak"
     }
   }

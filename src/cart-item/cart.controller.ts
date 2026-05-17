@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -8,6 +7,8 @@ import {
   Post,
   Query,
   Req,
+  Res,
+  UseGuards,
 } from '@nestjs/common';
 import { CartService } from './cart.service';
 import { AddToCartDto } from './dto/add-to-cart.dto';
@@ -20,91 +21,87 @@ import {
   updateCartQuantitySchema,
   productIdQuerySchema,
 } from '../common/schemas/cart.schemas';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { Types } from 'mongoose';
-import { ERRORS } from '../common/errors';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorator/current-user.decorator';
+import { UserPayload } from '../auth/jwt/jwt.strategy';
+import { randomUUID } from 'crypto';
 
-interface CartRequest extends Request {
-  headers: {
-    'x-user-id'?: string;
-  };
-}
-
+@UseGuards(OptionalJwtAuthGuard)
 @Controller('cart')
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 
-  // 🔹 Méthode utilitaire pour extraire sessionId et userId
-  private getCartIdentifiers(req: CartRequest) {
-    const sessionId = req.cookies?.sessionId;
-    const userIdFromHeader = req.headers['x-user-id'];
-
-    // PRIORITÉ 1: userId depuis le header (envoyé par le client depuis localStorage)
-    if (userIdFromHeader && Types.ObjectId.isValid(userIdFromHeader)) {
-      return {
-        sessionId: undefined,
-        userId: new Types.ObjectId(userIdFromHeader),
-      };
+  /**
+   * Resolves the cart owner from JWT (authenticated) or session cookie (guest).
+   * If neither is present, generates a new sessionId, sets it as an httpOnly
+   * cookie, and uses it for the current request (anonymous guest cart).
+   */
+  private resolveCartOwner(
+    user: UserPayload | null,
+    req: Request,
+    res: Response,
+  ): { sessionId?: string; userId?: Types.ObjectId } {
+    if (user?.userId && Types.ObjectId.isValid(user.userId)) {
+      return { userId: new Types.ObjectId(user.userId) };
     }
 
-    // PRIORITÉ 2: sessionId depuis les cookies
-    if (sessionId) {
-      return {
-        sessionId,
-        userId: undefined,
-      };
+    let sessionId = req.cookies?.sessionId as string | undefined;
+
+    if (!sessionId) {
+      sessionId = randomUUID();
+      res.cookie('sessionId', sessionId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+        path: '/',
+      });
+      req.cookies.sessionId = sessionId;
     }
 
-    throw new BadRequestException({
-      message: ERRORS.CART_SESSION_REQUIRED,
-      code: ERRORS.CART_SESSION_REQUIRED,
-      requiresCookieConsent: true,
-    });
+    return { sessionId };
   }
 
   @Get()
-  async get(@Req() req: CartRequest) {
-    const { sessionId, userId } = this.getCartIdentifiers(req);
-    const result = await this.cartService.getCart(sessionId, userId);
-    return result;
+  async get(
+    @CurrentUser() user: UserPayload | null,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { sessionId, userId } = this.resolveCartOwner(user, req, res);
+    return this.cartService.getCart(sessionId, userId);
   }
 
   @Post('add')
   @ZodValidation(addToCartSchema)
-  async add(@Body() dto: AddToCartDto, @Req() req: CartRequest) {
-    const { sessionId, userId } = this.getCartIdentifiers(req);
+  async add(
+    @Body() dto: AddToCartDto,
+    @CurrentUser() user: UserPayload | null,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { sessionId, userId } = this.resolveCartOwner(user, req, res);
     return this.cartService.addToCart(dto, sessionId, userId);
   }
 
+  /**
+   * Merges the guest session cart into the authenticated user's cart.
+   * Requires a valid JWT — only callable after login.
+   */
   @Post('merge')
-  async mergeCart(@Req() req: CartRequest) {
-    const sessionId = req.cookies?.sessionId;
-    const userIdFromHeader = req.headers['x-user-id'];
+  @UseGuards(JwtAuthGuard)
+  async mergeCart(@CurrentUser() user: UserPayload, @Req() req: Request) {
+    const sessionId = req.cookies?.sessionId as string | undefined;
+    const userId = new Types.ObjectId(user.userId);
 
-    // Pas de sessionId ? Rien à fusionner
     if (!sessionId) {
-      return { items: [] };
+      return this.cartService.getCart(undefined, userId);
     }
 
-    // Vérifier userId valide
-    if (!userIdFromHeader || !Types.ObjectId.isValid(userIdFromHeader)) {
-      throw new BadRequestException(ERRORS.INVALID_OBJECT_ID);
-    }
-
-    const userId = new Types.ObjectId(userIdFromHeader);
-
-    // Effectuer la fusion
-    const mergedCart = await this.cartService.mergeSessionCartToUser(
-      sessionId,
-      userId,
-    );
-
-    if (mergedCart) {
-      // Enrichir les items avant de retourner
-      const enrichedItems = await this.cartService.getCart(undefined, userId);
-      return enrichedItems;
-    }
-    return { items: [] };
+    return this.cartService.mergeSessionCartToUser(sessionId, userId);
   }
 
   @Patch('update')
@@ -113,11 +110,13 @@ export class CartController {
     body: updateCartQuantitySchema,
   })
   async updateQuantity(
-    @Req() req: CartRequest,
+    @CurrentUser() user: UserPayload | null,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
     @Query() query: { productId: string },
     @Body() body: { quantity: number },
   ) {
-    const { sessionId, userId } = this.getCartIdentifiers(req);
+    const { sessionId, userId } = this.resolveCartOwner(user, req, res);
     return this.cartService.updateItemQuantity(
       query.productId,
       body.quantity,
@@ -128,14 +127,23 @@ export class CartController {
 
   @Delete('remove')
   @CompoundZodValidation({ query: productIdQuerySchema })
-  async remove(@Req() req: CartRequest, @Query() query: { productId: string }) {
-    const { sessionId, userId } = this.getCartIdentifiers(req);
+  async remove(
+    @CurrentUser() user: UserPayload | null,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+    @Query() query: { productId: string },
+  ) {
+    const { sessionId, userId } = this.resolveCartOwner(user, req, res);
     return this.cartService.deleteItem(query.productId, sessionId, userId);
   }
 
   @Delete('clear')
-  async clear(@Req() req: CartRequest) {
-    const { sessionId, userId } = this.getCartIdentifiers(req);
+  async clear(
+    @CurrentUser() user: UserPayload | null,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { sessionId, userId } = this.resolveCartOwner(user, req, res);
     return this.cartService.clearCart(sessionId, userId);
   }
 }
