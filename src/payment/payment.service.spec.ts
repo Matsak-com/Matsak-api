@@ -672,12 +672,14 @@ describe('PaymentService', () => {
 
   describe('expire', () => {
     it('should expire a PENDING payment successfully', async () => {
+      // Setup the mocks for BOTH findById calls
       paymentRepo.findById
-        .mockResolvedValueOnce(mockPayment as any)
+        .mockResolvedValueOnce(mockPayment as any)           // First call (line 403)
         .mockResolvedValueOnce({
           ...mockPayment,
           status: PaymentStatus.EXPIRED,
-        } as any);
+        } as any);                                            // Second call (line 419)
+      
       paymentRepo.update.mockResolvedValue({
         ...mockPayment,
         status: PaymentStatus.EXPIRED,
@@ -691,7 +693,6 @@ describe('PaymentService', () => {
       });
       expect(result.status).toBe(PaymentStatus.EXPIRED);
     });
-
     it('should expire a WAITING payment successfully', async () => {
       const waitingPayment = { ...mockPayment, status: PaymentStatus.WAITING };
       paymentRepo.findById
