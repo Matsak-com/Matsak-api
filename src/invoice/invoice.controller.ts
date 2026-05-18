@@ -241,7 +241,11 @@ export class InvoiceController {
 
     const currentUserId = req.user?.userId ?? req.user?._id;
 
-    return this.invoiceService.updateStatus(params.id, dto.status, currentUserId);
+    return this.invoiceService.updateStatus(
+      params.id,
+      dto.status,
+      currentUserId,
+    );
   }
 
   @UseGuards(JwtAuthGuard)

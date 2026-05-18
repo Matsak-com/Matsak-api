@@ -466,7 +466,10 @@ export class PaymentService {
   }
 
   // ── Créer une facture ─────────────────────────────────────────────────────
-  private async createInvoiceForPayment(paymentId: string, userId?: string): Promise<void> {
+  private async createInvoiceForPayment(
+    paymentId: string,
+    userId?: string,
+  ): Promise<void> {
     try {
       await this.invoiceService.createInvoiceFromPayment({ paymentId }, userId);
     } catch (error) {
@@ -482,7 +485,7 @@ export class PaymentService {
   }
 
   // ── Régénérer une facture manuellement ────────────────────────────────────
-  async regenerateInvoice(paymentId: string, userId?: string,): Promise<void> {
+  async regenerateInvoice(paymentId: string, userId?: string): Promise<void> {
     const payment = await this.paymentRepo.findById({ id: paymentId });
 
     if (!payment)

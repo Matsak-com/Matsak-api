@@ -8,18 +8,18 @@ export type HistoryDocument = History & Document;
 // ══════════════════════════════════════════════════════════════
 
 export enum HistoryAction {
-  CREATED   = 'created',
-  UPDATED   = 'updated',
-  DELETED   = 'deleted',
-  RESTORED  = 'restored',
+  CREATED = 'created',
+  UPDATED = 'updated',
+  DELETED = 'deleted',
+  RESTORED = 'restored',
 
   // Actions métier spécifiques
-  STATUS_CHANGED   = 'status_changed',
+  STATUS_CHANGED = 'status_changed',
   PAYMENT_RECEIVED = 'payment_received',
-  REFUNDED         = 'refunded',
-  CANCELLED        = 'cancelled',
-  EXPORTED         = 'exported',
-  SENT             = 'sent',
+  REFUNDED = 'refunded',
+  CANCELLED = 'cancelled',
+  EXPORTED = 'exported',
+  SENT = 'sent',
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -28,15 +28,15 @@ export enum HistoryAction {
 // ══════════════════════════════════════════════════════════════
 
 export enum HistoryEntityType {
-  INVOICE  = 'Invoice',
-  PAYMENT  = 'Payment',
-  USER     = 'User',
-  PRODUCT  = 'Product',
-  CART     = 'Cart',
-  ADDRESS  = 'Address',
+  INVOICE = 'Invoice',
+  PAYMENT = 'Payment',
+  USER = 'User',
+  PRODUCT = 'Product',
+  CART = 'Cart',
+  ADDRESS = 'Address',
   PROMO_CODE = 'PromoCode',
   PRICING_RULE = 'PricingRule',
-  TEAM     = 'Team',
+  TEAM = 'Team',
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -45,7 +45,6 @@ export enum HistoryEntityType {
 
 @Schema({ timestamps: true, collection: 'histories' })
 export class History {
-
   // ── Cible ────────────────────────────────────────────────────
 
   /** Type de l'entité concernée (ex: 'Invoice', 'User') */

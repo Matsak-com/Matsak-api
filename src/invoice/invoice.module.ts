@@ -32,7 +32,7 @@ import { HistoryModule } from 'src/history/history.module';
     ProductModule,
     NotificationModule,
     PricingModule,
-    HistoryModule
+    HistoryModule,
   ],
   controllers: [InvoiceController],
   providers: [InvoiceService, InvoiceRepository, DeliveryCheckService],

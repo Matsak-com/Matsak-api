@@ -95,10 +95,7 @@ export class HistoryService {
     previous: Record<string, any>,
     next: Record<string, any>,
   ): string[] {
-    const allKeys = new Set([
-      ...Object.keys(previous),
-      ...Object.keys(next),
-    ]);
+    const allKeys = new Set([...Object.keys(previous), ...Object.keys(next)]);
     const changed: string[] = [];
 
     for (const key of allKeys) {

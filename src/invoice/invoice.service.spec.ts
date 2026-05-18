@@ -1,138 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
-import { getModelToken } from '@nestjs/mongoose';
-import { Types } from 'mongoose';
-
 import { InvoiceService } from './invoice.service';
 import { InvoiceRepository } from './invoice.repository';
 import { NotificationService } from '../notifications/notification.service';
-import { DeliveryCheckService } from './delivery-check.service';
-import { Payment, DeliveryMethod } from '../payment/payment.schema';
-import { Invoice, InvoiceStatus } from './invoice.schema';
-
-// ══════════════════════════════════════════════════════════════════════════════
-// FIXTURES
-// ══════════════════════════════════════════════════════════════════════════════
-
-const CART_ID = new Types.ObjectId();
-const USER_ID = new Types.ObjectId();
-const PAYMENT_ID = new Types.ObjectId();
-const INVOICE_ID = new Types.ObjectId();
-const PRODUCT_ID = new Types.ObjectId();
-const TEAM_ID = new Types.ObjectId();
-const ADDRESS_ID = new Types.ObjectId();
-
-const mockPricingSnapshot = {
-  currency: 'MGA',
-  exchangeRate: 4800,
-  exchangeRateSnapshotAt: new Date('2026-04-23'),
-  subtotalEur: 100,
-  subtotalLocal: 480000,
-  pricingLines: [
-    {
-      type: 'delivery',
-      name: 'Frais de livraison',
-      baseType: 'FIXED',
-      basePriceEur: 5,
-      basePercentage: null,
-      resolvedEur: 5,
-      localPrice: 24000,
-    },
-  ],
-  surchargesTotalEur: 5,
-  surchargesTotalLocal: 24000,
-  discountEur: 0,
-  discountLocal: 0,
-  promoCodeSnapshot: null,
-  totalEur: 105,
-  totalLocal: 504000,
-};
-
-const mockCart = {
-  _id: CART_ID,
-  sessionId: 'sess_abc',
-  items: [
-    {
-      product: {
-        _id: PRODUCT_ID,
-        name: 'Paracétamol',
-        basePrice: 480000,
-        currency: 'MGA',
-        trackStock: true,
-        team: { _id: TEAM_ID, name: 'Pharmacie Test' },
-        detail: { name: 'Paracétamol 500mg', description: 'Antidouleur' },
-      },
-      quantity: 1,
-    },
-  ],
-};
-
-const mockPaymentDoc = {
-  _id: PAYMENT_ID,
-  cartId: mockCart,
-  userId: USER_ID,
-  method: 'MVOLA',
-  amount: 504000,
-  currency: 'Ar',
-  status: 'SUCCESS',
-  deliveryMethod: DeliveryMethod.DELIVERY,
-  deliveryAddressId: ADDRESS_ID,
-  correlationId: 'corr-123',
-  serverCorrelationId: 'server-corr-123',
-  transactionReference: 'txn-123',
-  customerPhone: '0340000000',
-  pricingSnapshot: mockPricingSnapshot,
-};
-
-const mockInvoice: Partial<Invoice> & { _id: Types.ObjectId } = {
-  _id: INVOICE_ID,
-  payment: PAYMENT_ID,
-  invoiceNumber: 'INV-2026-0001',
-  invoiceDate: new Date(),
-  status: InvoiceStatus.PAID,
-  deliveryMethod: DeliveryMethod.DELIVERY,
-  cartSnapshot: {
-    cartId: CART_ID,
-    items: [
-      {
-        product: {
-          _id: PRODUCT_ID,
-          name: 'Paracétamol 500mg',
-          team: { _id: TEAM_ID, name: 'Pharmacie Test' },
-        },
-        quantity: 1,
-        price: 480000,
-      },
-    ],
-    snapshotAt: new Date(),
-  },
-  ...mockPricingSnapshot,
-} as any;
-
-// ══════════════════════════════════════════════════════════════════════════════
-// MOCKS
-// ══════════════════════════════════════════════════════════════════════════════
-
-const mockInvoiceRepo = {
-  generateInvoiceNumber: jest.fn(),
-  create: jest.fn(),
-  findById: jest.fn(),
-  findOne: jest.fn(),
-  findAll: jest.fn(),
-  update: jest.fn(),
-};
 import { NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { InvoiceStatus } from './invoice.schema';
 import { getModelToken } from '@nestjs/mongoose';
 import { Payment } from '../payment/payment.schema';
-import { Cart } from '../cart-item/cart-item.schema';
 import { PricingService } from '../pricing/pricing.service';
 import { User } from '../users/user.schema';
 import { Member } from '../members/member.schema';
 import { Role } from '../roles/role.schema';
 import { HistoryService } from '../history/history.service';
 import { HistoryAction, HistoryEntityType } from '../history/history.schema';
+import { DeliveryCheckService } from './delivery-check.service';
 
 describe('InvoiceService', () => {
   let service: InvoiceService;
@@ -223,51 +104,33 @@ describe('InvoiceService', () => {
       sendEmail: jest.fn().mockResolvedValue(undefined),
     };
 
-const mockDeliveryCheckService = {
-  createDeliveryToken: jest.fn().mockResolvedValue('mock-token'),
-};
+    const mockHistoryService = {
+      recordAsync: jest.fn().mockResolvedValue(undefined),
+    };
 
-// Modèle Payment : chaîning findById().populate().lean()
-const mockPaymentLean = jest.fn();
-const mockPaymentPopulate = jest
-  .fn()
-  .mockReturnValue({ lean: mockPaymentLean });
-const mockPaymentFindById = jest
-  .fn()
-  .mockReturnValue({ populate: mockPaymentPopulate });
-const MockPaymentModel = { findById: mockPaymentFindById };
+    const mockPricingService = {
+      calculateTotal: jest.fn().mockResolvedValue({
+        currency: 'MGA',
+        exchangeRate: 4800,
+        exchangeRateSnapshotAt: new Date(),
+        subtotalEur: 0,
+        subtotalLocal: 0,
+        pricingLines: [],
+        surchargesTotalEur: 0,
+        surchargesTotalLocal: 0,
+        discountEur: 0,
+        discountLocal: 0,
+        promoCodeSnapshot: null,
+        totalEur: 0,
+        totalLocal: 0,
+      }),
+      redeemPromoCode: jest.fn().mockResolvedValue(null),
+    };
 
-const mockUserModel = {
-  find: jest.fn().mockReturnValue({
-    select: jest.fn().mockReturnValue({
-      lean: jest.fn().mockResolvedValue([]),
-    }),
-  }),
-};
+    const mockDeliveryCheckService = {
+      createDeliveryToken: jest.fn().mockResolvedValue('mock-token'),
+    };
 
-const mockMemberModel = {
-  find: jest.fn().mockReturnValue({
-    populate: jest.fn().mockReturnThis(),
-    lean: jest.fn().mockResolvedValue([]),
-  }),
-};
-
-const mockRoleModel = {
-  findOne: jest.fn().mockReturnValue({
-    select: jest.fn().mockReturnValue({
-      lean: jest.fn().mockResolvedValue(null),
-    }),
-  }),
-};
-
-// ══════════════════════════════════════════════════════════════════════════════
-// SUITE
-// ══════════════════════════════════════════════════════════════════════════════
-
-describe('InvoiceService', () => {
-  let service: InvoiceService;
-
-  beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InvoiceService,
@@ -280,12 +143,16 @@ describe('InvoiceService', () => {
           useValue: mockNotificationService,
         },
         {
-          provide: getModelToken(Payment.name),
-          useValue: { findById: jest.fn() },
+          provide: HistoryService,
+          useValue: mockHistoryService,
         },
         {
-          provide: getModelToken(Cart.name),
-          useValue: { findByIdAndUpdate: jest.fn() },
+          provide: DeliveryCheckService,
+          useValue: mockDeliveryCheckService,
+        },
+        {
+          provide: getModelToken(Payment.name),
+          useValue: { findById: jest.fn() },
         },
         {
           provide: PricingService,
@@ -293,15 +160,15 @@ describe('InvoiceService', () => {
         },
         {
           provide: getModelToken(User.name),
-          useValue: { findById: jest.fn() },
+          useValue: { find: jest.fn(), findOne: jest.fn() },
         },
         {
           provide: getModelToken(Member.name),
-          useValue: { findOne: jest.fn() },
+          useValue: { find: jest.fn(), countDocuments: jest.fn() },
         },
         {
           provide: getModelToken(Role.name),
-          useValue: { findById: jest.fn() },
+          useValue: { findOne: jest.fn() },
         },
       ],
     }).compile();
@@ -309,21 +176,50 @@ describe('InvoiceService', () => {
     service = module.get<InvoiceService>(InvoiceService);
     invoiceRepo = module.get(InvoiceRepository);
     notificationService = module.get(NotificationService);
+    historyService = module.get(HistoryService);
   });
 
-  // ── createInvoiceFromPayment() ───────────────────────────────────────────────
+  // ─── createInvoiceFromPayment ─────────────────────────────────────────────
 
   describe('createInvoiceFromPayment', () => {
     const mockCart = {
       _id: mockCartId,
       sessionId: 'session-123',
-      items: [{ product: new Types.ObjectId(), quantity: 2 }],
+      items: [
+        {
+          product: {
+            _id: new Types.ObjectId(),
+            basePrice: 25000,
+            currency: 'MGA',
+            detail: { name: 'Produit 1', description: 'Desc 1' },
+            team: { _id: new Types.ObjectId(), name: 'Équipe A' },
+          },
+          quantity: 2,
+        },
+      ],
     };
 
     const mockPayment = {
       _id: mockPaymentId,
       userId: mockUserId,
       cartId: mockCart,
+      deliveryMethod: 'delivery',
+      pricingSnapshot: {
+        currency: 'MGA',
+        exchangeRate: 4800,
+        exchangeRateSnapshotAt: new Date(),
+        subtotalEur: 0,
+        subtotalLocal: 0,
+        pricingLines: [],
+        surchargesTotalEur: 0,
+        surchargesTotalLocal: 0,
+        discountEur: 0,
+        discountLocal: 0,
+        promoCodeSnapshot: null,
+        totalEur: 0,
+        totalLocal: 0,
+      },
+      amount: 0,
     };
 
     beforeEach(() => {
@@ -334,25 +230,24 @@ describe('InvoiceService', () => {
           }),
         }),
       };
-      (service as any).cartModel = {
-        findByIdAndUpdate: jest.fn().mockResolvedValue(null),
-      };
     });
 
-    it('should create invoice successfully', async () => {
+    it('should create invoice successfully and record history', async () => {
       invoiceRepo.generateInvoiceNumber.mockResolvedValue('INV-2024-001');
       invoiceRepo.create.mockResolvedValue(mockInvoice as any);
       invoiceRepo.findById.mockResolvedValue(mockPopulatedInvoice as any);
 
-      const result = await service.createInvoiceFromPayment({
-        paymentId: mockPaymentId.toString(),
-      });
+      const result = await service.createInvoiceFromPayment(
+        { paymentId: mockPaymentId.toString() },
+        mockCurrentUserId,
+      );
 
       expect(invoiceRepo.generateInvoiceNumber).toHaveBeenCalled();
       expect(invoiceRepo.create).toHaveBeenCalledWith({
         doc: expect.objectContaining({
           payment: expect.any(Types.ObjectId),
           userId: mockUserId,
+          createdBy: new Types.ObjectId(mockCurrentUserId),
           cartSnapshot: expect.objectContaining({
             cartId: mockCartId,
             sessionId: 'session-123',
@@ -365,6 +260,65 @@ describe('InvoiceService', () => {
         }),
       });
       expect(result).toEqual(mockInvoice);
+    });
+
+    it('should record CREATED history entry after successful creation', async () => {
+      invoiceRepo.generateInvoiceNumber.mockResolvedValue('INV-2024-001');
+      invoiceRepo.create.mockResolvedValue(mockInvoice as any);
+      invoiceRepo.findById.mockResolvedValue(mockPopulatedInvoice as any);
+
+      await service.createInvoiceFromPayment(
+        { paymentId: mockPaymentId.toString() },
+        mockCurrentUserId,
+      );
+
+      expect(historyService.recordAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entityType: HistoryEntityType.INVOICE,
+          entityId: mockInvoice._id,
+          entityLabel: mockInvoice.invoiceNumber,
+          action: HistoryAction.CREATED,
+          performedBy: mockCurrentUserId,
+          isSystemAction: false,
+          newValue: expect.objectContaining({
+            invoiceNumber: mockInvoice.invoiceNumber,
+            status: mockInvoice.status,
+          }),
+          metadata: expect.objectContaining({
+            paymentId: mockPaymentId.toString(),
+          }),
+        }),
+      );
+    });
+
+    it('should mark history as system action when no currentUserId is provided', async () => {
+      invoiceRepo.generateInvoiceNumber.mockResolvedValue('INV-2024-001');
+      invoiceRepo.create.mockResolvedValue(mockInvoice as any);
+      invoiceRepo.findById.mockResolvedValue(mockPopulatedInvoice as any);
+
+      await service.createInvoiceFromPayment({
+        paymentId: mockPaymentId.toString(),
+      });
+
+      expect(historyService.recordAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          performedBy: undefined,
+          isSystemAction: true,
+        }),
+      );
+    });
+
+    it('should not set createdBy when no currentUserId is provided', async () => {
+      invoiceRepo.generateInvoiceNumber.mockResolvedValue('INV-2024-001');
+      invoiceRepo.create.mockResolvedValue(mockInvoice as any);
+      invoiceRepo.findById.mockResolvedValue(mockPopulatedInvoice as any);
+
+      await service.createInvoiceFromPayment({
+        paymentId: mockPaymentId.toString(),
+      });
+
+      const createCall = invoiceRepo.create.mock.calls[0][0];
+      expect(createCall.doc.createdBy).toBeUndefined();
     });
 
     it('should throw NotFoundException when payment not found', async () => {
@@ -400,17 +354,13 @@ describe('InvoiceService', () => {
         paymentId: mockPaymentId.toString(),
       });
 
-      const doc = mockInvoiceRepo.create.mock.calls[0][0].doc;
-      expect(doc.pricingLines).toHaveLength(1);
-      expect(doc.pricingLines[0].name).toBe('Frais de livraison');
-      expect(doc.pricingLines[0].localPrice).toBe(24000);
+      expect(invoiceRepo.generateInvoiceNumber).toHaveBeenCalledTimes(2);
+      expect(result).toEqual(mockInvoice);
     });
 
-    it('lève une erreur explicite si pricingSnapshot absent (document legacy)', async () => {
-      mockPaymentLean.mockResolvedValue({
-        ...mockPaymentDoc,
-        pricingSnapshot: undefined,
-      });
+    it('should throw error when invoice creation fails with non-duplicate error', async () => {
+      invoiceRepo.generateInvoiceNumber.mockResolvedValue('INV-2024-001');
+      invoiceRepo.create.mockRejectedValue(new Error('Database error'));
 
       await expect(
         service.createInvoiceFromPayment({
@@ -419,35 +369,100 @@ describe('InvoiceService', () => {
       ).rejects.toThrow('Database error');
     });
 
-    it('should not soft delete cart if invoice creation fails', async () => {
-      invoiceRepo.generateInvoiceNumber.mockResolvedValue('INV-2024-001');
-      invoiceRepo.create.mockRejectedValue(new Error('Database error'));
+    it('should redeem promo code when provided and promoCodeSnapshot exists', async () => {
+      const pricingService = (service as any)
+        .pricingService as jest.Mocked<PricingService>;
+      pricingService.calculateTotal.mockResolvedValue({
+        currency: 'MGA',
+        exchangeRate: 4800,
+        exchangeRateSnapshotAt: new Date(),
+        subtotalEur: 100,
+        subtotalLocal: 480000,
+        pricingLines: [],
+        surchargesTotalEur: 0,
+        surchargesTotalLocal: 0,
+        discountEur: 10,
+        discountLocal: 48000,
+        promoCodeSnapshot: { code: 'PROMO10', discountPercent: 10 },
+        totalEur: 90,
+        totalLocal: 432000,
+      } as any);
 
-      await expect(
-        service.createInvoiceFromPayment({
-          paymentId: mockPaymentId.toString(),
+      // Override paymentModel to return a payment with a promoCodeSnapshot
+      (service as any).paymentModel = {
+        findById: jest.fn().mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            lean: jest.fn().mockResolvedValue({
+              ...mockPayment,
+              pricingSnapshot: {
+                ...mockPayment.pricingSnapshot,
+                subtotalEur: 100,
+                promoCodeSnapshot: { code: 'PROMO10', discountPercent: 10 },
+              },
+            }),
+          }),
         }),
-      ).rejects.toThrow();
+      };
 
-      expect(
-        (service as any).cartModel.findByIdAndUpdate,
-      ).not.toHaveBeenCalled();
-    });
+      invoiceRepo.generateInvoiceNumber.mockResolvedValue('INV-2024-001');
+      invoiceRepo.create.mockResolvedValue(mockInvoice as any);
+      invoiceRepo.findById.mockResolvedValue(mockPopulatedInvoice as any);
 
-    it("ne bloque pas la création si l'envoi d'email échoue (fire-and-forget)", async () => {
-      mockNotificationService.sendEmail.mockRejectedValue(
-        new Error('SMTP down'),
-      );
-
-      await expect(
-        service.createInvoiceFromPayment({ paymentId: PAYMENT_ID.toString() }),
-      ).resolves.toBeDefined();
-    });
-
-    it('positionne le statut à PAID', async () => {
       await service.createInvoiceFromPayment({
-        paymentId: PAYMENT_ID.toString(),
+        paymentId: mockPaymentId.toString(),
+        promoCode: 'PROMO10',
       });
+
+      expect(pricingService.redeemPromoCode).toHaveBeenCalledWith(
+        'PROMO10',
+        100,
+        expect.any(String),
+      );
+    });
+
+    it('should not redeem promo code when promoCodeSnapshot is null', async () => {
+      const pricingService = (service as any)
+        .pricingService as jest.Mocked<PricingService>;
+
+      invoiceRepo.generateInvoiceNumber.mockResolvedValue('INV-2024-001');
+      invoiceRepo.create.mockResolvedValue(mockInvoice as any);
+      invoiceRepo.findById.mockResolvedValue(mockPopulatedInvoice as any);
+
+      await service.createInvoiceFromPayment({
+        paymentId: mockPaymentId.toString(),
+        promoCode: 'INVALID',
+      });
+
+      expect(pricingService.redeemPromoCode).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── findOne ──────────────────────────────────────────────────────────────
+
+  describe('findOne', () => {
+    it('should return enriched invoice data', async () => {
+      invoiceRepo.findById.mockResolvedValue(mockPopulatedInvoice as any);
+
+      const result = await service.findOne(mockInvoice._id.toString());
+
+      expect(invoiceRepo.findById).toHaveBeenCalledWith({
+        id: mockInvoice._id.toString(),
+        options: expect.objectContaining({
+          populate: expect.any(Array),
+        }),
+      });
+      expect(result._id).toEqual(mockInvoice._id);
+      expect(result.userId).toBe(mockUserId.toString());
+      expect(result.invoiceNumber).toBe('INV-2024-001');
+      expect(result.payment).toBeDefined();
+      expect(result.cart._id).toEqual(mockCartId);
+      expect(result.customer).toBeDefined();
+      expect(result.customer.name).toBe('John Doe');
+      expect(result.customer.defaultShippingAddress).toBeDefined();
+    });
+
+    it('should use cartSnapshot items when available', async () => {
+      invoiceRepo.findById.mockResolvedValue(mockPopulatedInvoice as any);
 
       const result = await service.findOne(mockInvoice._id.toString());
 
@@ -487,15 +502,25 @@ describe('InvoiceService', () => {
 
       const result = await service.findByInvoiceNumber('INV-2024-001');
 
-      expect(loggerSpy).toHaveBeenCalledWith(
-        expect.stringContaining('PRICING_MISMATCH'),
+      expect(invoiceRepo.findOne).toHaveBeenCalledWith({
+        filter: { invoiceNumber: 'INV-2024-001' },
+        options: expect.objectContaining({
+          populate: expect.any(Array),
+        }),
+      });
+      expect(result.invoiceNumber).toBe('INV-2024-001');
+    });
+
+    it('should throw NotFoundException when invoice number not found', async () => {
+      invoiceRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.findByInvoiceNumber('INV-9999-999')).rejects.toThrow(
+        NotFoundException,
       );
-      // La facture est quand même créée
-      expect(mockInvoiceRepo.create).toHaveBeenCalled();
     });
   });
 
-  // ── updateStatus() ───────────────────────────────────────────────────────────
+  // ─── findByPaymentId ──────────────────────────────────────────────────────
 
   describe('findByPaymentId', () => {
     it('should return invoice by payment ID', async () => {
@@ -521,19 +546,22 @@ describe('InvoiceService', () => {
   // ─── updateStatus ─────────────────────────────────────────────────────────
 
   describe('updateStatus', () => {
-    it('should update invoice status to refunded with refundedAt', async () => {
+    it('should update invoice status to REFUNDED with refundedAt and updatedBy', async () => {
       const updatedInvoice = {
         ...mockInvoice,
         status: InvoiceStatus.REFUNDED,
         refundedAt: new Date(),
       };
 
-      invoiceRepo.findById.mockResolvedValue(mockInvoice as any);
+      invoiceRepo.findById
+        .mockResolvedValueOnce(mockInvoice as any)
+        .mockResolvedValue(mockPopulatedInvoice as any);
       invoiceRepo.update.mockResolvedValue(updatedInvoice as any);
 
       const result = await service.updateStatus(
         mockInvoice._id.toString(),
         InvoiceStatus.REFUNDED,
+        mockCurrentUserId,
       );
 
       expect(invoiceRepo.update).toHaveBeenCalledWith({
@@ -541,18 +569,21 @@ describe('InvoiceService', () => {
         update: expect.objectContaining({
           status: InvoiceStatus.REFUNDED,
           refundedAt: expect.any(Date),
+          updatedBy: new Types.ObjectId(mockCurrentUserId),
         }),
       });
       expect(result.status).toBe(InvoiceStatus.REFUNDED);
     });
 
-    it('should update invoice status to cancelled without refundedAt', async () => {
+    it('should update invoice status to CANCELLED without refundedAt', async () => {
       const updatedInvoice = {
         ...mockInvoice,
         status: InvoiceStatus.CANCELLED,
       };
 
-      invoiceRepo.findById.mockResolvedValue(mockInvoice as any);
+      invoiceRepo.findById
+        .mockResolvedValueOnce(mockInvoice as any)
+        .mockResolvedValue(mockPopulatedInvoice as any);
       invoiceRepo.update.mockResolvedValue(updatedInvoice as any);
 
       const result = await service.updateStatus(
@@ -561,22 +592,27 @@ describe('InvoiceService', () => {
         mockCurrentUserId,
       );
 
-      expect(invoiceRepo.update).toHaveBeenCalledWith({
-        id: mockInvoice._id.toString(),
-        update: { status: InvoiceStatus.CANCELLED },
-      });
+      const updateCall = invoiceRepo.update.mock.calls[0][0];
+      expect(updateCall.update).not.toHaveProperty('refundedAt');
+      expect(updateCall.update.status).toBe(InvoiceStatus.CANCELLED);
       expect(result.status).toBe(InvoiceStatus.CANCELLED);
     });
 
     it('should not set updatedBy when no currentUserId is provided', async () => {
-      const updatedInvoice = { ...mockInvoice, status: InvoiceStatus.CANCELLED };
+      const updatedInvoice = {
+        ...mockInvoice,
+        status: InvoiceStatus.CANCELLED,
+      };
 
       invoiceRepo.findById
         .mockResolvedValueOnce(mockInvoice as any)
         .mockResolvedValue(mockPopulatedInvoice as any);
       invoiceRepo.update.mockResolvedValue(updatedInvoice as any);
 
-      await service.updateStatus(mockInvoice._id.toString(), InvoiceStatus.CANCELLED);
+      await service.updateStatus(
+        mockInvoice._id.toString(),
+        InvoiceStatus.CANCELLED,
+      );
 
       const updateCall = invoiceRepo.update.mock.calls[0][0];
       expect(updateCall.update.updatedBy).toBeUndefined();
@@ -632,8 +668,9 @@ describe('InvoiceService', () => {
       expect(historyCall.newValue).toHaveProperty('refundedAt');
     });
 
-    it('lève NotFoundException si facture introuvable', async () => {
-      mockInvoiceRepo.findById.mockResolvedValue(null);
+    it('should throw NotFoundException when invoice not found', async () => {
+      invoiceRepo.findById.mockResolvedValue(null);
+
       await expect(
         service.updateStatus(
           mockInvoice._id.toString(),
@@ -643,7 +680,7 @@ describe('InvoiceService', () => {
     });
   });
 
-  // ── findOne() ─────────────────────────────────────────────────────────────────
+  // ─── findByCustomer ───────────────────────────────────────────────────────
 
   describe('findByCustomer', () => {
     it('should query repository with correct userId filter', async () => {
@@ -680,7 +717,26 @@ describe('InvoiceService', () => {
   // ─── remove ───────────────────────────────────────────────────────────────
 
   describe('remove', () => {
-    it('should soft delete invoice', async () => {
+    it('should soft delete invoice with deletedBy and updatedBy', async () => {
+      invoiceRepo.findById.mockResolvedValue(mockPopulatedInvoice as any);
+      invoiceRepo.update.mockResolvedValue({
+        ...mockPopulatedInvoice,
+        deleted_at: new Date(),
+      } as any);
+
+      await service.remove(mockInvoice._id.toString(), mockCurrentUserId);
+
+      expect(invoiceRepo.update).toHaveBeenCalledWith({
+        id: mockInvoice._id.toString(),
+        update: expect.objectContaining({
+          deleted_at: expect.any(Date),
+          deletedBy: new Types.ObjectId(mockCurrentUserId),
+          updatedBy: new Types.ObjectId(mockCurrentUserId),
+        }),
+      });
+    });
+
+    it('should soft delete without deletedBy and updatedBy when no currentUserId', async () => {
       invoiceRepo.findById.mockResolvedValue(mockPopulatedInvoice as any);
       invoiceRepo.update.mockResolvedValue({
         ...mockPopulatedInvoice,
@@ -689,45 +745,89 @@ describe('InvoiceService', () => {
 
       await service.remove(mockInvoice._id.toString());
 
-      expect(invoiceRepo.findById).toHaveBeenCalledWith({
-        id: mockInvoice._id.toString(),
-        options: expect.objectContaining({ populate: expect.any(Array) }),
-      });
-      expect(invoiceRepo.update).toHaveBeenCalledWith({
-        id: mockInvoice._id.toString(),
-        update: { deleted_at: expect.any(Date) },
-      });
+      const updateCall = invoiceRepo.update.mock.calls[0][0];
+      expect(updateCall.update.deletedBy).toBeUndefined();
+      expect(updateCall.update.updatedBy).toBeUndefined();
+      expect(updateCall.update.deleted_at).toBeInstanceOf(Date);
     });
 
-    it('lève NotFoundException si facture introuvable', async () => {
-      mockInvoiceRepo.findById.mockResolvedValue(null);
-      await expect(service.findOne('unknown-id')).rejects.toThrow(
+    it('should record DELETED history with previous invoice snapshot', async () => {
+      invoiceRepo.findById.mockResolvedValue(mockPopulatedInvoice as any);
+      invoiceRepo.update.mockResolvedValue({
+        ...mockPopulatedInvoice,
+        deleted_at: new Date(),
+      } as any);
+
+      await service.remove(mockInvoice._id.toString(), mockCurrentUserId);
+
+      expect(historyService.recordAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entityType: HistoryEntityType.INVOICE,
+          entityId: new Types.ObjectId(mockInvoice._id.toString()),
+          entityLabel: mockInvoice.invoiceNumber,
+          action: HistoryAction.DELETED,
+          performedBy: mockCurrentUserId,
+          previousValue: expect.objectContaining({
+            status: mockInvoice.status,
+            invoiceNumber: mockInvoice.invoiceNumber,
+          }),
+          changedFields: ['deleted_at', 'deletedBy'],
+          metadata: expect.objectContaining({
+            deletedAt: expect.any(Date),
+            customerEmail: 'john@example.com',
+            customerName: 'John Doe',
+          }),
+        }),
+      );
+    });
+
+    it('should call findOne (via findById) before soft-deleting to capture snapshot', async () => {
+      invoiceRepo.findById.mockResolvedValue(mockPopulatedInvoice as any);
+      invoiceRepo.update.mockResolvedValue({
+        ...mockPopulatedInvoice,
+        deleted_at: new Date(),
+      } as any);
+
+      await service.remove(mockInvoice._id.toString(), mockCurrentUserId);
+
+      expect(invoiceRepo.findById.mock.invocationCallOrder[0]).toBeLessThan(
+        invoiceRepo.update.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('should throw NotFoundException when invoice not found', async () => {
+      invoiceRepo.findById.mockResolvedValue(null);
+
+      await expect(service.remove(mockInvoice._id.toString())).rejects.toThrow(
         NotFoundException,
       );
     });
-  });
 
-  // ── remove() ─────────────────────────────────────────────────────────────────
-
-  describe('remove()', () => {
-    it('soft-delete la facture (deleted_at)', async () => {
-      mockInvoiceRepo.findById.mockResolvedValue({
-        ...mockInvoice,
-        customer: { name: 'Client Test', email: 'client@test.com' },
-        payment: { ...mockPaymentDoc, amount: 504000, currency: 'Ar' },
-        totalLocal: 504000,
-        currency: 'MGA',
-      });
+    it('should send deletion email when customer has email', async () => {
+      invoiceRepo.findById.mockResolvedValue(mockPopulatedInvoice as any);
+      invoiceRepo.update.mockResolvedValue({
+        ...mockPopulatedInvoice,
+        deleted_at: new Date(),
+      } as any);
 
       await service.remove(mockInvoice._id.toString());
 
-      // L'email est fire-and-forget, on attend la résolution des promises pendantes
       await Promise.resolve();
 
-      expect(mockInvoiceRepo.update).toHaveBeenCalledWith(
+      expect(notificationService.sendEmail).toHaveBeenCalledWith(
         expect.objectContaining({
-          update: expect.objectContaining({
-            deleted_at: expect.any(Date),
+          to: 'john@example.com',
+          template: 'invoice-deleted',
+          locale: 'fr',
+          context: expect.objectContaining({
+            user: expect.objectContaining({
+              name: 'John Doe',
+              email: 'john@example.com',
+            }),
+            invoice: expect.objectContaining({
+              number: 'INV-2024-001',
+              currency: 'MGA',
+            }),
           }),
         }),
       );
@@ -760,6 +860,7 @@ describe('InvoiceService', () => {
   });
 
   // ─── findByTeam ───────────────────────────────────────────────────────────
+
   describe('findByTeam', () => {
     const mockTeamId = new Types.ObjectId('507f1f77bcf86cd799439099');
 
@@ -852,8 +953,6 @@ describe('InvoiceService', () => {
     });
 
     it('should return teamSummary with zero subtotal when team has no matching items', async () => {
-      // Facture dont aucun item n'appartient à mockTeamId (cas incohérent en prod,
-      // mais le service doit le gérer proprement)
       const invoiceNoMatchingItems = {
         ...mockPopulatedInvoice,
         cartSnapshot: {

@@ -10,7 +10,6 @@ import { MvolaApiService } from './Mvola/mvola-api.service';
 import { ConfigService } from '@nestjs/config';
 import { InvoiceService } from '../invoice/invoice.service';
 import { InventoryService } from '../inventory/inventory.service';
-import { PricingService } from '../pricing/pricing.service';
 
 import {
   Payment,
@@ -118,10 +117,6 @@ const mockMvolaApi = {
   getTransactionStatus: jest.fn(),
 };
 
-const mockConfigService = {
-  get: jest.fn().mockReturnValue('http://localhost:3000'),
-};
-
 const mockInvoiceService = {
   createInvoiceFromPayment: jest.fn(),
   findByPaymentId: jest.fn(),
@@ -129,11 +124,6 @@ const mockInvoiceService = {
 
 const mockInventoryService = {
   stockOut: jest.fn(),
-};
-
-const mockPricingService = {
-  calculateTotal: jest.fn(),
-  redeemPromoCode: jest.fn(),
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -210,12 +200,16 @@ describe('PaymentService', () => {
       mockInitiateHappyPath();
 
       const result = await service.initiate(validInput);
+      expect(result.status).toBe(PaymentStatus.WAITING);
 
       expect(cartRepo.findById).toHaveBeenCalledWith({
         id: mockCartId,
         options: { populate: [{ path: 'items.product' }] },
       });
-      expect(productService.calculatePrice).toHaveBeenCalledWith(mockProduct, 2);
+      expect(productService.calculatePrice).toHaveBeenCalledWith(
+        mockProduct,
+        2,
+      );
       expect(paymentRepo.findOne).toHaveBeenCalled();
       expect(paymentRepo.create).toHaveBeenCalled();
       expect(mvolaApiService.initMerchantPay).toHaveBeenCalled();
@@ -266,7 +260,9 @@ describe('PaymentService', () => {
     it('should throw NotFoundException when cart not found', async () => {
       cartRepo.findById.mockResolvedValue(null);
 
-      await expect(service.initiate(validInput)).rejects.toThrow(NotFoundException);
+      await expect(service.initiate(validInput)).rejects.toThrow(
+        NotFoundException,
+      );
       expect(paymentRepo.create).not.toHaveBeenCalled();
     });
 
@@ -276,14 +272,18 @@ describe('PaymentService', () => {
         deleted_at: new Date(),
       } as any);
 
-      await expect(service.initiate(validInput)).rejects.toThrow(NotFoundException);
+      await expect(service.initiate(validInput)).rejects.toThrow(
+        NotFoundException,
+      );
       expect(paymentRepo.create).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException when cart is empty', async () => {
       cartRepo.findById.mockResolvedValue({ ...mockCart, items: [] } as any);
 
-      await expect(service.initiate(validInput)).rejects.toThrow(BadRequestException);
+      await expect(service.initiate(validInput)).rejects.toThrow(
+        BadRequestException,
+      );
       expect(paymentRepo.create).not.toHaveBeenCalled();
     });
 
@@ -307,7 +307,9 @@ describe('PaymentService', () => {
       });
       paymentRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.initiate(validInput)).rejects.toThrow(BadRequestException);
+      await expect(service.initiate(validInput)).rejects.toThrow(
+        BadRequestException,
+      );
       expect(paymentRepo.create).not.toHaveBeenCalled();
     });
 
@@ -316,7 +318,9 @@ describe('PaymentService', () => {
       mockPrice();
       paymentRepo.findOne.mockResolvedValue(mockPayment as any);
 
-      await expect(service.initiate(validInput)).rejects.toThrow(BadRequestException);
+      await expect(service.initiate(validInput)).rejects.toThrow(
+        BadRequestException,
+      );
       expect(paymentRepo.create).not.toHaveBeenCalled();
     });
 
@@ -335,7 +339,9 @@ describe('PaymentService', () => {
         amount: 456000,
       });
 
-      await expect(service.initiate(validInput)).rejects.toThrow('Mvola initiation error');
+      await expect(service.initiate(validInput)).rejects.toThrow(
+        'Mvola initiation error',
+      );
 
       expect(paymentRepo.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -361,7 +367,9 @@ describe('PaymentService', () => {
           status: PaymentStatus.FAILED,
         } as any);
 
-      await expect(service.initiate(validInput)).rejects.toThrow('DB write error');
+      await expect(service.initiate(validInput)).rejects.toThrow(
+        'DB write error',
+      );
 
       expect(paymentRepo.update).toHaveBeenCalledTimes(2);
       expect(paymentRepo.update).toHaveBeenLastCalledWith(
@@ -381,7 +389,9 @@ describe('PaymentService', () => {
       );
       paymentRepo.update.mockRejectedValue(new Error('DB unavailable'));
 
-      await expect(service.initiate(validInput)).rejects.toThrow('Mvola unreachable');
+      await expect(service.initiate(validInput)).rejects.toThrow(
+        'Mvola unreachable',
+      );
     });
 
     it('should NOT attempt rollback when error occurs before payment creation', async () => {
@@ -395,7 +405,9 @@ describe('PaymentService', () => {
       });
       paymentRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.initiate(validInput)).rejects.toThrow(BadRequestException);
+      await expect(service.initiate(validInput)).rejects.toThrow(
+        BadRequestException,
+      );
 
       expect(paymentRepo.create).not.toHaveBeenCalled();
       expect(paymentRepo.update).not.toHaveBeenCalledWith(
@@ -517,9 +529,9 @@ describe('PaymentService', () => {
   describe('pollStatus', () => {
     it('should throw NotFoundException when payment not found', async () => {
       paymentRepo.findById.mockResolvedValue(null);
-      await expect(service.pollStatus(mockPaymentId.toString())).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.pollStatus(mockPaymentId.toString()),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should return immediately when payment already in terminal state', async () => {
@@ -538,9 +550,9 @@ describe('PaymentService', () => {
         status: PaymentStatus.WAITING,
         serverCorrelationId: undefined,
       } as any);
-      await expect(service.pollStatus(mockPaymentId.toString())).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.pollStatus(mockPaymentId.toString()),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('poll Mvola et transite vers SUCCESS si COMPLETED', async () => {
@@ -553,7 +565,10 @@ describe('PaymentService', () => {
 
       paymentRepo.findById
         .mockResolvedValueOnce(waitingPayment as any)
-        .mockResolvedValueOnce({ ...waitingPayment, status: PaymentStatus.SUCCESS } as any);
+        .mockResolvedValueOnce({
+          ...waitingPayment,
+          status: PaymentStatus.SUCCESS,
+        } as any);
 
       mvolaApiService.getTransactionStatus.mockResolvedValue({
         status: 'COMPLETED',
@@ -597,7 +612,10 @@ describe('PaymentService', () => {
 
       paymentRepo.findById
         .mockResolvedValueOnce(waitingPayment as any)
-        .mockResolvedValueOnce({ ...waitingPayment, status: PaymentStatus.SUCCESS } as any);
+        .mockResolvedValueOnce({
+          ...waitingPayment,
+          status: PaymentStatus.SUCCESS,
+        } as any);
 
       mvolaApiService.getTransactionStatus.mockResolvedValue({
         status: 'COMPLETED',
@@ -620,7 +638,10 @@ describe('PaymentService', () => {
 
       paymentRepo.findById
         .mockResolvedValueOnce(waitingPayment as any)
-        .mockResolvedValueOnce({ ...waitingPayment, status: PaymentStatus.FAILED } as any);
+        .mockResolvedValueOnce({
+          ...waitingPayment,
+          status: PaymentStatus.FAILED,
+        } as any);
 
       mvolaApiService.getTransactionStatus.mockResolvedValue({
         status: 'FAILED',
@@ -639,7 +660,10 @@ describe('PaymentService', () => {
     it('should expire a PENDING payment successfully', async () => {
       paymentRepo.findById
         .mockResolvedValueOnce(mockPayment as any)
-        .mockResolvedValueOnce({ ...mockPayment, status: PaymentStatus.EXPIRED } as any);
+        .mockResolvedValueOnce({
+          ...mockPayment,
+          status: PaymentStatus.EXPIRED,
+        } as any);
       paymentRepo.update.mockResolvedValue({
         ...mockPayment,
         status: PaymentStatus.EXPIRED,
@@ -658,7 +682,10 @@ describe('PaymentService', () => {
       const waitingPayment = { ...mockPayment, status: PaymentStatus.WAITING };
       paymentRepo.findById
         .mockResolvedValueOnce(waitingPayment as any)
-        .mockResolvedValueOnce({ ...waitingPayment, status: PaymentStatus.EXPIRED } as any);
+        .mockResolvedValueOnce({
+          ...waitingPayment,
+          status: PaymentStatus.EXPIRED,
+        } as any);
       paymentRepo.update.mockResolvedValue({
         ...waitingPayment,
         status: PaymentStatus.EXPIRED,
@@ -671,7 +698,9 @@ describe('PaymentService', () => {
 
     it('should throw NotFoundException when payment not found', async () => {
       paymentRepo.findById.mockResolvedValue(null);
-      await expect(service.expire(mockPaymentId.toString())).rejects.toThrow(NotFoundException);
+      await expect(service.expire(mockPaymentId.toString())).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw BadRequestException when payment is already SUCCESS', async () => {
@@ -805,7 +834,9 @@ describe('PaymentService', () => {
       setupSuccessfulCallback();
       cartRepo.findById.mockResolvedValue({
         ...mockCart,
-        items: [{ product: { ...mockProduct, trackStock: false }, quantity: 2 }],
+        items: [
+          { product: { ...mockProduct, trackStock: false }, quantity: 2 },
+        ],
       } as any);
 
       await service.handleCallback(completedCallback);
@@ -816,7 +847,9 @@ describe('PaymentService', () => {
     it('should continue post-processing even if stock deduction fails', async () => {
       setupSuccessfulCallback();
       cartRepo.findById.mockResolvedValue(mockCart as any);
-      inventoryService.stockOut.mockRejectedValue(new Error('Insufficient stock'));
+      inventoryService.stockOut.mockRejectedValue(
+        new Error('Insufficient stock'),
+      );
 
       await service.handleCallback(completedCallback);
 

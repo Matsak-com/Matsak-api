@@ -439,7 +439,9 @@ describe('HistoryService', () => {
     it('should return empty array when no entries match', async () => {
       mockFindChain([]);
 
-      const result = await service.findAll({ entityType: HistoryEntityType.INVOICE });
+      const result = await service.findAll({
+        entityType: HistoryEntityType.INVOICE,
+      });
 
       expect(result).toEqual([]);
     });
