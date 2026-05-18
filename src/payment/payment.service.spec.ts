@@ -30,7 +30,6 @@ const PRODUCT_ID = new Types.ObjectId();
 const TEAM_ID = new Types.ObjectId();
 const ADDRESS_ID = new Types.ObjectId();
 
-// Aliases lisibles dans les tests
 const mockCartId = CART_ID;
 const mockUserId = USER_ID;
 const mockPaymentId = PAYMENT_ID;
@@ -96,7 +95,6 @@ const mockPayment: Partial<Payment> & { _id: Types.ObjectId } = {
   pricingSnapshot: mockPricingSnapshot as any,
 };
 
-// Callback Mvola COMPLETED — partagé entre handleCallback et deductStockFromCart
 const completedCallback = {
   serverCorrelationId: 'server-corr-123',
   status: 'COMPLETED',
@@ -227,7 +225,21 @@ describe('PaymentService', () => {
     };
 
     it('should initiate payment successfully', async () => {
-      mockInitiateHappyPath();
+      cartRepo.findById.mockResolvedValue(mockCart as any);
+      pricingService.calculateTotal.mockResolvedValue(mockPricingSnapshot as any);
+      paymentRepo.findOne.mockResolvedValue(null);
+      paymentRepo.create.mockResolvedValue(mockPayment as any);
+      mvolaApiService.initMerchantPay.mockResolvedValue({
+        serverCorrelationId: 'server-corr-123',
+      } as any);
+      paymentRepo.update.mockResolvedValue({
+        ...mockPayment,
+        status: PaymentStatus.WAITING,
+      } as any);
+      paymentRepo.findById.mockResolvedValue({
+        ...mockPayment,
+        status: PaymentStatus.WAITING,
+      } as any);
 
       const result = await service.initiate(validInput);
       expect(result.status).toBe(PaymentStatus.WAITING);
@@ -259,13 +271,15 @@ describe('PaymentService', () => {
       };
 
       cartRepo.findById.mockResolvedValue(mockCart as any);
-      mockPrice();
+      pricingService.calculateTotal.mockResolvedValue(mockPricingSnapshot as any);
       paymentRepo.findOne.mockResolvedValue(null);
       paymentRepo.create.mockResolvedValue({
         ...mockPayment,
         deliveryMethod: DeliveryMethod.PICKUP,
       } as any);
-      mockSuccessfulMvola();
+      mvolaApiService.initMerchantPay.mockResolvedValue({
+        serverCorrelationId: 'server-corr-123',
+      } as any);
       paymentRepo.update.mockResolvedValue({
         ...mockPayment,
         status: PaymentStatus.WAITING,
@@ -278,8 +292,6 @@ describe('PaymentService', () => {
       const result = await service.initiate(pickupInput);
       expect(result.status).toBe(PaymentStatus.WAITING);
     });
-
-    // ── Validations ──────────────────────────────────────────────────────────
 
     it('should throw NotFoundException when cart not found', async () => {
       cartRepo.findById.mockResolvedValue(null);
@@ -336,7 +348,7 @@ describe('PaymentService', () => {
 
     it('should throw BadRequestException when a payment is already in progress', async () => {
       cartRepo.findById.mockResolvedValue(mockCart as any);
-      mockPrice();
+      pricingService.calculateTotal.mockResolvedValue(mockPricingSnapshot as any);
       paymentRepo.findOne.mockResolvedValue(mockPayment as any);
 
       await expect(service.initiate(validInput)).rejects.toThrow(
@@ -345,11 +357,9 @@ describe('PaymentService', () => {
       expect(paymentRepo.create).not.toHaveBeenCalled();
     });
 
-    // ── Rollback ─────────────────────────────────────────────────────────────
-
     it('should rollback to FAILED when Mvola API throws after payment creation', async () => {
       cartRepo.findById.mockResolvedValue(mockCart as any);
-      mockPrice();
+      pricingService.calculateTotal.mockResolvedValue(mockPricingSnapshot as any);
       paymentRepo.findOne.mockResolvedValue(null);
       paymentRepo.create.mockResolvedValue(mockPayment as any);
       mvolaApiService.initMerchantPay.mockRejectedValue(
@@ -376,10 +386,12 @@ describe('PaymentService', () => {
 
     it('should rollback to FAILED when paymentRepo.update (→ WAITING) throws after Mvola call', async () => {
       cartRepo.findById.mockResolvedValue(mockCart as any);
-      mockPrice();
+      pricingService.calculateTotal.mockResolvedValue(mockPricingSnapshot as any);
       paymentRepo.findOne.mockResolvedValue(null);
       paymentRepo.create.mockResolvedValue(mockPayment as any);
-      mockSuccessfulMvola();
+      mvolaApiService.initMerchantPay.mockResolvedValue({
+        serverCorrelationId: 'server-corr-123',
+      } as any);
       paymentRepo.update
         .mockRejectedValueOnce(new Error('DB write error'))
         .mockResolvedValueOnce({
@@ -672,16 +684,20 @@ describe('PaymentService', () => {
 
   describe('expire', () => {
     it('should expire a PENDING payment successfully', async () => {
-      // Setup the mocks for BOTH findById calls
-      paymentRepo.findById
-        .mockResolvedValueOnce(mockPayment as any)           // First call (line 403)
-        .mockResolvedValueOnce({
-          ...mockPayment,
-          status: PaymentStatus.EXPIRED,
-        } as any);                                            // Second call (line 419)
-      
-      paymentRepo.update.mockResolvedValue({
+      const pendingPayment = {
         ...mockPayment,
+        status: PaymentStatus.PENDING,
+      };
+
+      paymentRepo.findById
+        .mockResolvedValueOnce(pendingPayment as any)
+        .mockResolvedValueOnce({
+          ...pendingPayment,
+          status: PaymentStatus.EXPIRED,
+        } as any);
+
+      paymentRepo.update.mockResolvedValue({
+        ...pendingPayment,
         status: PaymentStatus.EXPIRED,
       } as any);
 
@@ -693,20 +709,31 @@ describe('PaymentService', () => {
       });
       expect(result.status).toBe(PaymentStatus.EXPIRED);
     });
+
     it('should expire a WAITING payment successfully', async () => {
-      const waitingPayment = { ...mockPayment, status: PaymentStatus.WAITING };
+      const waitingPayment = {
+        ...mockPayment,
+        status: PaymentStatus.WAITING,
+      };
+
       paymentRepo.findById
         .mockResolvedValueOnce(waitingPayment as any)
         .mockResolvedValueOnce({
           ...waitingPayment,
           status: PaymentStatus.EXPIRED,
         } as any);
+
       paymentRepo.update.mockResolvedValue({
         ...waitingPayment,
         status: PaymentStatus.EXPIRED,
       } as any);
 
       const result = await service.expire(mockPaymentId.toString());
+
+      expect(paymentRepo.update).toHaveBeenCalledWith({
+        id: mockPaymentId.toString(),
+        update: { status: PaymentStatus.EXPIRED },
+      });
       expect(result.status).toBe(PaymentStatus.EXPIRED);
     });
 
@@ -729,7 +756,7 @@ describe('PaymentService', () => {
       );
     });
 
-    it('lève NotFoundException si paiement introuvable (alias PAYMENT_ID)', async () => {
+    it('should throw NotFoundException when payment not found (alias PAYMENT_ID)', async () => {
       paymentRepo.findById.mockResolvedValue(null);
 
       await expect(service.expire(PAYMENT_ID.toString())).rejects.toThrow(
@@ -799,7 +826,7 @@ describe('PaymentService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('lève BadRequestException si une facture existe déjà', async () => {
+    it('should throw BadRequestException when invoice already exists', async () => {
       paymentRepo.findById.mockResolvedValue({
         ...mockPayment,
         status: PaymentStatus.SUCCESS,
@@ -823,22 +850,18 @@ describe('PaymentService', () => {
       serverCorrelationId: 'server-corr-123',
     };
 
-    const setupSuccessfulCallback = () => {
+    it('should deduct stock for tracked products', async () => {
       paymentRepo.findOne.mockResolvedValue(waitingPayment as any);
       paymentRepo.transitionStatus.mockResolvedValue({
         ...mockPayment,
         status: PaymentStatus.SUCCESS,
       } as any);
+      cartRepo.findById.mockResolvedValue(mockCart as any);
+      inventoryService.stockOut.mockResolvedValue({} as any);
       invoiceService.createInvoiceFromPayment.mockResolvedValue({
         invoiceNumber: 'INV-001',
       } as any);
       cartService.softDeleteCartById.mockResolvedValue(undefined);
-    };
-
-    it('should deduct stock for tracked products', async () => {
-      setupSuccessfulCallback();
-      cartRepo.findById.mockResolvedValue(mockCart as any);
-      inventoryService.stockOut.mockResolvedValue({} as any);
 
       await service.handleCallback(completedCallback);
 
@@ -854,13 +877,21 @@ describe('PaymentService', () => {
     });
 
     it('should skip stock deduction for non-tracked products', async () => {
-      setupSuccessfulCallback();
+      paymentRepo.findOne.mockResolvedValue(waitingPayment as any);
+      paymentRepo.transitionStatus.mockResolvedValue({
+        ...mockPayment,
+        status: PaymentStatus.SUCCESS,
+      } as any);
       cartRepo.findById.mockResolvedValue({
         ...mockCart,
         items: [
           { product: { ...mockProduct, trackStock: false }, quantity: 2 },
         ],
       } as any);
+      invoiceService.createInvoiceFromPayment.mockResolvedValue({
+        invoiceNumber: 'INV-001',
+      } as any);
+      cartService.softDeleteCartById.mockResolvedValue(undefined);
 
       await service.handleCallback(completedCallback);
 
@@ -868,11 +899,19 @@ describe('PaymentService', () => {
     });
 
     it('should continue post-processing even if stock deduction fails', async () => {
-      setupSuccessfulCallback();
+      paymentRepo.findOne.mockResolvedValue(waitingPayment as any);
+      paymentRepo.transitionStatus.mockResolvedValue({
+        ...mockPayment,
+        status: PaymentStatus.SUCCESS,
+      } as any);
       cartRepo.findById.mockResolvedValue(mockCart as any);
       inventoryService.stockOut.mockRejectedValue(
         new Error('Insufficient stock'),
       );
+      invoiceService.createInvoiceFromPayment.mockResolvedValue({
+        invoiceNumber: 'INV-001',
+      } as any);
+      cartService.softDeleteCartById.mockResolvedValue(undefined);
 
       await service.handleCallback(completedCallback);
 
