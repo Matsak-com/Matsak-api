@@ -262,6 +262,7 @@ describe('InvoiceService', () => {
       expect(result).toEqual(mockInvoice);
     });
 
+    // ─── createInvoiceFromPayment ─────────────────────────────────────────────
     it('should record CREATED history entry after successful creation', async () => {
       invoiceRepo.generateInvoiceNumber.mockResolvedValue('INV-2024-001');
       invoiceRepo.create.mockResolvedValue(mockInvoice as any);
@@ -276,16 +277,17 @@ describe('InvoiceService', () => {
         expect.objectContaining({
           entityType: HistoryEntityType.INVOICE,
           entityId: mockInvoice._id,
-          entityLabel: mockInvoice.invoiceNumber,
-          action: HistoryAction.CREATED,
+          entityLabel: 'INV-2024-001',
+          action: HistoryAction.CREATED,       // ← CREATED, not STATUS_CHANGED
           performedBy: mockCurrentUserId,
           isSystemAction: false,
           newValue: expect.objectContaining({
-            invoiceNumber: mockInvoice.invoiceNumber,
-            status: mockInvoice.status,
+            invoiceNumber: 'INV-2024-001',
+            status: InvoiceStatus.PAID,
           }),
           metadata: expect.objectContaining({
             paymentId: mockPaymentId.toString(),
+            cartId: mockCartId.toString(),
           }),
         }),
       );
@@ -641,7 +643,7 @@ describe('InvoiceService', () => {
           performedBy: mockCurrentUserId,
           previousValue: { status: InvoiceStatus.PAID },
           newValue: expect.objectContaining({ status: InvoiceStatus.REFUNDED }),
-          changedFields: ['status'],
+          changedFields: ['status', 'refundedAt', 'updatedBy'], // REFUNDED + currentUserId provided
           metadata: expect.objectContaining({
             previousStatus: InvoiceStatus.PAID,
             newStatus: InvoiceStatus.REFUNDED,
