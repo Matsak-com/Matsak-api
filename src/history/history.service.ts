@@ -91,6 +91,15 @@ export class HistoryService {
    * Compare deux objets et retourne la liste des clés dont la valeur a changé.
    * Utile pour remplir changedFields automatiquement.
    */
+    private safeStringify(value: unknown): string {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      // Circular reference or other non-serializable value — use a stable fallback
+      return String(value);
+    }
+  }
+
   diffFields(
     previous: Record<string, any>,
     next: Record<string, any>,
@@ -99,9 +108,9 @@ export class HistoryService {
     const changed: string[] = [];
 
     for (const key of allKeys) {
-      const prev = JSON.stringify(previous[key]);
-      const curr = JSON.stringify(next[key]);
-      if (prev !== curr) changed.push(key);
+      if (this.safeStringify(previous[key]) !== this.safeStringify(next[key])) {
+        changed.push(key);
+      }
     }
     return changed;
   }

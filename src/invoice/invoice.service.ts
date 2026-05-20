@@ -273,25 +273,29 @@ export class InvoiceService {
     this.logger.log(`Facture ${invoice.invoiceNumber} → statut: ${status}`);
 
     // ── Historique — STATUS_CHANGED ───────────────────────────────
-    this.historyService.recordAsync({
-      entityType: HistoryEntityType.INVOICE,
-      entityId: new Types.ObjectId(id),
-      entityLabel: invoice.invoiceNumber,
-      action: HistoryAction.STATUS_CHANGED,
-      performedBy: currentUserId,
-      previousValue: { status: previousStatus },
-      newValue: {
-        status,
-        ...(status === InvoiceStatus.REFUNDED && {
-          refundedAt: updateData.refundedAt,
-        }),
-      },
-      changedFields: ['status'],
-      metadata: {
-        previousStatus,
-        newStatus: status,
-      },
-    });
+    const changedFields = ['status'];
+    if (status === InvoiceStatus.REFUNDED) changedFields.push('refundedAt');
+    if (currentUserId) changedFields.push('updatedBy');
+
+  this.historyService.recordAsync({
+    entityType: HistoryEntityType.INVOICE,
+    entityId: new Types.ObjectId(id),
+    entityLabel: invoice.invoiceNumber,
+    action: HistoryAction.STATUS_CHANGED,
+    performedBy: currentUserId,
+    previousValue: { status: previousStatus },
+    newValue: {
+      status,
+      ...(status === InvoiceStatus.REFUNDED && {
+        refundedAt: updateData.refundedAt,
+      }),
+    },
+    changedFields,
+    metadata: {
+      previousStatus,
+      newStatus: status,
+    },
+  });
 
     // ── Emails fire-and-forget ────────────────────────────────────
     this.findOne(id)
