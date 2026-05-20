@@ -19,7 +19,6 @@ import { PricingService } from '../pricing/pricing.service';
 interface CreateInvoiceFromPaymentDto {
   paymentId: string;
   promoCode?: string;
-  currency?: string;
 }
 
 @Injectable()
