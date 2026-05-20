@@ -505,8 +505,7 @@ export class PaymentService {
       );
     }
 
-    const currentUserId = userId ?? undefined;
-    await this.createInvoiceForPayment(paymentId, currentUserId);
+    await this.createInvoiceForPayment(paymentId, userId);
   }
 
   // ── Déduire le stock ──────────────────────────────────────────────────────
