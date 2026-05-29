@@ -278,7 +278,7 @@ describe('InvoiceService', () => {
           entityType: HistoryEntityType.INVOICE,
           entityId: mockInvoice._id,
           entityLabel: 'INV-2024-001',
-          action: HistoryAction.CREATED,       // ← CREATED, not STATUS_CHANGED
+          action: HistoryAction.CREATED, // ← CREATED, not STATUS_CHANGED
           performedBy: mockCurrentUserId,
           isSystemAction: false,
           newValue: expect.objectContaining({

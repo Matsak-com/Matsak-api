@@ -91,7 +91,7 @@ export class HistoryService {
    * Compare deux objets et retourne la liste des clés dont la valeur a changé.
    * Utile pour remplir changedFields automatiquement.
    */
-    private safeStringify(value: unknown): string {
+  private safeStringify(value: unknown): string {
     try {
       return JSON.stringify(value);
     } catch {

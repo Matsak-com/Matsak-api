@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { HistoryService } from './history.service';
 import { HistoryAction, HistoryEntityType } from './history.schema';
 

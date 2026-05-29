@@ -276,25 +276,25 @@ export class InvoiceService {
     if (status === InvoiceStatus.REFUNDED) changedFields.push('refundedAt');
     if (currentUserId) changedFields.push('updatedBy');
 
-  this.historyService.recordAsync({
-    entityType: HistoryEntityType.INVOICE,
-    entityId: new Types.ObjectId(id),
-    entityLabel: invoice.invoiceNumber,
-    action: HistoryAction.STATUS_CHANGED,
-    performedBy: currentUserId,
-    previousValue: { status: previousStatus },
-    newValue: {
-      status,
-      ...(status === InvoiceStatus.REFUNDED && {
-        refundedAt: updateData.refundedAt,
-      }),
-    },
-    changedFields,
-    metadata: {
-      previousStatus,
-      newStatus: status,
-    },
-  });
+    this.historyService.recordAsync({
+      entityType: HistoryEntityType.INVOICE,
+      entityId: new Types.ObjectId(id),
+      entityLabel: invoice.invoiceNumber,
+      action: HistoryAction.STATUS_CHANGED,
+      performedBy: currentUserId,
+      previousValue: { status: previousStatus },
+      newValue: {
+        status,
+        ...(status === InvoiceStatus.REFUNDED && {
+          refundedAt: updateData.refundedAt,
+        }),
+      },
+      changedFields,
+      metadata: {
+        previousStatus,
+        newStatus: status,
+      },
+    });
 
     // ── Emails fire-and-forget ────────────────────────────────────
     this.findOne(id)
