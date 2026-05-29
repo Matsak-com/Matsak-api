@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { HistoryService } from './history.service';
 import { History, HistorySchema } from './history.schema';
+import { HistoryController } from './history.controller';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { History, HistorySchema } from './history.schema';
       },
     ]),
   ],
+  controllers: [HistoryController],
   providers: [HistoryService],
   exports: [HistoryService],
 })
