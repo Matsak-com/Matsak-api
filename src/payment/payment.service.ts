@@ -22,6 +22,7 @@ import { InvoiceService } from '../invoice/invoice.service';
 import { CartService } from '../cart-item/cart.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { PricingService, DEFAULT_CURRENCY } from '../pricing/pricing.service';
+import { PromotionsService } from '../promotions/promotions.service';
 
 export interface InitPaymentInput {
   cartId: string;
@@ -31,6 +32,8 @@ export interface InitPaymentInput {
   deliveryAddressId?: string;
   /** Promo code saisi par le client — stocké dans pricingSnapshot */
   promoCode?: string;
+  /** ID of a product-level Promotion to apply */
+  promotionId?: string;
   /** Devise d'affichage — défaut MGA */
   currency?: string;
 }
@@ -51,6 +54,7 @@ export class PaymentService {
     private readonly invoiceService: InvoiceService,
     private readonly inventoryService: InventoryService,
     private readonly pricingService: PricingService,
+    private readonly promotionsService: PromotionsService,
   ) {
     this.callbackBaseUrl = this.configService.get<string>(
       'APP_CALLBACK_BASE_URL',
@@ -67,6 +71,7 @@ export class PaymentService {
       deliveryMethod,
       deliveryAddressId,
       promoCode,
+      promotionId,
       currency = DEFAULT_CURRENCY,
     } = input;
 
@@ -128,11 +133,32 @@ export class PaymentService {
       const teamId: string | null =
         cartItems[0]?.product?.team?._id?.toString() ?? null;
 
+      // ── Promotion discount (product-level) ────────────────────────────────
+      let promotionDiscount: Awaited<ReturnType<typeof this.promotionsService.computeCartDiscount>> = null;
+      if (promotionId) {
+        try {
+          promotionDiscount = await this.promotionsService.computeCartDiscount({
+            promotionId,
+            cartItems: cartItems.map((item: any) => ({
+              productId: item.product?._id?.toString() ?? '',
+              priceEur: item.product?.basePrice ?? 0,
+              quantity: item.quantity ?? 1,
+            })),
+            subtotalEur: cartSubtotal,
+          });
+        } catch {
+          this.logger.warn(
+            `Promotion ${promotionId} could not be applied — skipped`,
+          );
+        }
+      }
+
       const pricing = await this.pricingService.calculateTotal({
         cartSubtotalEur: cartSubtotal,
         currentCurrency: productCurrency,
         teamId,
         promoCode: promoCode ?? null,
+        promotionDiscount,
         currency,
         deliveryMethod,
       });
@@ -151,6 +177,19 @@ export class PaymentService {
             err?.message,
           );
           throw new BadRequestException('Promo code could not be applied');
+        }
+      }
+
+      // ── Incrémenter l'usage de la promotion ───────────────────────────────
+      if (promotionId && pricing.promotionSnapshot) {
+        try {
+          await this.promotionsService.redeemPromotion(promotionId);
+        } catch (err: any) {
+          this.logger.warn(
+            `Promotion increment failed for ${promotionId}`,
+            err?.message,
+          );
+          // Non-blocking: don't reject the payment if increment fails
         }
       }
 
@@ -203,6 +242,9 @@ export class PaymentService {
             discountEur: pricing.discountEur,
             discountLocal: pricing.discountLocal,
             promoCodeSnapshot: pricing.promoCodeSnapshot,
+            promotionDiscountEur: pricing.promotionDiscountEur,
+            promotionDiscountLocal: pricing.promotionDiscountLocal,
+            promotionSnapshot: pricing.promotionSnapshot,
             totalEur: pricing.totalEur,
             totalLocal: pricing.totalLocal, // === amount
           },

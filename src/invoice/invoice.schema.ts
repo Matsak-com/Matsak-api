@@ -219,6 +219,33 @@ export class Invoice {
   })
   promoCodeSnapshot: PromoCodeSnapshot | null;
 
+  /** Discount from a product-level Promotion */
+  @Prop({ required: false, type: Number, default: 0 })
+  promotionDiscountEur: number;
+
+  @Prop({ required: false, type: Number, default: 0 })
+  promotionDiscountLocal: number;
+
+  @Prop({
+    required: false,
+    type: {
+      promotionId: { type: String, required: true },
+      title: { type: String, required: true },
+      discountType: { type: String, required: true },
+      discountValue: { type: Number, required: true },
+      applicableScope: { type: String, required: true },
+    },
+    default: null,
+    _id: false,
+  })
+  promotionSnapshot: {
+    promotionId: string;
+    title: string;
+    discountType: string;
+    discountValue: number;
+    applicableScope: string;
+  } | null;
+
   /**
    * Total final en EUR.
    * Doit correspondre à Payment.pricingSnapshot.totalEur.

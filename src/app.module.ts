@@ -36,6 +36,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { ContactModule } from './contact/contact.module';
 import { PricingModule } from './pricing/pricing.module';
 import { CurrencyModule } from './currency/currency.module';
+import { PromotionsModule } from './promotions/promotions.module';
 import Redis from 'ioredis';
 import { ThrottlerStorageRedisService } from './throttler/throttler.storage';
 import { RedisModule } from './common/redis.module';
@@ -122,6 +123,7 @@ export function getRedisConfig() {
     ContactModule,
     PricingModule,
     CurrencyModule,
+    PromotionsModule,
     RedisModule,
     AuditLogModule,
     HistoryModule,

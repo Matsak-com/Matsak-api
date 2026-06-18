@@ -56,6 +56,17 @@ export class PaymentPricingSnapshot {
   /** Snapshot immutable du promo code utilisé, null si aucun */
   promoCodeSnapshot: PromoCodeSnapshot | null;
 
+  /** Discount from a product-level Promotion (separate from promo code) */
+  promotionDiscountEur: number;
+  promotionDiscountLocal: number;
+  promotionSnapshot: {
+    promotionId: string;
+    title: string;
+    discountType: string;
+    discountValue: number;
+    applicableScope: string;
+  } | null;
+
   /** Total final en EUR  (= amount converti) */
   totalEur: number;
 

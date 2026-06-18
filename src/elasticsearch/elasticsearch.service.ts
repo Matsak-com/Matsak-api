@@ -118,7 +118,10 @@ export class SearchService implements OnModuleInit {
           drugInteractions: { type: 'text' },
           prescriptionRequired: { type: 'boolean' },
           controlledSubstance: { type: 'boolean' },
-          packagingType: { type: 'keyword' },
+          packagingType: {
+            type: 'text',
+            fields: { keyword: { type: 'keyword' } },
+          },
           atcCode: { type: 'keyword' },
           form: { type: 'text' },
           expirationDate: { type: 'date' },

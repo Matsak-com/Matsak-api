@@ -66,7 +66,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         }
       }
     } else if (exception instanceof Error) {
-      body = { error: true, message: exception.message };
+      // Handle multer file-size limit errors → 413 Payload Too Large
+      if ((exception as any).code === 'LIMIT_FILE_SIZE') {
+        status = HttpStatus.PAYLOAD_TOO_LARGE;
+        body = { error: true, message: 'File too large. Max 5 MB' };
+      } else {
+        body = { error: true, message: exception.message };
+      }
     }
 
     // Attach contextual fields
