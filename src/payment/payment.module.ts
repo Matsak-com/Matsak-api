@@ -16,6 +16,7 @@ import { ProductModule } from '../product/product.module';
 import { InvoiceModule } from '../invoice/invoice.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { PricingModule } from 'src/pricing/pricing.module';
+import { PromotionsModule } from '../promotions/promotions.module';
 
 // Import statique obligatoire pour que TypeScript/NestJS compile correctement.
 // Le fichier payment-mock.controller.ts DOIT exister dans le projet.
@@ -32,6 +33,7 @@ const isProduction = process.env.NODE_ENV === 'production';
     InvoiceModule,
     InventoryModule,
     PricingModule,
+    PromotionsModule,
   ],
 
   controllers: [
@@ -47,7 +49,6 @@ const isProduction = process.env.NODE_ENV === 'production';
     MvolaWebhookGuard,
     PaymentService,
   ],
-
   exports: [PaymentService, PaymentRepository],
 })
 export class PaymentModule {}

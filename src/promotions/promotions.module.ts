@@ -22,6 +22,6 @@ import { Promotion, PromotionSchema } from './schemas/promotion.schema';
     PromotionRepository,
     AdImageService,
   ],
-  exports: [PromotionsService],
+  exports: [PromotionsService, PromotionRepository],
 })
 export class PromotionsModule {}

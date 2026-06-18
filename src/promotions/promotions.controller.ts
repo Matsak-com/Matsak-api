@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Patch,
   Delete,
   Body,
@@ -30,6 +31,9 @@ import {
   CreatePromotionDto,
   UpdatePromotionDto,
   QueryPromotionDto,
+  SetPromotionProductsDto,
+  SetPromotionCategoriesDto,
+  ComputeDiscountDto,
 } from './dto/promotion.dto';
 import { AdsTrackingThrottlerGuard } from './guards/ads-tracking-throttler.guard';
 
@@ -144,6 +148,34 @@ export class PromotionsController {
     return this.promotionsService.findAllPromotions(query);
   }
 
+  /** GET /promotions/applicable?productIds[]=...&categoryIds[]=... */
+  @Get('applicable')
+  @Public()
+  findApplicable(
+    @Query('productIds') productIds: string | string[] = [],
+    @Query('categoryIds') categoryIds: string | string[] = [],
+  ) {
+    const pIds = Array.isArray(productIds) ? productIds : [productIds].filter(Boolean);
+    const cIds = Array.isArray(categoryIds) ? categoryIds : [categoryIds].filter(Boolean);
+    return this.promotionsService.findApplicableForProducts(pIds, cIds);
+  }
+
+  /** POST /promotions/compute-discount — preview discount before payment */
+  @Post('compute-discount')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  computeDiscount(@Body() dto: ComputeDiscountDto) {
+    return this.promotionsService.computeCartDiscount({
+      promotionId: dto.promotionId,
+      cartItems: dto.productIds.map((id) => ({
+        productId: id,
+        priceEur: 0,
+        quantity: 1,
+      })),
+      subtotalEur: dto.subtotalEur,
+    });
+  }
+
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @Roles(UserRole.SUPERADMIN)
@@ -171,5 +203,35 @@ export class PromotionsController {
   @Roles(UserRole.SUPERADMIN)
   deletePromotion(@Param() params: IdParamDto) {
     return this.promotionsService.deletePromotion(params.id);
+  }
+
+  // ── Product / Category associations ──────────────────────────────────────
+
+  /** PUT /promotions/:id/products — set applicable product IDs (scope becomes PRODUCTS) */
+  @Put(':id/products')
+  @Roles(UserRole.SUPERADMIN)
+  setProducts(
+    @Param() params: IdParamDto,
+    @Body() dto: SetPromotionProductsDto,
+  ) {
+    return this.promotionsService.setPromotionProducts(params.id, dto.productIds);
+  }
+
+  /** PUT /promotions/:id/categories — set applicable category IDs (scope becomes CATEGORIES) */
+  @Put(':id/categories')
+  @Roles(UserRole.SUPERADMIN)
+  setCategories(
+    @Param() params: IdParamDto,
+    @Body() dto: SetPromotionCategoriesDto,
+  ) {
+    return this.promotionsService.setPromotionCategories(params.id, dto.categoryIds);
+  }
+
+  /** DELETE /promotions/:id/scope — reset to scope ALL (applies to everything) */
+  @Delete(':id/scope')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.SUPERADMIN)
+  clearScope(@Param() params: IdParamDto) {
+    return this.promotionsService.clearPromotionScope(params.id);
   }
 }

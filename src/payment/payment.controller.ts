@@ -41,6 +41,10 @@ class InitPaymentDto {
   @IsMongoId({ message: 'deliveryAddressId doit être un ObjectId valide' })
   @IsOptional()
   deliveryAddressId?: string;
+
+  @IsMongoId({ message: 'promotionId doit être un ObjectId valide' })
+  @IsOptional()
+  promotionId?: string;
 }
 
 @Controller('payments')
@@ -57,6 +61,7 @@ export class PaymentController {
       customerPhone: dto.customerPhone,
       deliveryMethod: dto.deliveryMethod,
       deliveryAddressId: dto.deliveryAddressId,
+      promotionId: dto.promotionId,
     };
 
     return this.paymentService.initiate(input);

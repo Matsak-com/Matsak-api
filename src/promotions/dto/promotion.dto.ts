@@ -8,10 +8,11 @@ import {
   IsDateString,
   IsMongoId,
   IsUrl,
+  IsArray,
   Min,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { DiscountType, PromotionStatus, PromotionType } from '../enums';
+import { DiscountType, PromotionScope, PromotionStatus, PromotionType } from '../enums';
 
 /** Coerce empty string → undefined so multipart/form-data unset fields pass
  *  @IsOptional() without triggering format validators. */
@@ -71,6 +72,11 @@ export class CreatePromotionDto {
   @IsOptional()
   @EmptyToUndefined()
   @IsUrl(URL_OPTIONS)
+  imageUrl?: string;
+
+  @IsOptional()
+  @EmptyToUndefined()
+  @IsUrl(URL_OPTIONS)
   targetUrl?: string;
 
   @IsOptional()
@@ -82,6 +88,45 @@ export class CreatePromotionDto {
   @EmptyToUndefined()
   @IsBoolean()
   featured?: boolean;
+
+  @IsOptional()
+  @EmptyToUndefined()
+  @IsEnum(PromotionScope, {
+    message: `applicableScope must be one of: ${Object.values(PromotionScope).join(', ')}`,
+  })
+  applicableScope?: PromotionScope;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) return undefined;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
+  @IsArray()
+  @IsMongoId({ each: true })
+  productIds?: string[];
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) return undefined;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
+  @IsArray()
+  @IsMongoId({ each: true })
+  categoryIds?: string[];
+
+  @IsOptional()
+  @EmptyToUndefined()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
+  minCartAmountEur?: number;
+
+  @IsOptional()
+  @EmptyToUndefined()
+  @IsNumber()
+  @Min(1)
+  maxUsageCount?: number;
 }
 
 export class UpdatePromotionDto {
@@ -135,6 +180,11 @@ export class UpdatePromotionDto {
   @IsOptional()
   @EmptyToUndefined()
   @IsUrl(URL_OPTIONS)
+  imageUrl?: string;
+
+  @IsOptional()
+  @EmptyToUndefined()
+  @IsUrl(URL_OPTIONS)
   targetUrl?: string;
 
   @IsOptional()
@@ -146,6 +196,45 @@ export class UpdatePromotionDto {
   @EmptyToUndefined()
   @IsBoolean()
   featured?: boolean;
+
+  @IsOptional()
+  @EmptyToUndefined()
+  @IsEnum(PromotionScope, {
+    message: `applicableScope must be one of: ${Object.values(PromotionScope).join(', ')}`,
+  })
+  applicableScope?: PromotionScope;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) return undefined;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
+  @IsArray()
+  @IsMongoId({ each: true })
+  productIds?: string[];
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) return undefined;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
+  @IsArray()
+  @IsMongoId({ each: true })
+  categoryIds?: string[];
+
+  @IsOptional()
+  @EmptyToUndefined()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
+  minCartAmountEur?: number;
+
+  @IsOptional()
+  @EmptyToUndefined()
+  @IsNumber()
+  @Min(1)
+  maxUsageCount?: number;
 }
 
 export class QueryPromotionDto {
@@ -168,4 +257,29 @@ export class QueryPromotionDto {
   @IsOptional()
   @IsMongoId()
   teamId?: string;
+}
+
+export class SetPromotionProductsDto {
+  @IsArray()
+  @IsMongoId({ each: true })
+  productIds: string[];
+}
+
+export class SetPromotionCategoriesDto {
+  @IsArray()
+  @IsMongoId({ each: true })
+  categoryIds: string[];
+}
+
+export class ComputeDiscountDto {
+  @IsMongoId()
+  promotionId: string;
+
+  @IsArray()
+  @IsMongoId({ each: true })
+  productIds: string[];
+
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
+  subtotalEur: number;
 }

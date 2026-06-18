@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { PromotionStatus, PromotionType, DiscountType } from '../enums';
+import { PromotionStatus, PromotionType, DiscountType, PromotionScope } from '../enums';
 
 export type PromotionDocument = Promotion & Document;
 
@@ -46,6 +46,35 @@ export class Promotion {
 
   @Prop({ required: true, default: false })
   featured: boolean;
+
+  /** Which products this promotion applies to */
+  @Prop({
+    required: true,
+    enum: Object.values(PromotionScope),
+    default: PromotionScope.ALL,
+    index: true,
+  })
+  applicableScope: PromotionScope;
+
+  /** Specific product IDs (used when applicableScope = PRODUCTS) */
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Product' }], default: [] })
+  productIds: Types.ObjectId[];
+
+  /** Category IDs (used when applicableScope = CATEGORIES) */
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Category' }], default: [] })
+  categoryIds: Types.ObjectId[];
+
+  /** Minimum cart subtotal in EUR required to apply this promotion */
+  @Prop({ type: Number, default: null, min: 0 })
+  minCartAmountEur: number | null;
+
+  /** Maximum number of times this promotion can be used (null = unlimited) */
+  @Prop({ type: Number, default: null, min: 0 })
+  maxUsageCount: number | null;
+
+  /** Current number of times this promotion has been applied */
+  @Prop({ type: Number, default: 0, min: 0 })
+  usageCount: number;
 
   /** Storage key used to delete the file when replaced/deleted */
   @Prop({ type: String, default: null })

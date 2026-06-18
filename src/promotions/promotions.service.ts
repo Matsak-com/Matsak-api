@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Types } from 'mongoose';
 import { AdRepository } from './ad.repository';
 import { PromotionRepository } from './promotion.repository';
@@ -9,6 +13,20 @@ import {
   UpdatePromotionDto,
   QueryPromotionDto,
 } from './dto/promotion.dto';
+import { DiscountType, PromotionScope, PromotionStatus } from './enums';
+
+export interface PromotionSnapshot {
+  promotionId: string;
+  title: string;
+  discountType: DiscountType;
+  discountValue: number;
+  applicableScope: PromotionScope;
+}
+
+export interface CartDiscountResult {
+  discountEur: number;
+  promotionSnapshot: PromotionSnapshot;
+}
 
 @Injectable()
 export class PromotionsService {
@@ -170,6 +188,12 @@ export class PromotionsService {
         targetUrl: dto.targetUrl ?? null,
         teamId: dto.teamId ? new Types.ObjectId(dto.teamId) : null,
         featured: dto.featured ?? false,
+        applicableScope: dto.applicableScope ?? PromotionScope.ALL,
+        productIds: dto.productIds?.map((id) => new Types.ObjectId(id)) ?? [],
+        categoryIds: dto.categoryIds?.map((id) => new Types.ObjectId(id)) ?? [],
+        minCartAmountEur: dto.minCartAmountEur ?? null,
+        maxUsageCount: dto.maxUsageCount ?? null,
+        usageCount: 0,
       },
     });
   }
@@ -207,6 +231,16 @@ export class PromotionsService {
     if (dto.teamId !== undefined)
       update.teamId = dto.teamId ? new Types.ObjectId(dto.teamId) : null;
     if (dto.featured !== undefined) update.featured = dto.featured;
+    if (dto.applicableScope !== undefined)
+      update.applicableScope = dto.applicableScope;
+    if (dto.productIds !== undefined)
+      update.productIds = dto.productIds.map((id) => new Types.ObjectId(id));
+    if (dto.categoryIds !== undefined)
+      update.categoryIds = dto.categoryIds.map((id) => new Types.ObjectId(id));
+    if (dto.minCartAmountEur !== undefined)
+      update.minCartAmountEur = dto.minCartAmountEur;
+    if (dto.maxUsageCount !== undefined)
+      update.maxUsageCount = dto.maxUsageCount;
 
     const updated = await this.promotionRepository.update({ id, update });
 
@@ -224,5 +258,165 @@ export class PromotionsService {
     }
     await this.adImageService.delete(promotion.imageFileKey);
     await this.promotionRepository.delete({ id });
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // PRODUCT / CATEGORY ASSOCIATIONS
+  // ══════════════════════════════════════════════════════════
+
+  async setPromotionProducts(id: string, productIds: string[]) {
+    const promotion = await this.promotionRepository.findById({ id });
+    if (!promotion) throw new NotFoundException('Promotion not found');
+
+    const updated = await this.promotionRepository.update({
+      id,
+      update: {
+        applicableScope: PromotionScope.PRODUCTS,
+        productIds: productIds.map((pid) => new Types.ObjectId(pid)),
+      },
+    });
+    return updated;
+  }
+
+  async setPromotionCategories(id: string, categoryIds: string[]) {
+    const promotion = await this.promotionRepository.findById({ id });
+    if (!promotion) throw new NotFoundException('Promotion not found');
+
+    const updated = await this.promotionRepository.update({
+      id,
+      update: {
+        applicableScope: PromotionScope.CATEGORIES,
+        categoryIds: categoryIds.map((cid) => new Types.ObjectId(cid)),
+      },
+    });
+    return updated;
+  }
+
+  async clearPromotionScope(id: string) {
+    const promotion = await this.promotionRepository.findById({ id });
+    if (!promotion) throw new NotFoundException('Promotion not found');
+
+    return this.promotionRepository.update({
+      id,
+      update: {
+        applicableScope: PromotionScope.ALL,
+        productIds: [],
+        categoryIds: [],
+      },
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // APPLICABLE PROMOTIONS QUERY
+  // ══════════════════════════════════════════════════════════
+
+  async findApplicableForProducts(
+    productIds: string[],
+    categoryIds: string[] = [],
+  ) {
+    return this.promotionRepository.findApplicableForProducts(
+      productIds.map((id) => new Types.ObjectId(id)),
+      categoryIds.map((id) => new Types.ObjectId(id)),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // DISCOUNT COMPUTATION
+  // ══════════════════════════════════════════════════════════
+
+  /**
+   * Compute the EUR discount for a promotion applied to a cart.
+   *
+   * For scope=ALL: discount is applied on the full subtotal.
+   * For scope=PRODUCTS: discount is applied only on eligible product subtotals.
+   * For scope=CATEGORIES: same as PRODUCTS but matched via categoryIds.
+   *
+   * Returns null if the promotion is not applicable (inactive, expired, usage
+   * exceeded, or minimum cart amount not met).
+   */
+  async computeCartDiscount(params: {
+    promotionId: string;
+    cartItems: Array<{
+      productId: string;
+      categoryIds?: string[];
+      priceEur: number;
+      quantity: number;
+    }>;
+    subtotalEur: number;
+  }): Promise<CartDiscountResult | null> {
+    const { promotionId, cartItems, subtotalEur } = params;
+
+    const promotion = await this.promotionRepository.findById({
+      id: promotionId,
+    });
+
+    if (!promotion) throw new NotFoundException('Promotion not found');
+
+    const now = new Date();
+
+    if (promotion.status !== PromotionStatus.ACTIVE) return null;
+    if (promotion.startDate && promotion.startDate > now) return null;
+    if (promotion.endDate && promotion.endDate < now) return null;
+    if (
+      promotion.maxUsageCount !== null &&
+      promotion.usageCount >= promotion.maxUsageCount
+    )
+      return null;
+    if (
+      promotion.minCartAmountEur !== null &&
+      subtotalEur < promotion.minCartAmountEur
+    )
+      return null;
+
+    if (!promotion.discountValue || !promotion.discountType) return null;
+
+    let eligibleSubtotal = subtotalEur;
+
+    if (promotion.applicableScope === PromotionScope.PRODUCTS) {
+      const eligibleIds = new Set(
+        promotion.productIds.map((id) => id.toString()),
+      );
+      eligibleSubtotal = cartItems
+        .filter((item) => eligibleIds.has(item.productId))
+        .reduce((sum, item) => sum + item.priceEur * item.quantity, 0);
+    } else if (promotion.applicableScope === PromotionScope.CATEGORIES) {
+      const eligibleCatIds = new Set(
+        promotion.categoryIds.map((id) => id.toString()),
+      );
+      eligibleSubtotal = cartItems
+        .filter((item) =>
+          item.categoryIds?.some((cid) => eligibleCatIds.has(cid)),
+        )
+        .reduce((sum, item) => sum + item.priceEur * item.quantity, 0);
+    }
+
+    if (eligibleSubtotal <= 0) return null;
+
+    let discountEur: number;
+    if (promotion.discountType === DiscountType.PERCENTAGE) {
+      discountEur =
+        Math.round(eligibleSubtotal * (promotion.discountValue / 100) * 100) /
+        100;
+    } else {
+      discountEur = Math.min(promotion.discountValue, eligibleSubtotal);
+    }
+
+    return {
+      discountEur,
+      promotionSnapshot: {
+        promotionId: (promotion._id as Types.ObjectId).toString(),
+        title: promotion.title,
+        discountType: promotion.discountType,
+        discountValue: promotion.discountValue,
+        applicableScope: promotion.applicableScope,
+      },
+    };
+  }
+
+  /** Atomically increment usage count — call after successful payment. */
+  async redeemPromotion(promotionId: string): Promise<void> {
+    await this.promotionRepository.incrementUsageCount(
+      new Types.ObjectId(promotionId),
+    );
   }
 }

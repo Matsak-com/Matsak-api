@@ -36,6 +36,11 @@ export class CreateAdDto {
   @IsOptional()
   @EmptyToUndefined()
   @IsUrl(URL_OPTIONS)
+  imageUrl?: string;
+
+  @IsOptional()
+  @EmptyToUndefined()
+  @IsUrl(URL_OPTIONS)
   targetUrl?: string;
 
   @IsEnum(AdPlacement, {
@@ -87,6 +92,11 @@ export class UpdateAdDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @EmptyToUndefined()
+  @IsUrl(URL_OPTIONS)
+  imageUrl?: string;
 
   @IsOptional()
   @EmptyToUndefined()

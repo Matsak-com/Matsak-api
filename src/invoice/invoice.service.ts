@@ -133,6 +133,9 @@ export class InvoiceService {
           discountEur: pricing.discountEur,
           discountLocal: pricing.discountLocal,
           promoCodeSnapshot: pricing.promoCodeSnapshot,
+          promotionDiscountEur: pricing.promotionDiscountEur ?? 0,
+          promotionDiscountLocal: pricing.promotionDiscountLocal ?? 0,
+          promotionSnapshot: pricing.promotionSnapshot ?? null,
           totalEur: pricing.totalEur,
           totalLocal: pricing.totalLocal,
         };

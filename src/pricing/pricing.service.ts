@@ -70,7 +70,18 @@ export interface PricingSummary {
     discountValue: number;
   } | null;
 
-  /** (subtotal + surcharges − discount) in EUR */
+  /** Discount coming from a product-level Promotion (separate from promo code) */
+  promotionDiscountEur: number;
+  promotionDiscountLocal: number;
+  promotionSnapshot: {
+    promotionId: string;
+    title: string;
+    discountType: string;
+    discountValue: number;
+    applicableScope: string;
+  } | null;
+
+  /** (subtotal + surcharges − discountEur − promotionDiscountEur) in EUR */
   totalEur: number;
   /** Total in local currency */
   totalLocal: number;
@@ -383,6 +394,16 @@ export class PricingService {
     currentCurrency?: string | null;
     teamId?: string | null;
     promoCode?: string | null;
+    promotionDiscount?: {
+      discountEur: number;
+      promotionSnapshot: {
+        promotionId: string;
+        title: string;
+        discountType: string;
+        discountValue: number;
+        applicableScope: string;
+      };
+    } | null;
     currency?: string;
     deliveryMethod?: 'delivery' | 'pickup';
   }): Promise<PricingSummary> {
@@ -391,6 +412,7 @@ export class PricingService {
       currentCurrency = null,
       teamId = null,
       promoCode = null,
+      promotionDiscount = null,
       currency = DEFAULT_CURRENCY,
       deliveryMethod = 'delivery',
     } = params;
@@ -520,9 +542,17 @@ export class PricingService {
 
     const discountLocal = Math.round(discountEur * exchangeRate * 100) / 100;
 
+    const promotionDiscountEur = promotionDiscount?.discountEur ?? 0;
+    const promotionDiscountLocal =
+      Math.round(promotionDiscountEur * exchangeRate * 100) / 100;
+
     const totalEur =
       Math.round(
-        (subtotalEurNormalised + surchargesTotalEur - discountEur) * 100,
+        (subtotalEurNormalised +
+          surchargesTotalEur -
+          discountEur -
+          promotionDiscountEur) *
+          100,
       ) / 100;
     const totalLocal = Math.round(totalEur * exchangeRate * 100) / 100;
 
@@ -538,6 +568,9 @@ export class PricingService {
       discountEur,
       discountLocal,
       promoCodeSnapshot: promoSnapshot,
+      promotionDiscountEur,
+      promotionDiscountLocal,
+      promotionSnapshot: promotionDiscount?.promotionSnapshot ?? null,
       totalEur,
       totalLocal,
     };

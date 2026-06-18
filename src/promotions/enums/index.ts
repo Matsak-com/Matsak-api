@@ -38,3 +38,9 @@ export enum DiscountType {
   PERCENTAGE = 'PERCENTAGE',
   FIXED = 'FIXED',
 }
+
+export enum PromotionScope {
+  ALL = 'ALL',
+  PRODUCTS = 'PRODUCTS',
+  CATEGORIES = 'CATEGORIES',
+}
