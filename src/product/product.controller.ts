@@ -174,9 +174,17 @@ export class ProductController {
   @UseGuards(JwtAuthGuard)
   @Get('team/:teamId')
   @CompoundZodValidation({ params: teamIdParamSchema })
-  findByTeam(@Param() params: { teamId: string }) {
+  findByTeam(
+    @Param() params: { teamId: string },
+    @CurrentUser() user?: UserPayload,
+  ) {
+    const isOwner = !!(
+      user?.current_team === params.teamId ||
+      user?.role === UserRole.SUPERADMIN
+    );
     return this.productService.findBy({
       filter: { team: new Types.ObjectId(params.teamId) },
+      includeUnpublished: isOwner,
     });
   }
 
@@ -187,10 +195,10 @@ export class ProductController {
     @Param() params: { userId: string },
     @CurrentUser() user: UserPayload,
   ) {
-    // Superadmin bypasses team membership check and can access all products
     if (user.role === UserRole.SUPERADMIN) {
       return this.productService.findBy({
         filter: { deleted_at: { $exists: false } },
+        includeUnpublished: true, // ← manquant
       });
     }
 
@@ -224,6 +232,7 @@ export class ProductController {
           team: { $in: teamIds.map((id) => new Types.ObjectId(id)) },
           deleted_at: { $exists: false },
         },
+        includeUnpublished: true,
       });
       return results;
     } catch (error) {
@@ -234,8 +243,14 @@ export class ProductController {
 
   @Get(':id')
   @CompoundZodValidation({ params: productIdParamSchema })
-  findOne(@Param() params: { id: string }) {
-    return this.productService.findOne(params.id);
+  findOne(
+    @Param() params: { id: string },
+    @CurrentUser() user?: UserPayload,
+  ) {
+    return this.productService.findOne(params.id, {
+      teamId: user?.current_team ?? undefined,
+      isAdmin: user?.role === UserRole.SUPERADMIN,
+    });
   }
 
   @UseGuards(JwtAuthGuard)
@@ -350,9 +365,13 @@ export class ProductController {
     };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('reindex')
   @HttpCode(HttpStatus.OK)
-  async reindexAll() {
+  async reindexAll(@CurrentUser() user: UserPayload) {
+    if (user.role !== UserRole.SUPERADMIN) {
+      throw new BadRequestException('Unauthorized');
+    }
     return this.productService.reindexAll();
   }
 }

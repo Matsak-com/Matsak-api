@@ -24,24 +24,22 @@ export class Discount {
   endDate?: Date;
 
   @Prop({ default: true })
-  isActive: boolean;
+  isActive: boolean; // isActive du discount, on ne touche pas
 
   @Prop({ required: false, min: 1 })
-  minQuantity?: number; // For bulk discounts
+  minQuantity?: number;
 }
 
 @Schema({ timestamps: true })
 export class Product {
   static findById() {}
-  // Reference to DetailProduct
+
   @Prop({ type: Types.ObjectId, ref: DetailProduct.name })
   detail: Types.ObjectId;
 
-  // references to ImageProduct (array for multiple images)
   @Prop([{ type: MongooseSchema.Types.ObjectId, ref: ImageProduct.name }])
   images: Types.ObjectId[];
 
-  // Pricing information
   @Prop({ required: false, min: 0 })
   basePrice?: number;
 
@@ -54,14 +52,12 @@ export class Product {
   @Prop({ required: false })
   deleted_at?: Date;
 
-  // Review aggregates for fast reads
   @Prop({ type: Number, default: 0, min: 0 })
   averageRating: number;
 
   @Prop({ type: Number, default: 0, min: 0 })
   reviewCount: number;
 
-  // Stock management fields
   @Prop({ type: Number, default: 0, min: 0 })
   stockQuantity: number;
 
@@ -71,9 +67,11 @@ export class Product {
   @Prop({ type: Boolean, default: true })
   trackStock: boolean;
 
-  // Reference to Team: each product belongs to one Team
   @Prop({ type: Types.ObjectId, ref: 'Team', required: true, index: true })
   team: Types.ObjectId;
+
+  @Prop({ type: Boolean, default: false })
+  isPublished: boolean;
 }
 
 export const DiscountSchema = SchemaFactory.createForClass(Discount);
