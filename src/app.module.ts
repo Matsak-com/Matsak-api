@@ -40,6 +40,7 @@ import Redis from 'ioredis';
 import { ThrottlerStorageRedisService } from './throttler/throttler.storage';
 import { RedisModule } from './common/redis.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
+import { HistoryModule } from './history/history.module';
 
 /**
  * Parse and validate Redis configuration
@@ -123,6 +124,7 @@ export function getRedisConfig() {
     CurrencyModule,
     RedisModule,
     AuditLogModule,
+    HistoryModule,
   ],
   controllers: [AppController, CookieConsentController],
   providers: [

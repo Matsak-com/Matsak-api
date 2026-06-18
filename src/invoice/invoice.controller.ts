@@ -97,13 +97,6 @@ export class InvoiceController {
 
   // ── Delivery verification (public — token IS the credential) ───────────────
 
-  /**
-   * GET /invoices/delivery/:token
-   *
-   * Validates the signed QR token and returns the delivery checklist.
-   * Public endpoint — rate-limited to prevent enumeration attacks.
-   * The JWT token itself is the authentication credential.
-   */
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 60, ttl: 60 } })
   @Get('delivery/:token')
@@ -111,14 +104,6 @@ export class InvoiceController {
     return this.deliveryCheckService.getDeliveryCheck(params.token);
   }
 
-  /**
-   * PATCH /invoices/delivery/:token/items/:productId
-   *
-   * Marks one item as checked.  Accepts an optional `checkerName` in the body
-   * (the delivery person's name or employee ID — no account needed).
-   * @SkipAuditLog() prevents the signed token (= credential) from being
-   * persisted in audit logs.
-   */
   @SkipAuditLog()
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 120, ttl: 60 } })
@@ -134,14 +119,6 @@ export class InvoiceController {
     );
   }
 
-  /**
-   * POST /invoices/delivery/:token/complete
-   *
-   * Closes the delivery — marks all remaining items as checked and sets
-   * `completedAt`.
-   * @SkipAuditLog() prevents the signed token (= credential) from being
-   * persisted in audit logs.
-   */
   @SkipAuditLog()
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 30, ttl: 60 } })
@@ -156,11 +133,6 @@ export class InvoiceController {
     );
   }
 
-  /**
-   * POST /invoices/delivery/:token/revoke  (admin only)
-   *
-   * Hard-revokes a QR token immediately.
-   */
   @UseGuards(JwtAuthGuard)
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @Post('delivery/:token/revoke')
@@ -238,7 +210,8 @@ export class InvoiceController {
     if (!isPrivileged && invoice.userId !== user.userId) {
       throw new ForbiddenException(ERRORS.FORBIDDEN_INVOICE_UPDATE);
     }
-    return this.invoiceService.updateStatus(params.id, dto.status);
+
+    return this.invoiceService.updateStatus(params.id, dto.status, user.userId);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -255,6 +228,7 @@ export class InvoiceController {
         throw new ForbiddenException(ERRORS.FORBIDDEN_INVOICE_DELETE);
       }
     }
-    return this.invoiceService.remove(params.id);
+
+    return this.invoiceService.remove(params.id, user.userId);
   }
 }

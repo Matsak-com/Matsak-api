@@ -10,11 +10,15 @@ import { DeliveryMethod } from '../payment/payment.schema';
 import { User, UserRole } from '../users/user.schema';
 import { Member, MemberStatus } from '../members/member.schema';
 import { Role } from '../roles/role.schema';
+import { HistoryService } from '../history/history.service';
+import { HistoryAction, HistoryEntityType } from '../history/history.schema';
 import { DeliveryCheckService } from './delivery-check.service';
 import { DeliveryCheckType } from './delivery-check.schema';
+import { PricingService } from '../pricing/pricing.service';
 
 interface CreateInvoiceFromPaymentDto {
   paymentId: string;
+  promoCode?: string;
 }
 
 @Injectable()
@@ -25,7 +29,9 @@ export class InvoiceService {
   constructor(
     private readonly invoiceRepo: InvoiceRepository,
     private readonly notificationService: NotificationService,
+    private readonly historyService: HistoryService,
     private readonly deliveryCheckService: DeliveryCheckService,
+    private readonly pricingService: PricingService,
     @InjectModel(Payment.name) private readonly paymentModel: Model<Payment>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectModel(Member.name) private readonly memberModel: Model<Member>,
@@ -41,6 +47,7 @@ export class InvoiceService {
   // ══════════════════════════════════════════════════════════════
   async createInvoiceFromPayment(
     dto: CreateInvoiceFromPaymentDto,
+    currentUserId?: string,
   ): Promise<Invoice> {
     for (let attempt = 1; attempt <= this.MAX_INVOICE_RETRIES; attempt++) {
       try {
@@ -62,6 +69,43 @@ export class InvoiceService {
 
         if (!payment) throw new NotFoundException('Payment introuvable');
 
+        const cart = payment.cartId as any;
+
+        const cartItems = cart.items as any[];
+        const currencies = [
+          ...new Set(
+            cartItems
+              .map((item: any) => item.product?.currency)
+              .filter(Boolean),
+          ),
+        ] as string[];
+
+        if (currencies.length > 1) {
+          this.logger.warn(
+            `Cart contains items in mixed currencies (${currencies.join(', ')}); ` +
+              `defaulting to MGA for subtotal calculation`,
+          );
+        }
+
+        const teamId: string | null =
+          cart.items?.[0]?.product?.team?._id?.toString() ?? null;
+
+        const pricing = payment.pricingSnapshot;
+
+        if (dto.promoCode && pricing.promoCodeSnapshot) {
+          await this.pricingService
+            .redeemPromoCode(
+              dto.promoCode,
+              pricing.subtotalEur,
+              teamId ?? undefined,
+            )
+            .catch((err) =>
+              this.logger.error(
+                `Promo redemption failed for ${dto.promoCode}`,
+                err.message,
+              ),
+            );
+        }
         // ── Vérification de cohérence ─────────────────────────────────────
         // pricingSnapshot est obligatoire depuis la refonte du schema Payment.
         // Si absent (document legacy), on lève une erreur explicite.
@@ -83,12 +127,12 @@ export class InvoiceService {
           // contient le détail (surcharges, discount, taux de change).
         }
 
-        const cart = payment.cartId as any;
-        const pricing = payment.pricingSnapshot;
-
         const invoiceDoc = {
           payment: new Types.ObjectId(dto.paymentId),
           userId: payment.userId ?? undefined,
+          createdBy: currentUserId
+            ? new Types.ObjectId(currentUserId)
+            : undefined,
           deliveryMethod: payment.deliveryMethod ?? DeliveryMethod.DELIVERY,
           deliveryAddressId: payment.deliveryAddressId
             ? new Types.ObjectId(payment.deliveryAddressId.toString())
@@ -140,6 +184,33 @@ export class InvoiceService {
         const invoice = await this.invoiceRepo.create({ doc: invoiceDoc });
         this.logger.log(`✅ Facture ${invoiceNumber} créée avec succès`);
 
+        // ── Historique — CREATED ──────────────────────────────────
+        this.historyService.recordAsync({
+          entityType: HistoryEntityType.INVOICE,
+          entityId: invoice._id,
+          entityLabel: invoice.invoiceNumber,
+          action: HistoryAction.CREATED,
+          performedBy: currentUserId,
+          isSystemAction: !currentUserId,
+          newValue: {
+            invoiceNumber: invoice.invoiceNumber,
+            status: invoice.status,
+            deliveryMethod: invoice.deliveryMethod,
+            currency: invoice.currency,
+            subtotalEur: invoice.subtotalEur,
+            subtotalLocal: invoice.subtotalLocal,
+            totalEur: invoice.totalEur,
+            totalLocal: invoice.totalLocal,
+            promoCode: dto.promoCode ?? null,
+          },
+          metadata: {
+            paymentId: dto.paymentId,
+            cartId: cart._id?.toString(),
+            itemCount: cart.items?.length ?? 0,
+          },
+        });
+
+        // ── Email fire-and-forget ─────────────────────────────────
         // Fire-and-forget — ne bloque pas le post-traitement
         const fullInvoice = await this.findOne(invoice._id.toString());
         this.sendInvoiceEmail(fullInvoice).catch((err) =>
@@ -176,7 +247,149 @@ export class InvoiceService {
     }
   }
 
-  // ─── Génération QR code ───────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════
+  // CHANGEMENT DE STATUT
+  // ══════════════════════════════════════════════════════════════
+
+  async updateStatus(
+    id: string,
+    status: InvoiceStatus,
+    currentUserId?: string,
+  ): Promise<Invoice> {
+    const invoice = await this.invoiceRepo.findById({ id });
+    if (!invoice) throw new NotFoundException(`Facture ${id} introuvable`);
+
+    // ← Snapshot du statut AVANT la modification
+    const previousStatus = invoice.status;
+
+    const updateData: any = {
+      status,
+      updatedBy: currentUserId ? new Types.ObjectId(currentUserId) : undefined,
+    };
+    if (status === InvoiceStatus.REFUNDED) updateData.refundedAt = new Date();
+
+    const updated = await this.invoiceRepo.update({ id, update: updateData });
+    this.logger.log(`Facture ${invoice.invoiceNumber} → statut: ${status}`);
+
+    // ── Historique — STATUS_CHANGED ───────────────────────────────
+    const changedFields = ['status'];
+    if (status === InvoiceStatus.REFUNDED) changedFields.push('refundedAt');
+    if (currentUserId) changedFields.push('updatedBy');
+
+    this.historyService.recordAsync({
+      entityType: HistoryEntityType.INVOICE,
+      entityId: new Types.ObjectId(id),
+      entityLabel: invoice.invoiceNumber,
+      action: HistoryAction.STATUS_CHANGED,
+      performedBy: currentUserId,
+      previousValue: { status: previousStatus },
+      newValue: {
+        status,
+        ...(status === InvoiceStatus.REFUNDED && {
+          refundedAt: updateData.refundedAt,
+        }),
+      },
+      changedFields,
+      metadata: {
+        previousStatus,
+        newStatus: status,
+      },
+    });
+
+    // ── Emails fire-and-forget ────────────────────────────────────
+    this.findOne(id)
+      .then((fullInvoice) => this.sendStatusUpdateEmails(fullInvoice, status))
+      .catch((err) =>
+        this.logger.error(
+          `Erreur envoi emails statut ${invoice.invoiceNumber}`,
+          err.stack,
+        ),
+      );
+
+    return updated;
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // SUPPRESSION (soft delete)
+  // ══════════════════════════════════════════════════════════════
+
+  async remove(id: string, currentUserId?: string): Promise<void> {
+    // ← Snapshot complet AVANT le soft-delete
+    const fullInvoice = await this.findOne(id);
+
+    const deletedAt = new Date();
+
+    await this.invoiceRepo.update({
+      id,
+      update: {
+        deleted_at: deletedAt,
+        deletedBy: currentUserId
+          ? new Types.ObjectId(currentUserId)
+          : undefined,
+        updatedBy: currentUserId
+          ? new Types.ObjectId(currentUserId)
+          : undefined,
+      },
+    });
+    this.logger.log(
+      `Facture ${fullInvoice.invoiceNumber} supprimée (soft delete)`,
+    );
+
+    // ── Historique — DELETED ──────────────────────────────────────
+    this.historyService.recordAsync({
+      entityType: HistoryEntityType.INVOICE,
+      entityId: new Types.ObjectId(id),
+      entityLabel: fullInvoice.invoiceNumber,
+      action: HistoryAction.DELETED,
+      performedBy: currentUserId,
+      previousValue: {
+        status: fullInvoice.status,
+        invoiceNumber: fullInvoice.invoiceNumber,
+        totalLocal: fullInvoice.totalLocal,
+        totalEur: fullInvoice.totalEur,
+        currency: fullInvoice.currency,
+        deliveryMethod: fullInvoice.deliveryMethod,
+      },
+      changedFields: ['deleted_at', 'deletedBy'],
+      metadata: {
+        deletedAt,
+        customerEmail: fullInvoice.customer?.email ?? null,
+        customerName: fullInvoice.customer?.name ?? null,
+      },
+    });
+
+    // ── Email client fire-and-forget ──────────────────────────────
+    const customerEmail = fullInvoice.customer?.email;
+    if (customerEmail) {
+      this.notificationService
+        .sendEmail({
+          to: customerEmail,
+          subject: `Suppression de la facture ${fullInvoice.invoiceNumber}`,
+          template: 'invoice-deleted',
+          locale: 'fr',
+          context: {
+            user: {
+              name: fullInvoice.customer?.name ?? 'Client',
+              email: customerEmail,
+            },
+            invoice: {
+              number: fullInvoice.invoiceNumber,
+              amount: this.formatAmount(fullInvoice.payment?.amount ?? 0),
+              currency: fullInvoice.payment?.currency?.toUpperCase() ?? 'MGA',
+            },
+          },
+        })
+        .catch((err) =>
+          this.logger.warn(
+            `Email suppression non envoyé pour ${fullInvoice.invoiceNumber}: ${err.message}`,
+          ),
+        );
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // QR CODE
+  // ══════════════════════════════════════════════════════════════
 
   /**
    * Accepts either a plain string (e.g. a URL) or a JSON-serialisable object.
@@ -192,7 +405,9 @@ export class InvoiceService {
     });
   }
 
-  // ─── Email principal ──────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════
+  // EMAIL PRINCIPAL
+  // ══════════════════════════════════════════════════════════════
 
   private async sendInvoiceEmail(invoice: any): Promise<void> {
     const { customer, payment, cart } = invoice;
@@ -330,6 +545,12 @@ export class InvoiceService {
       }),
     );
 
+    const resolvedCurrency = (
+      invoice.currency ??
+      payment.currency ??
+      'MGA'
+    ).toUpperCase();
+
     const context = {
       invoiceNumber: invoice.invoiceNumber,
       invoiceDate: new Date(invoice.invoiceDate).toLocaleDateString('fr-FR', {
@@ -352,6 +573,15 @@ export class InvoiceService {
       deliveryAddress,
       deliveryQrDataUri,
       teams,
+      currency: resolvedCurrency,
+      subtotalLocal: this.formatAmount(invoice.subtotalLocal ?? 0),
+      pricingLines: (invoice.pricingLines ?? []).map((line: any) => ({
+        name: line.label ?? line.name ?? '',
+        localPrice: this.formatAmount(line.localAmount ?? line.localPrice ?? 0),
+      })),
+      promoCodeSnapshot: invoice.promoCodeSnapshot ?? null,
+      discountLocal: this.formatAmount(invoice.discountLocal ?? 0),
+      totalLocal: this.formatAmount(invoice.totalLocal ?? payment.amount ?? 0),
     };
 
     await this.notificationService.sendEmail({
@@ -367,7 +597,9 @@ export class InvoiceService {
     );
   }
 
-  // ─── Formatters ───────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════
+  // FORMATTERS
+  // ══════════════════════════════════════════════════════════════
 
   private formatAmount(amount: number): string {
     return new Intl.NumberFormat('fr-FR', {
@@ -388,7 +620,10 @@ export class InvoiceService {
     return map[method] ?? method ?? '-';
   }
 
-  // ─── Populate commun ──────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════
+  // POPULATE COMMUN
+  // ══════════════════════════════════════════════════════════════
+
   private get populateOptions() {
     return [
       {
@@ -435,28 +670,6 @@ export class InvoiceService {
     });
   }
 
-  async updateStatus(id: string, status: InvoiceStatus): Promise<Invoice> {
-    const invoice = await this.invoiceRepo.findById({ id });
-    if (!invoice) throw new NotFoundException(`Facture ${id} introuvable`);
-
-    const updateData: any = { status };
-    if (status === InvoiceStatus.REFUNDED) updateData.refundedAt = new Date();
-
-    const updated = await this.invoiceRepo.update({ id, update: updateData });
-    this.logger.log(`Facture ${invoice.invoiceNumber} → statut: ${status}`);
-
-    this.findOne(id)
-      .then((fullInvoice) => this.sendStatusUpdateEmails(fullInvoice, status))
-      .catch((err) =>
-        this.logger.error(
-          `Erreur envoi emails statut ${invoice.invoiceNumber}`,
-          err.stack,
-        ),
-      );
-
-    return updated;
-  }
-
   // ─── Status email helpers ─────────────────────────────────────────────────
 
   private getStatusConfig(status: InvoiceStatus): {
@@ -468,7 +681,13 @@ export class InvoiceService {
   } {
     const configs: Record<
       InvoiceStatus,
-      ReturnType<InvoiceService['getStatusConfig']>
+      {
+        color: string;
+        shadow: string;
+        bg: string;
+        label: Record<string, string>;
+        message: Record<string, string>;
+      }
     > = {
       [InvoiceStatus.PAID]: {
         color: '#27ae60',
@@ -476,31 +695,34 @@ export class InvoiceService {
         bg: 'rgba(39, 174, 96, 0.07)',
         label: { fr: 'Payé', en: 'Paid' },
         message: {
-          fr: 'Votre paiement a bien été confirmé et votre facture est désormais clôturée. Merci pour votre confiance.',
-          en: 'Your payment has been confirmed and your invoice is now closed. Thank you for your trust.',
+          fr: 'Votre paiement a bien été confirmé...',
+          en: 'Your payment has been confirmed...',
         },
       },
+
       [InvoiceStatus.REFUNDED]: {
         color: '#e67e22',
         shadow: 'rgba(230, 126, 34, 0.30)',
         bg: 'rgba(230, 126, 34, 0.07)',
         label: { fr: 'Remboursé', en: 'Refunded' },
         message: {
-          fr: 'Un remboursement a été initié pour cette facture. Le montant sera restitué selon les délais habituels de votre moyen de paiement.',
-          en: "A refund has been initiated for this invoice. The amount will be returned according to your payment method's usual processing time.",
+          fr: 'Un remboursement a été initié...',
+          en: 'A refund has been initiated...',
         },
       },
+
       [InvoiceStatus.CANCELLED]: {
         color: '#e74c3c',
         shadow: 'rgba(231, 76, 60, 0.30)',
         bg: 'rgba(231, 76, 60, 0.07)',
         label: { fr: 'Annulé', en: 'Cancelled' },
         message: {
-          fr: "Cette facture a été annulée. Si vous pensez qu'il s'agit d'une erreur, n'hésitez pas à contacter notre équipe de support.",
-          en: 'This invoice has been cancelled. If you believe this is an error, please contact our support team.',
+          fr: 'Cette facture a été annulée...',
+          en: 'This invoice has been cancelled...',
         },
       },
     };
+
     return configs[status];
   }
 
@@ -692,7 +914,6 @@ export class InvoiceService {
       },
       options: { sort: { invoiceDate: -1 }, populate: this.populateOptions },
     });
-
     return invoices.map((invoice) => this.formatInvoiceResponse(invoice));
   }
 
@@ -718,11 +939,14 @@ export class InvoiceService {
       },
       options: { sort: { invoiceDate: -1 }, populate: this.populateOptions },
     });
-
     return invoices.map((invoice) =>
       this.formatInvoiceResponseForTeam(invoice, teamId),
     );
   }
+
+  // ══════════════════════════════════════════════════════════════
+  // FORMATTERS DE RÉPONSE
+  // ══════════════════════════════════════════════════════════════
 
   private formatInvoiceResponse(invoice: any): any {
     const payment = invoice.payment as any;
@@ -813,53 +1037,5 @@ export class InvoiceService {
         subtotalRaw,
       },
     };
-  }
-
-  async remove(id: string): Promise<void> {
-    const fullInvoice = await this.findOne(id);
-
-    await this.invoiceRepo.update({ id, update: { deleted_at: new Date() } });
-    this.logger.log(
-      `Facture ${fullInvoice.invoiceNumber} supprimée (soft delete)`,
-    );
-
-    const customerEmail = fullInvoice.customer?.email;
-    if (customerEmail) {
-      const deletedAt = new Date();
-      this.notificationService
-        .sendEmail({
-          to: customerEmail,
-          subject: `Suppression de la facture ${fullInvoice.invoiceNumber}`,
-          template: 'invoice-deleted',
-          locale: 'fr',
-          context: {
-            user: {
-              name: fullInvoice.customer?.name ?? 'Client',
-              email: customerEmail,
-            },
-            invoice: {
-              number: fullInvoice.invoiceNumber,
-              amount: this.formatAmount(
-                fullInvoice.totalLocal ?? fullInvoice.payment?.amount ?? 0,
-              ),
-              currency: (
-                fullInvoice.currency ??
-                fullInvoice.payment?.currency ??
-                'MGA'
-              ).toUpperCase(),
-              deletedAt: deletedAt.toLocaleDateString('fr-FR', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              }),
-            },
-          },
-        })
-        .catch((err) =>
-          this.logger.warn(
-            `Email suppression non envoyé pour ${fullInvoice.invoiceNumber}: ${err.message}`,
-          ),
-        );
-    }
   }
 }

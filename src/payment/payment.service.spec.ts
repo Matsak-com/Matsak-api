@@ -193,7 +193,9 @@ describe('PaymentService', () => {
 
     it('should initiate payment successfully', async () => {
       cartRepo.findById.mockResolvedValue(mockCart as any);
-      pricingService.calculateTotal.mockResolvedValue(mockPricingSnapshot as any);
+      pricingService.calculateTotal.mockResolvedValue(
+        mockPricingSnapshot as any,
+      );
       paymentRepo.findOne.mockResolvedValue(null);
       paymentRepo.create.mockResolvedValue(mockPayment as any);
       mvolaApiService.initMerchantPay.mockResolvedValue({
@@ -238,7 +240,9 @@ describe('PaymentService', () => {
       };
 
       cartRepo.findById.mockResolvedValue(mockCart as any);
-      pricingService.calculateTotal.mockResolvedValue(mockPricingSnapshot as any);
+      pricingService.calculateTotal.mockResolvedValue(
+        mockPricingSnapshot as any,
+      );
       paymentRepo.findOne.mockResolvedValue(null);
       paymentRepo.create.mockResolvedValue({
         ...mockPayment,
@@ -315,7 +319,9 @@ describe('PaymentService', () => {
 
     it('should throw BadRequestException when a payment is already in progress', async () => {
       cartRepo.findById.mockResolvedValue(mockCart as any);
-      pricingService.calculateTotal.mockResolvedValue(mockPricingSnapshot as any);
+      pricingService.calculateTotal.mockResolvedValue(
+        mockPricingSnapshot as any,
+      );
       paymentRepo.findOne.mockResolvedValue(mockPayment as any);
 
       await expect(service.initiate(validInput)).rejects.toThrow(
@@ -326,7 +332,9 @@ describe('PaymentService', () => {
 
     it('should rollback to FAILED when Mvola API throws after payment creation', async () => {
       cartRepo.findById.mockResolvedValue(mockCart as any);
-      pricingService.calculateTotal.mockResolvedValue(mockPricingSnapshot as any);
+      pricingService.calculateTotal.mockResolvedValue(
+        mockPricingSnapshot as any,
+      );
       paymentRepo.findOne.mockResolvedValue(null);
       paymentRepo.create.mockResolvedValue(mockPayment as any);
       mvolaApiService.initMerchantPay.mockRejectedValue(
@@ -353,7 +361,9 @@ describe('PaymentService', () => {
 
     it('should rollback to FAILED when paymentRepo.update (→ WAITING) throws after Mvola call', async () => {
       cartRepo.findById.mockResolvedValue(mockCart as any);
-      pricingService.calculateTotal.mockResolvedValue(mockPricingSnapshot as any);
+      pricingService.calculateTotal.mockResolvedValue(
+        mockPricingSnapshot as any,
+      );
       paymentRepo.findOne.mockResolvedValue(null);
       paymentRepo.create.mockResolvedValue(mockPayment as any);
       mvolaApiService.initMerchantPay.mockResolvedValue({

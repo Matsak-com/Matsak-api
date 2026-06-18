@@ -419,30 +419,6 @@ export class PaymentService {
     return this.paymentRepo.findById({ id: paymentId });
   }
 
-  // ── Régénérer une facture manuellement ────────────────────────────────────
-  async regenerateInvoice(paymentId: string): Promise<void> {
-    const payment = await this.paymentRepo.findById({ id: paymentId });
-
-    if (!payment)
-      throw new NotFoundException(`Paiement ${paymentId} introuvable`);
-
-    if (payment.status !== PaymentStatus.SUCCESS) {
-      throw new BadRequestException(
-        'Impossible de créer une facture pour un paiement non réussi',
-      );
-    }
-
-    const existingInvoice =
-      await this.invoiceService.findByPaymentId(paymentId);
-    if (existingInvoice) {
-      throw new BadRequestException(
-        `Une facture existe déjà pour ce paiement: ${existingInvoice.invoiceNumber}`,
-      );
-    }
-
-    await this.createInvoiceForPayment(paymentId);
-  }
-
   // ── Résoudre le message client pour une erreur de doublon MongoDB ─────────
   private resolveDuplicateClientMessage(duplicateField: string): string {
     const messages: Record<string, string> = {
@@ -474,7 +450,7 @@ export class PaymentService {
       await this.deductStockFromCart(cartId, userId);
       this.logger.log(`✅ Stock déduit pour paiement ${paymentId}`);
 
-      await this.createInvoiceForPayment(paymentId);
+      await this.createInvoiceForPayment(paymentId, userId);
       this.logger.log(`✅ Facture créée pour paiement ${paymentId}`);
 
       await this.cartService.softDeleteCartById(cartId);
@@ -490,10 +466,12 @@ export class PaymentService {
   }
 
   // ── Créer une facture ─────────────────────────────────────────────────────
-  private async createInvoiceForPayment(paymentId: string): Promise<void> {
+  private async createInvoiceForPayment(
+    paymentId: string,
+    userId?: string,
+  ): Promise<void> {
     try {
-      // Plus de promoCode ici — il est déjà dans payment.pricingSnapshot
-      await this.invoiceService.createInvoiceFromPayment({ paymentId });
+      await this.invoiceService.createInvoiceFromPayment({ paymentId }, userId);
     } catch (error) {
       const errorDetails =
         (error as Error)?.stack || (error as Error)?.message || String(error);
@@ -504,6 +482,30 @@ export class PaymentService {
       );
       throw error;
     }
+  }
+
+  // ── Régénérer une facture manuellement ────────────────────────────────────
+  async regenerateInvoice(paymentId: string, userId?: string): Promise<void> {
+    const payment = await this.paymentRepo.findById({ id: paymentId });
+
+    if (!payment)
+      throw new NotFoundException(`Paiement ${paymentId} introuvable`);
+
+    if (payment.status !== PaymentStatus.SUCCESS) {
+      throw new BadRequestException(
+        'Impossible de créer une facture pour un paiement non réussi',
+      );
+    }
+
+    const existingInvoice =
+      await this.invoiceService.findByPaymentId(paymentId);
+    if (existingInvoice) {
+      throw new BadRequestException(
+        `Une facture existe déjà pour ce paiement: ${existingInvoice.invoiceNumber}`,
+      );
+    }
+
+    await this.createInvoiceForPayment(paymentId, userId);
   }
 
   // ── Déduire le stock ──────────────────────────────────────────────────────
