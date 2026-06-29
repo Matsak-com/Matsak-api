@@ -639,8 +639,9 @@ export class ProductService implements OnModuleInit {
 
     // Réindexer après ajout de discount
     try {
-      if ((updatedProduct as any).isPublished)
-      {await this.searchService.indexProduct(updatedProduct as any);}
+      if ((updatedProduct as any).isPublished) {
+        await this.searchService.indexProduct(updatedProduct as any);
+      }
     } catch (error) {
       Logger.error(
         `Failed to index product ${id} after price update: ${error?.message || error}`,
