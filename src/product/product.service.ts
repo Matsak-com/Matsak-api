@@ -187,7 +187,7 @@ export class ProductService implements OnModuleInit {
   }): Promise<Product[]> {
     const baseFilter = includeUnpublished
       ? filter
-      : { ...filter, isPublished: true, deleted_at: { $exists: false } };
+      : { ...filter, isPublished: true };
 
     const products = await this.productRepo.findAll({
       filter: baseFilter,
