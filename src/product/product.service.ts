@@ -210,8 +210,10 @@ export class ProductService implements OnModuleInit {
       throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
     }
 
-    const isOwner = requester?.teamId && product.team.toString() === requester.teamId;
-    const isAdmin = requester?.isAdmin;
+    const productTeamId =
+      (product.team as any)?._id?.toString?.() ?? (product.team as any)?.toString?.();
+    const isOwner = !!requester?.teamId && productTeamId === requester.teamId;
+    const isAdmin = !!requester?.isAdmin;
 
     // Bloque l'accès si non publié et pas vendeur/admin
     if (!(product as any).isPublished && !isOwner && !isAdmin) {
