@@ -749,8 +749,9 @@ export class ProductService implements OnModuleInit {
 
     // Réindexer après mise à jour de discount
     try {
-      if ((updatedProduct as any).isPublished)
-      {await this.searchService.indexProduct(updatedProduct as any);}
+      if ((updatedProduct as any).isPublished) {
+        await this.searchService.indexProduct(updatedProduct as any);
+      }
     } catch (err) {
       this.logger.error(
         'Failed to index product in Elasticsearch after discount update',
