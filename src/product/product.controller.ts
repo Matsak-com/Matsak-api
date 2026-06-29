@@ -198,7 +198,7 @@ export class ProductController {
     if (user.role === UserRole.SUPERADMIN) {
       return this.productService.findBy({
         filter: { deleted_at: { $exists: false } },
-        includeUnpublished: true, // ← manquant
+        includeUnpublished: true,
       });
     }
 
