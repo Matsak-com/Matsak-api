@@ -65,7 +65,7 @@ export class ProductService implements OnModuleInit {
               endDate: d.endDate ? new Date(d.endDate) : undefined,
             }))
           : [],
-        isPublished: createDto.isPublished !== undefined ? createDto.isPublished : false, // Default to active
+        isPublished: createDto.isPublished !== undefined ? createDto.isPublished : false, // Default to unpublished
       };
 
       // Step 2: Create product
