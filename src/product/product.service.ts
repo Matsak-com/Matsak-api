@@ -680,8 +680,9 @@ export class ProductService implements OnModuleInit {
 
     // Réindexer après suppression de discount
     try {
-      if ((updatedProduct as any).isPublished)
-      {await this.searchService.indexProduct(updatedProduct as any);}
+      if ((updatedProduct as any).isPublished) {
+        await this.searchService.indexProduct(updatedProduct as any);
+      }
     } catch (error) {
       Logger.error(
         `Failed to reindex product ${id} after discount removal: ${error?.message || error}`,
