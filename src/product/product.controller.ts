@@ -15,6 +15,7 @@ import {
   ParseFilePipe,
   FileTypeValidator,
   MaxFileSizeValidator,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ERRORS } from '../common/errors';
 import { ProductService } from './product.service';
@@ -370,7 +371,7 @@ export class ProductController {
   @HttpCode(HttpStatus.OK)
   async reindexAll(@CurrentUser() user: UserPayload) {
     if (user.role !== UserRole.SUPERADMIN) {
-      throw new BadRequestException('Unauthorized');
+      throw new ForbiddenException('Unauthorized');
     }
     return this.productService.reindexAll();
   }

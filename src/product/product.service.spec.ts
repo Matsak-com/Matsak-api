@@ -255,4 +255,132 @@ describe('ProductService', () => {
       expect(productRepo.update).not.toHaveBeenCalled();
     });
   });
+  describe('findOne', () => {
+    it('returns a published product with review stats', async () => {
+      const product: any = {
+        _id: 'p1',
+        team: '507f1f77bcf86cd799439022',
+        isPublished: true,
+        toObject: jest.fn().mockReturnValue({
+          _id: 'p1',
+          team: '507f1f77bcf86cd799439022',
+          isPublished: true,
+        }),
+      };
+      productRepo.findById.mockResolvedValue(product);
+
+      const result = await service.findOne('p1');
+
+      expect(productRepo.findById).toHaveBeenCalledWith({
+        id: 'p1',
+        options: {
+          populate: [{ path: 'detail' }, { path: 'images' }, { path: 'team' }],
+        },
+      });
+      expect(result.averageRating).toBe(0);
+      expect(result.reviewCount).toBe(0);
+    });
+
+    it('throws NotFoundException when product does not exist', async () => {
+      productRepo.findById.mockResolvedValue(null);
+
+      await expect(service.findOne('missing')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('throws NotFoundException when product is unpublished and requester is not owner/admin', async () => {
+      const product: any = {
+        _id: 'p1',
+        team: '507f1f77bcf86cd799439022',
+        isPublished: false,
+      };
+      productRepo.findById.mockResolvedValue(product);
+
+      await expect(
+        service.findOne('p1', { teamId: 'someoneElse' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('returns an unpublished product when requester is the owner team', async () => {
+      const product: any = {
+        _id: 'p1',
+        team: '507f1f77bcf86cd799439022',
+        isPublished: false,
+        toObject: jest.fn().mockReturnValue({
+          _id: 'p1',
+          team: '507f1f77bcf86cd799439022',
+          isPublished: false,
+        }),
+      };
+      productRepo.findById.mockResolvedValue(product);
+
+      const result = await service.findOne('p1', {
+        teamId: '507f1f77bcf86cd799439022',
+      });
+
+      expect(result.isPublished).toBe(false);
+    });
+
+    it('returns an unpublished product when requester is admin', async () => {
+      const product: any = {
+        _id: 'p1',
+        team: '507f1f77bcf86cd799439022',
+        isPublished: false,
+        toObject: jest.fn().mockReturnValue({
+          _id: 'p1',
+          team: '507f1f77bcf86cd799439022',
+          isPublished: false,
+        }),
+      };
+      productRepo.findById.mockResolvedValue(product);
+
+      const result = await service.findOne('p1', { isAdmin: true });
+
+      expect(result.isPublished).toBe(false);
+    });
+  });
+
+  describe('findBy', () => {
+    it('filters by isPublished true when includeUnpublished is false (default)', async () => {
+      productRepo.findAll.mockResolvedValue([]);
+
+      await service.findBy({ filter: { team: 'team1' } });
+
+      expect(productRepo.findAll).toHaveBeenCalledWith({
+        filter: { team: 'team1', isPublished: true },
+        options: {
+          populate: [{ path: 'detail' }, { path: 'images' }],
+        },
+      });
+    });
+
+    it('does not force isPublished when includeUnpublished is true', async () => {
+      productRepo.findAll.mockResolvedValue([]);
+
+      await service.findBy({
+        filter: { team: 'team1' },
+        includeUnpublished: true,
+      });
+
+      expect(productRepo.findAll).toHaveBeenCalledWith({
+        filter: { team: 'team1' },
+        options: {
+          populate: [{ path: 'detail' }, { path: 'images' }],
+        },
+      });
+    });
+
+    it('maps results through withReviewStats', async () => {
+      const product: any = {
+        toObject: jest.fn().mockReturnValue({ _id: 'p1' }),
+      };
+      productRepo.findAll.mockResolvedValue([product]);
+
+      const result = await service.findBy({ filter: {} });
+
+      expect(result[0].averageRating).toBe(0);
+      expect(result[0].reviewCount).toBe(0);
+    });
+  });
 });
