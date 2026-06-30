@@ -256,7 +256,7 @@ export const createProductSchema = z.object({
     .optional(),
   advanceData: advanceDataSchema.optional(),
   discounts: z.array(discountSchema).optional(),
-  isActive: z.boolean().optional(),
+  isPublished: z.boolean().optional().default(false),
 });
 
 // 🔧 CORRECTION 3: Schéma d'update plus permissif
@@ -272,7 +272,7 @@ export const updateProductSchema = z
       .optional(),
     discounts: z.array(discountSchema).optional(),
 
-    isActive: z.boolean().optional(),
+    isPublished: z.boolean().optional(),
   })
   // 🔧 SUPPRESSION de .strict() pour plus de flexibilité
   .refine(
@@ -394,7 +394,7 @@ export const updateProductSchemaFlexible = z
       .optional(),
     imageData: z.object({}).optional(),
 
-    isActive: z.boolean().optional(),
+    isPublished: z.boolean().optional(),
   })
   .refine(
     (data) => {
@@ -514,7 +514,7 @@ export const simpleUpdateSchema = z
       .string()
       .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId for teamId')
       .optional(),
-    isActive: z.boolean().optional(),
+    isPublished: z.boolean().optional(),
     // Enhanced imageData to handle base64 data from productImage
     imageData: z
       .union([

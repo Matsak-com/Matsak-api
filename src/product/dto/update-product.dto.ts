@@ -22,7 +22,7 @@ export class AdvanceDataUpdateDto {
 
 export class UpdateProductDto {
   detailData?: UpdateDetailProductDto;
-  isActive?: boolean;
+  isPublished?: boolean;
   basePrice?: number;
   price?: number;
   currency?: string;

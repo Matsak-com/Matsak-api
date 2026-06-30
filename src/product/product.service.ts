@@ -65,7 +65,7 @@ export class ProductService implements OnModuleInit {
               endDate: d.endDate ? new Date(d.endDate) : undefined,
             }))
           : [],
-        isActive: createDto.isActive !== undefined ? createDto.isActive : true, // Default to active
+        isPublished: createDto.isPublished !== undefined ? createDto.isPublished : false, // Default to unpublished
       };
 
       // Step 2: Create product
@@ -145,15 +145,12 @@ export class ProductService implements OnModuleInit {
         },
       });
 
-      // Step 5: Index in Elasticsearch (non-critical, just log error)
-      if (populated) {
+      // Step 5: seulement si publié
+      if (populated && (populated as any).isPublished) {
         try {
           await this.searchService.indexProduct(populated as any);
         } catch (indexError) {
-          this.logger.error(
-            'Failed to index product in Elasticsearch',
-            indexError,
-          );
+          this.logger.error('Failed to index product in Elasticsearch', indexError);
         }
       }
 
@@ -170,22 +167,29 @@ export class ProductService implements OnModuleInit {
 
   async findAll(): Promise<Product[]> {
     const products = await this.productRepo.findAll({
-      filter: { deleted_at: { $exists: false } },
+      filter: { 
+        isPublished: true,
+      },
       options: {
         populate: [{ path: 'detail' }, { path: 'images' }, { path: 'team' }],
       },
     });
-
     return products.map((product) => this.withReviewStats(product));
   }
 
   async findBy({
     filter,
+    includeUnpublished = false,
   }: {
     filter: FilterQuery<Product>;
+    includeUnpublished?: boolean;
   }): Promise<Product[]> {
+    const baseFilter = includeUnpublished
+      ? filter
+      : { ...filter, isPublished: true };
+
     const products = await this.productRepo.findAll({
-      filter,
+      filter: baseFilter,
       options: {
         populate: [{ path: 'detail' }, { path: 'images' }],
       },
@@ -193,16 +197,28 @@ export class ProductService implements OnModuleInit {
     return products.map((product) => this.withReviewStats(product));
   }
 
-  async findOne(id: string): Promise<Product> {
+  async findOne(id: string, requester?: { teamId?: string; isAdmin?: boolean }): Promise<Product> {
     const product = await this.productRepo.findById({
       id,
       options: {
         populate: [{ path: 'detail' }, { path: 'images' }, { path: 'team' }],
       },
     });
+
     if (!product) {
       throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
     }
+
+    const productTeamId =
+      (product.team as any)?._id?.toString?.() ?? (product.team as any)?.toString?.();
+    const isOwner = !!requester?.teamId && productTeamId === requester.teamId;
+    const isAdmin = !!requester?.isAdmin;
+
+    // Bloque l'accès si non publié et pas vendeur/admin
+    if (!(product as any).isPublished && !isOwner && !isAdmin) {
+      throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
+    }
+
     return this.withReviewStats(product);
   }
 
@@ -232,7 +248,7 @@ export class ProductService implements OnModuleInit {
     files?: Express.Multer.File[],
   ): Promise<Product> {
     const existingProduct = await this.productRepo.findById({ id });
-    if (!existingProduct) {
+    if (!existingProduct || existingProduct.deleted_at) {
       throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
     }
 
@@ -426,8 +442,8 @@ export class ProductService implements OnModuleInit {
       updatedAt: new Date(),
     };
 
-    if (typeof updateProductDto.isActive !== 'undefined') {
-      updateData.isActive = updateProductDto.isActive;
+    if (typeof updateProductDto.isPublished !== 'undefined') {
+      updateData.isPublished = updateProductDto.isPublished;
     }
 
     if (typeof updateProductDto.basePrice !== 'undefined') {
@@ -501,12 +517,15 @@ export class ProductService implements OnModuleInit {
     // Populate et retourner
     await updatedProduct.populate(['detail', 'images', 'team']);
 
-    // Réindexer dans Elasticsearch
     try {
-      await this.searchService.indexProduct(updatedProduct as any);
+      if ((updatedProduct as any).isPublished) {
+        await this.searchService.indexProduct(updatedProduct as any);
+      } else {
+        await this.searchService.removeProduct(id); // retirer de l'index si dépublié
+      }
     } catch (indexError) {
       this.logger.error(
-        `Failed to index product ${updatedProduct._id} in Elasticsearch: ${indexError?.message || indexError}`,
+        `Failed to sync Elasticsearch for product ${updatedProduct._id}: ${indexError?.message || indexError}`,
       );
     }
 
@@ -515,7 +534,7 @@ export class ProductService implements OnModuleInit {
 
   async remove(id: string): Promise<void> {
     const product = await this.productRepo.findById({ id });
-    if (!product) {
+    if (!product || product.deleted_at) {
       throw new NotFoundException(`Product with id ${id} not found`);
     }
 
@@ -541,31 +560,35 @@ export class ProductService implements OnModuleInit {
     basePrice: number,
     currency = 'MGA',
   ): Promise<Product> {
-    const product = await this.productRepo.findById({ id });
-    if (!product) {
-      throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
-    }
+      const product = await this.productRepo.findById({ id });
+      if (!product) {
+        throw new NotFoundException(ERRORS.PRODUCT_NOT_FOUND);
+      }
 
-    const updatedProduct = await this.productRepo.update({
-      id,
-      update: {
-        basePrice,
-        currency,
-        updatedAt: new Date(),
-      },
-    });
+      const updatedProduct = await this.productRepo.update({
+        id,
+        update: {
+          basePrice,
+          currency,
+          updatedAt: new Date(),
+        },
+      });
 
-    await updatedProduct.populate(['detail', 'images', 'team']);
+      await updatedProduct.populate(['detail', 'images', 'team']);
 
-    try {
-      await this.searchService.indexProduct(updatedProduct as any);
-    } catch (error) {
-      Logger.error(
-        `Failed to index product ${id} after price update: ${error?.message || error}`,
-      );
-    }
+      try {
+        if ((updatedProduct as any).isPublished) {
+          await this.searchService.indexProduct(updatedProduct as any);
+        }
+      } 
+      catch (error) { 
+        Logger.error(
+          `Failed to index product ${id} after price update: ${error?.message || error}`,
+        );
+      }
 
-    return updatedProduct;
+      return updatedProduct;
+    
   }
 
   async addDiscount(
@@ -617,7 +640,9 @@ export class ProductService implements OnModuleInit {
 
     // Réindexer après ajout de discount
     try {
-      await this.searchService.indexProduct(updatedProduct as any);
+      if ((updatedProduct as any).isPublished) {
+        await this.searchService.indexProduct(updatedProduct as any);
+      }
     } catch (error) {
       Logger.error(
         `Failed to index product ${id} after price update: ${error?.message || error}`,
@@ -656,7 +681,9 @@ export class ProductService implements OnModuleInit {
 
     // Réindexer après suppression de discount
     try {
-      await this.searchService.indexProduct(updatedProduct as any);
+      if ((updatedProduct as any).isPublished) {
+        await this.searchService.indexProduct(updatedProduct as any);
+      }
     } catch (error) {
       Logger.error(
         `Failed to reindex product ${id} after discount removal: ${error?.message || error}`,
@@ -725,7 +752,9 @@ export class ProductService implements OnModuleInit {
 
     // Réindexer après mise à jour de discount
     try {
-      await this.searchService.indexProduct(updatedProduct as any);
+      if ((updatedProduct as any).isPublished) {
+        await this.searchService.indexProduct(updatedProduct as any);
+      }
     } catch (err) {
       this.logger.error(
         'Failed to index product in Elasticsearch after discount update',
@@ -815,7 +844,7 @@ export class ProductService implements OnModuleInit {
     this.logger.log('Starting reindex of all products...');
     // Use findBy with explicit filter instead of findAll for CLI context
     const products = await this.productRepo.findAll({
-      filter: { deleted_at: { $exists: false } },
+      filter: { isPublished: true },
       options: {
         populate: [{ path: 'detail' }, { path: 'images' }, { path: 'team' }],
       },

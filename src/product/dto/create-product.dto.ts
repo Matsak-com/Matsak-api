@@ -111,7 +111,7 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsBoolean()
-  isActive?: boolean;
+  isPublished?: boolean;
 }
 
 /**
@@ -322,8 +322,8 @@ export const createProductMultipartSchema = z.preprocess((raw) => {
   }
 
   // Handle boolean fields
-  if (typeof cloned.isActive === 'string') {
-    cloned.isActive = cloned.isActive === 'true';
+  if (typeof cloned.isPublished === 'string') {
+    cloned.isPublished = cloned.isPublished === 'true';
   }
 
   if (typeof cloned.detailData?.isRepackaged === 'string') {
@@ -624,9 +624,8 @@ export const simpleUpdateMultipartSchema = z.preprocess((raw) => {
     delete cloned.productImage;
   }
 
-  // Handle booleans
-  if (typeof cloned.isActive === 'string') {
-    cloned.isActive = cloned.isActive === 'true';
+  if (typeof cloned.isPublished === 'string') {
+    cloned.isPublished = cloned.isPublished === 'true';
   }
 
   if (cloned.detailData && typeof cloned.detailData.isRepackaged === 'string') {

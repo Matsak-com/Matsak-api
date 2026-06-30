@@ -1,8 +1,3 @@
-jest.mock('bcrypt', () => ({
-  hash: jest.fn(),
-  compare: jest.fn(),
-}));
-
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
@@ -80,7 +75,7 @@ describe('ProductService', () => {
   });
 
   describe('createProduct', () => {
-    it('creates a product, populates review stats, and indexes search', async () => {
+    it('creates a published product, populates review stats, and indexes it in search', async () => {
       const dto: any = {
         detailData: {
           name: 'Painkiller',
@@ -89,6 +84,7 @@ describe('ProductService', () => {
         teamId: '507f1f77bcf86cd799439022',
         basePrice: 120,
         currency: 'MGA',
+        isPublished: true,
       };
 
       const createdId = new Types.ObjectId('507f1f77bcf86cd799439099');
@@ -104,6 +100,7 @@ describe('ProductService', () => {
         basePrice: dto.basePrice,
         currency: dto.currency,
         discounts: [],
+        isPublished: true,
         toObject: jest.fn().mockReturnValue({
           _id: createdId,
           detail: 'detailId',
@@ -112,6 +109,7 @@ describe('ProductService', () => {
           basePrice: dto.basePrice,
           currency: dto.currency,
           discounts: [],
+          isPublished: true,
         }),
       };
 
@@ -128,6 +126,7 @@ describe('ProductService', () => {
           currency: dto.currency,
           team: expect.any(Types.ObjectId),
           images: [],
+          isPublished: true,
         }),
       });
       expect(productRepo.findById).toHaveBeenCalledWith({
@@ -141,6 +140,56 @@ describe('ProductService', () => {
       expect(result.reviewCount).toBe(0);
       expect(result.basePrice).toBe(dto.basePrice);
       expect(result.currency).toBe(dto.currency);
+    });
+
+    it('does not index the product in search when isPublished is false (default)', async () => {
+      const dto: any = {
+        detailData: {
+          name: 'Painkiller',
+          categoryId: '507f1f77bcf86cd799439011',
+        },
+        teamId: '507f1f77bcf86cd799439022',
+        basePrice: 120,
+        currency: 'MGA',
+        // isPublished omitted on purpose -> service defaults it to false
+      };
+
+      const createdId = new Types.ObjectId('507f1f77bcf86cd799439098');
+
+      detailProductService.create.mockResolvedValue({ _id: 'detailId' });
+      productRepo.create.mockResolvedValue({ _id: createdId });
+
+      const populatedProduct: any = {
+        _id: createdId,
+        detail: 'detailId',
+        images: [],
+        team: new Types.ObjectId(dto.teamId),
+        basePrice: dto.basePrice,
+        currency: dto.currency,
+        discounts: [],
+        isPublished: false,
+        toObject: jest.fn().mockReturnValue({
+          _id: createdId,
+          detail: 'detailId',
+          images: [],
+          team: new Types.ObjectId(dto.teamId),
+          basePrice: dto.basePrice,
+          currency: dto.currency,
+          discounts: [],
+          isPublished: false,
+        }),
+      };
+
+      productRepo.findById.mockResolvedValue(populatedProduct);
+
+      const result = await service.createProduct(dto);
+
+      expect(productRepo.create).toHaveBeenCalledWith({
+        doc: expect.objectContaining({ isPublished: false }),
+      });
+      expect(searchService.indexProduct).not.toHaveBeenCalled();
+      expect(result.averageRating).toBe(0);
+      expect(result.reviewCount).toBe(0);
     });
 
     it('throws BadRequestException when duplicate product is detected', async () => {
@@ -204,6 +253,134 @@ describe('ProductService', () => {
         service.updateDiscount('id', 0, { type: 'percentage', value: 150 }),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(productRepo.update).not.toHaveBeenCalled();
+    });
+  });
+  describe('findOne', () => {
+    it('returns a published product with review stats', async () => {
+      const product: any = {
+        _id: 'p1',
+        team: '507f1f77bcf86cd799439022',
+        isPublished: true,
+        toObject: jest.fn().mockReturnValue({
+          _id: 'p1',
+          team: '507f1f77bcf86cd799439022',
+          isPublished: true,
+        }),
+      };
+      productRepo.findById.mockResolvedValue(product);
+
+      const result = await service.findOne('p1');
+
+      expect(productRepo.findById).toHaveBeenCalledWith({
+        id: 'p1',
+        options: {
+          populate: [{ path: 'detail' }, { path: 'images' }, { path: 'team' }],
+        },
+      });
+      expect(result.averageRating).toBe(0);
+      expect(result.reviewCount).toBe(0);
+    });
+
+    it('throws NotFoundException when product does not exist', async () => {
+      productRepo.findById.mockResolvedValue(null);
+
+      await expect(service.findOne('missing')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('throws NotFoundException when product is unpublished and requester is not owner/admin', async () => {
+      const product: any = {
+        _id: 'p1',
+        team: '507f1f77bcf86cd799439022',
+        isPublished: false,
+      };
+      productRepo.findById.mockResolvedValue(product);
+
+      await expect(
+        service.findOne('p1', { teamId: 'someoneElse' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('returns an unpublished product when requester is the owner team', async () => {
+      const product: any = {
+        _id: 'p1',
+        team: '507f1f77bcf86cd799439022',
+        isPublished: false,
+        toObject: jest.fn().mockReturnValue({
+          _id: 'p1',
+          team: '507f1f77bcf86cd799439022',
+          isPublished: false,
+        }),
+      };
+      productRepo.findById.mockResolvedValue(product);
+
+      const result = await service.findOne('p1', {
+        teamId: '507f1f77bcf86cd799439022',
+      });
+
+      expect(result.isPublished).toBe(false);
+    });
+
+    it('returns an unpublished product when requester is admin', async () => {
+      const product: any = {
+        _id: 'p1',
+        team: '507f1f77bcf86cd799439022',
+        isPublished: false,
+        toObject: jest.fn().mockReturnValue({
+          _id: 'p1',
+          team: '507f1f77bcf86cd799439022',
+          isPublished: false,
+        }),
+      };
+      productRepo.findById.mockResolvedValue(product);
+
+      const result = await service.findOne('p1', { isAdmin: true });
+
+      expect(result.isPublished).toBe(false);
+    });
+  });
+
+  describe('findBy', () => {
+    it('filters by isPublished true when includeUnpublished is false (default)', async () => {
+      productRepo.findAll.mockResolvedValue([]);
+
+      await service.findBy({ filter: { team: 'team1' } });
+
+      expect(productRepo.findAll).toHaveBeenCalledWith({
+        filter: { team: 'team1', isPublished: true },
+        options: {
+          populate: [{ path: 'detail' }, { path: 'images' }],
+        },
+      });
+    });
+
+    it('does not force isPublished when includeUnpublished is true', async () => {
+      productRepo.findAll.mockResolvedValue([]);
+
+      await service.findBy({
+        filter: { team: 'team1' },
+        includeUnpublished: true,
+      });
+
+      expect(productRepo.findAll).toHaveBeenCalledWith({
+        filter: { team: 'team1' },
+        options: {
+          populate: [{ path: 'detail' }, { path: 'images' }],
+        },
+      });
+    });
+
+    it('maps results through withReviewStats', async () => {
+      const product: any = {
+        toObject: jest.fn().mockReturnValue({ _id: 'p1' }),
+      };
+      productRepo.findAll.mockResolvedValue([product]);
+
+      const result = await service.findBy({ filter: {} });
+
+      expect(result[0].averageRating).toBe(0);
+      expect(result[0].reviewCount).toBe(0);
     });
   });
 });
