@@ -599,7 +599,7 @@ describe('ProductService', () => {
       csvService.parseCSV.mockResolvedValue([]);
 
       await expect(
-        service.bulkImportFromCSV(Buffer.from(''), 'teamId'),
+        service.bulkImportFromCSV(Buffer.from(''), '507f1f77bcf86cd799439055'),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
@@ -609,7 +609,7 @@ describe('ProductService', () => {
       categoryModel.findOne.mockResolvedValue({ _id: 'catId' });
       csvService.recordToProductPayload.mockReturnValue({
         detailData: { name: 'Prod', categoryId: 'catId' },
-        teamId: 'teamId',
+        teamId: '507f1f77bcf86cd799439055',
       });
 
       detailProductService.create.mockResolvedValue({ _id: 'detailId' });
@@ -619,7 +619,11 @@ describe('ProductService', () => {
         toObject: jest.fn().mockReturnValue({ _id: 'prodId' }),
       });
 
-      const result = await service.bulkImportFromCSV(Buffer.from(''), 'teamId', true);
+      const result = await service.bulkImportFromCSV(
+        Buffer.from(''),
+        '507f1f77bcf86cd799439055',
+        true,
+      );
 
       expect(categoryModel.findOne).toHaveBeenCalled();
       expect(result.successful).toBe(1);
@@ -635,7 +639,7 @@ describe('ProductService', () => {
 
       const result = await service.bulkImportFromCSV(
         Buffer.from(''),
-        'teamId',
+        '507f1f77bcf86cd799439055',
         true,
       );
 
@@ -654,7 +658,11 @@ describe('ProductService', () => {
       });
 
       await expect(
-        service.bulkImportFromCSV(Buffer.from(''), 'teamId', false),
+        service.bulkImportFromCSV(
+          Buffer.from(''),
+          '507f1f77bcf86cd799439055',
+          false,
+        ),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
@@ -664,7 +672,7 @@ describe('ProductService', () => {
       productRepo.findAll.mockResolvedValue([]);
       csvService.getCSVTemplate.mockReturnValue(Buffer.from('template'));
 
-      const result = await service.bulkExportToCSV('teamId');
+      const result = await service.bulkExportToCSV('507f1f77bcf86cd799439055');
 
       expect(csvService.getCSVTemplate).toHaveBeenCalled();
       expect(result.toString()).toBe('template');
@@ -675,7 +683,7 @@ describe('ProductService', () => {
       productRepo.findAll.mockResolvedValue(products);
       csvService.exportToCSV.mockResolvedValue(Buffer.from('csv-data'));
 
-      const result = await service.bulkExportToCSV('teamId');
+      const result = await service.bulkExportToCSV('507f1f77bcf86cd799439055');
 
       expect(csvService.exportToCSV).toHaveBeenCalledWith(products);
       expect(result.toString()).toBe('csv-data');
