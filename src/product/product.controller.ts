@@ -470,8 +470,6 @@ export class ProductController {
     try {
       const csvBuffer = await this.productService.bulkExportToCSV(
         teamId,
-        includeImages === 'true' || includeImages === '1',
-        includeDiscounts !== 'false' && includeDiscounts !== '0', // Default true
       );
 
       if (res) {

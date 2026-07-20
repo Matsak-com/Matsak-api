@@ -5,16 +5,18 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { ProductService } from '../product.service';
+import { BadRequestException } from '@nestjs/common';
+import { Types } from 'mongoose';
 import { ProductCsvService } from '../csv/product-csv.service';
 
 describe('Product CSV Bulk Operations', () => {
   let csvService: ProductCsvService;
   const mockTeamId = '507f1f77bcf86cd799439011';
+  const mockCategoryId = new Types.ObjectId('507f1f77bcf86cd799439012');
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      providers: [ProductService, ProductCsvService],
+      providers: [ProductCsvService],
     }).compile();
 
     csvService = moduleFixture.get<ProductCsvService>(ProductCsvService);
@@ -66,7 +68,7 @@ Product 2,Normal description,200`;
           currency: 'MGA',
         };
 
-        const result = csvService.validateProductRecord(record, 1);
+        const result = csvService.validateProductRecord(record);
 
         expect(result.valid).toBe(true);
         expect(result.errors).toHaveLength(0);
@@ -78,7 +80,7 @@ Product 2,Normal description,200`;
           basePrice: '100',
         };
 
-        const result = csvService.validateProductRecord(record, 1);
+        const result = csvService.validateProductRecord(record);
 
         expect(result.valid).toBe(false);
         expect(result.errors).toContain('Product name is required');
@@ -90,7 +92,7 @@ Product 2,Normal description,200`;
           basePrice: 'invalid',
         };
 
-        const result = csvService.validateProductRecord(record, 1);
+        const result = csvService.validateProductRecord(record);
 
         expect(result.valid).toBe(false);
         expect(result.errors).toContain('Valid base price is required');
@@ -102,7 +104,7 @@ Product 2,Normal description,200`;
           basePrice: '-100',
         };
 
-        const result = csvService.validateProductRecord(record, 1);
+        const result = csvService.validateProductRecord(record);
 
         expect(result.valid).toBe(false);
         expect(result.errors).toContain('Base price cannot be negative');
@@ -115,7 +117,7 @@ Product 2,Normal description,200`;
           stockQuantity: '50.5',
         };
 
-        const result = csvService.validateProductRecord(record, 1);
+        const result = csvService.validateProductRecord(record);
 
         expect(result.valid).toBe(false);
         expect(result.errors).toContain(
@@ -130,7 +132,7 @@ Product 2,Normal description,200`;
           isActive: 'maybe',
         };
 
-        const result = csvService.validateProductRecord(record, 1);
+        const result = csvService.validateProductRecord(record);
 
         expect(result.valid).toBe(false);
         expect(result.errors).toContain('isActive must be true or false');
@@ -144,7 +146,7 @@ Product 2,Normal description,200`;
           discountValue: '10',
         };
 
-        const result = csvService.validateProductRecord(record, 1);
+        const result = csvService.validateProductRecord(record);
 
         expect(result.valid).toBe(false);
         expect(result.errors).toContain(
@@ -163,7 +165,7 @@ Product 2,Normal description,200`;
             discountValue: '10',
           };
 
-          const result = csvService.validateProductRecord(record, 1);
+          const result = csvService.validateProductRecord(record);
 
           expect(result.valid).toBe(true);
         });
@@ -182,15 +184,20 @@ Product 2,Normal description,200`;
           isActive: 'true',
         };
 
-        const payload = csvService.recordToProductPayload(record, mockTeamId);
+        const payload = csvService.recordToProductPayload(
+          record,
+          mockTeamId,
+          mockCategoryId,
+        );
 
         expect(payload.teamId).toBe(mockTeamId);
         expect(payload.basePrice).toBe(100);
         expect(payload.currency).toBe('MGA');
         expect(payload.detailData.name).toBe('Test Product');
+        expect(payload.detailData.category).toBe(mockCategoryId);
         expect(payload.stockQuantity).toBe(50);
         expect(payload.isActive).toBe(true);
-        expect(payload.advanceData.sku).toBe('SKU001');
+        expect(payload.detailData.sku).toBe('SKU001');
       });
 
       it('should apply defaults for optional fields', () => {
@@ -199,11 +206,16 @@ Product 2,Normal description,200`;
           basePrice: '100',
         };
 
-        const payload = csvService.recordToProductPayload(record, mockTeamId);
+        const payload = csvService.recordToProductPayload(
+          record,
+          mockTeamId,
+          mockCategoryId,
+        );
 
         expect(payload.currency).toBe('MGA');
         expect(payload.isActive).toBe(true);
-        expect(payload.advanceData).toBeDefined();
+        expect(payload.detailData).toBeDefined();
+        expect(payload.detailData.category).toBe(mockCategoryId);
       });
 
       it('should handle SEO data', () => {
@@ -215,11 +227,15 @@ Product 2,Normal description,200`;
           seoKeywords: 'keyword1, keyword2',
         };
 
-        const payload = csvService.recordToProductPayload(record, mockTeamId);
+        const payload = csvService.recordToProductPayload(
+          record,
+          mockTeamId,
+          mockCategoryId,
+        );
 
-        expect(payload.advanceData.seo).toBeDefined();
-        expect(payload.advanceData.seo.title).toBe('SEO Title');
-        expect(payload.advanceData.seo.keywords).toBe('keyword1, keyword2');
+        expect(payload.detailData.seo).toBeDefined();
+        expect(payload.detailData.seo.title).toBe('SEO Title');
+        expect(payload.detailData.seo.keywords).toBe('keyword1, keyword2');
       });
 
       it('should handle discount data', () => {
@@ -230,7 +246,11 @@ Product 2,Normal description,200`;
           discountValue: '10',
         };
 
-        const payload = csvService.recordToProductPayload(record, mockTeamId);
+        const payload = csvService.recordToProductPayload(
+          record,
+          mockTeamId,
+          mockCategoryId,
+        );
 
         expect(payload.discounts).toHaveLength(1);
         expect(payload.discounts[0].type).toBe('percentage');
@@ -264,9 +284,7 @@ Product 2,Normal description,200`;
           },
         ];
 
-        const csv = await csvService.exportToCSV(mockProducts, {
-          teamId: mockTeamId,
-        });
+        const csv = await csvService.exportToCSV(mockProducts);
 
         expect(csv).toBeInstanceOf(Buffer);
         const content = csv.toString();
@@ -275,9 +293,7 @@ Product 2,Normal description,200`;
       });
 
       it('should handle empty product list', async () => {
-        const csv = await csvService.exportToCSV([], {
-          teamId: mockTeamId,
-        });
+        const csv = await csvService.exportToCSV([]);
 
         expect(csv).toBeInstanceOf(Buffer);
         const content = csv.toString();
@@ -300,15 +316,13 @@ Product 2,Normal description,200`;
         const mockDetail = {
           name: 'Product Name',
           description: 'Product Desc',
-          advanceData: {
-            sku: 'SKU001',
-            barcode: '123456',
-            weight: 0.5,
-            seo: {
-              title: 'SEO Title',
-              description: 'SEO Desc',
-              keywords: 'keywords',
-            },
+          sku: 'SKU001',
+          barcode: '123456',
+          weight: 0.5,
+          seo: {
+            title: 'SEO Title',
+            description: 'SEO Desc',
+            keywords: 'keywords',
           },
         };
 
@@ -334,23 +348,27 @@ Product 2,Normal description,200`;
       expect(records.length).toBeGreaterThan(0);
 
       // 3. Validate records
-      const validation = csvService.validateProductRecord(records[0], 2);
+      const validation = csvService.validateProductRecord(records[0]);
       expect(validation.valid).toBe(true);
 
       // 4. Convert to payload
-      const payload = csvService.recordToProductPayload(records[0], mockTeamId);
+      const payload = csvService.recordToProductPayload(
+        records[0],
+        mockTeamId,
+        mockCategoryId,
+      );
       expect(payload.teamId).toBe(mockTeamId);
     });
 
     it('should handle multiple validation errors', async () => {
       const invalidRecords = [
-        { basePrice: 'invalid' }, // no name, invalid price
+        { basePrice: 'invalid' } as any, // no name, invalid price
         { name: 'Product', basePrice: '-100' }, // negative price
         { name: '', basePrice: '100' }, // no name
       ];
 
-      invalidRecords.forEach((record, index) => {
-        const result = csvService.validateProductRecord(record, index);
+      invalidRecords.forEach((record) => {
+        const result = csvService.validateProductRecord(record);
         expect(result.valid).toBe(false);
         expect(result.errors.length).toBeGreaterThan(0);
       });
