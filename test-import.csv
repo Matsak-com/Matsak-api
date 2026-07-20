@@ -1,0 +1,4 @@
+name,description,basePrice,currency,categoryName,subcategoryName,sku,barcode,weight,stockQuantity,trackStock,lowStockThreshold,isActive,discountType,discountValue,additionalInfo,seoTitle,seoDescription,seoKeywords
+Produit Import Test,<p>Description test import</p>,15000,MGA,Santé au Quotidien,,SKU-TEST-001,,0.25,50,true,5,true,percentage,10,Info test,Titre SEO,Desc SEO,mot1,mot2
+Deuxième produit,<p>Autre test</p>,8000,MGA,Santé au Quotidien,,,,,,true,0,true,,,,,,
+Produit categorie inconnue,<p>Test erreur</p>,5000,MGA,CategorieBidon,,,,,,true,0,true,,,,,,

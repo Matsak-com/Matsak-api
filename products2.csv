@@ -1,0 +1,9 @@
+name,description,basePrice,currency,categoryName,subcategoryName,sku,barcode,weight,stockQuantity,trackStock,lowStockThreshold,isActive,discountType,discountValue,additionalInfo,seoTitle,seoDescription,seoKeywords
+produit test,<p>test</p>,50000,MGA,Santé au Quotidien,,,,,99,true,0,false,percentage,10,,,,
+test publication ,<p>test publication </p>,10000,MGA,Santé au Quotidien,,,,,0,true,0,false,,,,,,
+pu,<p>pub</p>,20000,MGA,Santé au Quotidien,,,,,0,true,0,false,,,,,,
+pub,<p>pub</p>,20000,MGA,Santé au Quotidien,,,,,0,true,0,false,,,,,,
+p,<p>p</p>,5000,MGA,Santé au Quotidien,,,,,0,true,0,false,,,,,,
+pp,<p>pp</p>,12000,MGA,Santé au Quotidien,,,,,0,true,0,false,,,,,,
+t,<p>t</p>,25000,MGA,Santé au Quotidien,,,,,0,true,0,false,,,,,,
+t,<p>t</p>,3000,MGA,Santé au Quotidien,,,,,0,true,0,false,,,,,,
