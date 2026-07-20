@@ -77,6 +77,7 @@ Product 2,Normal description,200`;
       it('should reject missing name', () => {
         const record = {
           name: '',
+          description: '',
           basePrice: '100',
         };
 
@@ -89,6 +90,7 @@ Product 2,Normal description,200`;
       it('should reject invalid basePrice', () => {
         const record = {
           name: 'Test',
+          description: '',
           basePrice: 'invalid',
         };
 
@@ -101,6 +103,7 @@ Product 2,Normal description,200`;
       it('should reject negative basePrice', () => {
         const record = {
           name: 'Test',
+          description: '',
           basePrice: '-100',
         };
 
@@ -113,6 +116,7 @@ Product 2,Normal description,200`;
       it('should reject invalid stockQuantity', () => {
         const record = {
           name: 'Test',
+          description: '',
           basePrice: '100',
           stockQuantity: '50.5',
         };
@@ -128,6 +132,7 @@ Product 2,Normal description,200`;
       it('should reject invalid boolean fields', () => {
         const record = {
           name: 'Test',
+          description: '',
           basePrice: '100',
           isActive: 'maybe',
         };
@@ -141,6 +146,7 @@ Product 2,Normal description,200`;
       it('should reject invalid discount type', () => {
         const record = {
           name: 'Test',
+          description: '',
           basePrice: '100',
           discountType: 'invalid',
           discountValue: '10',
@@ -160,6 +166,7 @@ Product 2,Normal description,200`;
         validTypes.forEach((type) => {
           const record = {
             name: 'Test',
+            description: '',
             basePrice: '100',
             discountType: type,
             discountValue: '10',
@@ -203,6 +210,7 @@ Product 2,Normal description,200`;
       it('should apply defaults for optional fields', () => {
         const record = {
           name: 'Test',
+          description: '',
           basePrice: '100',
         };
 
@@ -221,6 +229,7 @@ Product 2,Normal description,200`;
       it('should handle SEO data', () => {
         const record = {
           name: 'Test',
+          description: '',
           basePrice: '100',
           seoTitle: 'SEO Title',
           seoDescription: 'SEO Desc',
@@ -241,6 +250,7 @@ Product 2,Normal description,200`;
       it('should handle discount data', () => {
         const record = {
           name: 'Test',
+          description: '',
           basePrice: '100',
           discountType: 'percentage',
           discountValue: '10',
@@ -362,9 +372,9 @@ Product 2,Normal description,200`;
 
     it('should handle multiple validation errors', async () => {
       const invalidRecords = [
-        { basePrice: 'invalid' } as any, // no name, invalid price
-        { name: 'Product', basePrice: '-100' }, // negative price
-        { name: '', basePrice: '100' }, // no name
+        { name: '', description: '', basePrice: 'invalid' }, // no name, invalid price
+        { name: 'Product', description: '', basePrice: '-100' }, // negative price
+        { name: '', description: '', basePrice: '100' }, // no name
       ];
 
       invalidRecords.forEach((record) => {
