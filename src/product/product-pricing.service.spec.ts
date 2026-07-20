@@ -5,8 +5,10 @@ import { DetailProductRepository } from '../detail-product/detail-product.reposi
 import { ImageProductService } from '../image-product/image-product.service';
 import { DetailProductService } from '../detail-product/detail-product.service';
 import { SearchService } from '../elasticsearch/elasticsearch.service';
+import { ProductCsvService } from './csv/product-csv.service';
 import { getModelToken } from '@nestjs/mongoose';
 import { Product } from './product.schema';
+import { Category } from '../categories/category.schema';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('ProductService - Pricing', () => {
@@ -62,6 +64,18 @@ describe('ProductService - Pricing', () => {
       reindexAll: jest.fn(),
     };
 
+    const mockCategoryModel = {
+      findOne: jest.fn(),
+    };
+
+    const mockCsvService = {
+      parseCSV: jest.fn(),
+      validateProductRecord: jest.fn(),
+      recordToProductPayload: jest.fn(),
+      exportToCSV: jest.fn(),
+      getCSVTemplate: jest.fn(),
+    };
+
     mockProductModel = {
       findById: jest.fn(),
     };
@@ -92,6 +106,14 @@ describe('ProductService - Pricing', () => {
         {
           provide: getModelToken(Product.name),
           useValue: mockProductModel,
+        },
+        {
+          provide: getModelToken(Category.name),
+          useValue: mockCategoryModel,
+        },
+        {
+          provide: ProductCsvService,
+          useValue: mockCsvService,
         },
       ],
     }).compile();
