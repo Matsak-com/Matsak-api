@@ -5,6 +5,8 @@ import {
   Logger,
   OnModuleInit,
 } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { ERRORS } from '../common/errors';
 import { Product } from './product.schema';
 import { ProductRepository } from './product.repository';
@@ -15,6 +17,8 @@ import { DetailProductService } from '../detail-product/detail-product.service';
 import { DetailProduct } from '../detail-product/detail-product.schema';
 import { SearchService } from '../elasticsearch/elasticsearch.service';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { ProductCsvService } from './csv/product-csv.service';
+import { Category, CategoryDocument } from '../categories/category.schema';
 
 import { z } from 'zod';
 import { createProductSchema } from '../common/schemas/product.schemas';
@@ -31,6 +35,9 @@ export class ProductService implements OnModuleInit {
     private readonly imageservice: ImageProductService,
     private readonly detailProductService: DetailProductService,
     private readonly searchService: SearchService,
+    @InjectModel(Category.name)
+    private readonly categoryModel: Model<CategoryDocument>,
+    private readonly csvService: ProductCsvService,
   ) {}
 
   async onModuleInit() {
@@ -177,6 +184,28 @@ export class ProductService implements OnModuleInit {
     });
 
     return products.map((product) => this.withReviewStats(product));
+  }
+
+  private async resolveCategoryId(
+    categoryName: string,
+  ): Promise<Types.ObjectId> {
+    const trimmed = categoryName?.trim();
+    if (!trimmed) {
+      throw new BadRequestException('categoryName is required');
+    }
+
+    const category = await this.categoryModel.findOne({
+      name: { $regex: `^${trimmed}$`, $options: 'i' }, // recherche insensible à la casse
+      deleted_at: { $exists: false },
+    });
+
+    if (!category) {
+      throw new BadRequestException(
+        `Category "${trimmed}" not found. Please create it first or check spelling.`,
+      );
+    }
+
+    return category._id as Types.ObjectId;
   }
 
   async findBy({
@@ -826,5 +855,133 @@ export class ProductService implements OnModuleInit {
       message: 'Reindexing completed',
       totalProducts: products.length,
     };
+  }
+
+  /**
+   * Bulk import products from CSV file
+   */
+  async bulkImportFromCSV(
+    csvBuffer: Buffer,
+    teamId: string,
+    skipOnError: boolean = false,
+  ): Promise<any> {
+    try {
+      const records = await this.csvService.parseCSV(csvBuffer);
+
+      if (!records || records.length === 0) {
+        throw new BadRequestException('CSV file contains no data');
+      }
+
+      const result = {
+        total: records.length,
+        successful: 0,
+        failed: 0,
+        errors: [],
+        successfulProducts: [],
+      };
+
+      for (let i = 0; i < records.length; i++) {
+        const record = records[i];
+        const rowIndex = i + 2;
+
+        try {
+          const validation = this.csvService.validateProductRecord(record);
+          if (!validation.valid) {
+            result.failed++;
+            result.errors.push({
+              row: rowIndex,
+              data: record,
+              error: validation.errors.join('; '),
+            });
+            if (!skipOnError) {
+              throw new BadRequestException(
+                `Validation error at row ${rowIndex}: ${validation.errors.join('; ')}`,
+              );
+            }
+            continue;
+          }
+
+          // ← NOUVEAU : résoudre la catégorie avant de construire le payload
+          const categoryId = await this.resolveCategoryId(
+            record.categoryName || '',
+          );
+
+          const payload = this.csvService.recordToProductPayload(
+            record,
+            teamId,
+            categoryId,
+          );
+
+          const product = await this.createProduct(payload as any);
+
+          result.successful++;
+          result.successfulProducts.push({
+            id: (product as any)._id,
+            name: record.name,
+          });
+        } catch (error) {
+          result.failed++;
+          result.errors.push({
+            row: rowIndex,
+            data: record,
+            error: (error as any).message || 'Unknown error',
+          });
+
+          if (!skipOnError) {
+            throw error;
+          }
+        }
+      }
+
+      return result;
+    } catch (error) {
+      this.logger.error('Bulk import failed', error);
+      throw error;
+    }
+  }
+  /**
+   * Bulk export products to CSV file
+   */
+  async bulkExportToCSV(teamId: string): Promise<Buffer> {
+    try {
+      // Find all products for team
+      const products = await this.productRepo.findAll({
+        filter: {
+          team: new Types.ObjectId(teamId),
+          deleted_at: { $exists: false },
+        },
+        options: {
+          populate: [
+            {
+              path: 'detail',
+              populate: [{ path: 'category' }, { path: 'subcategory' }],
+            },
+            { path: 'images' },
+            { path: 'team' },
+          ],
+        },
+      });
+
+      if (!products || products.length === 0) {
+        // Return empty template
+        return this.csvService.getCSVTemplate();
+      }
+
+      // Export to CSV
+      const csvBuffer = await this.csvService.exportToCSV(products as any);
+
+      this.logger.log(`Exported ${products.length} products to CSV`);
+      return csvBuffer;
+    } catch (error) {
+      this.logger.error('Bulk export failed', error);
+      throw new BadRequestException('Failed to export products to CSV');
+    }
+  }
+
+  /**
+   * Get CSV import template
+   */
+  getCSVTemplate(): Buffer {
+    return this.csvService.getCSVTemplate();
   }
 }

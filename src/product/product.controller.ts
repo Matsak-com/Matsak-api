@@ -15,7 +15,12 @@ import {
   ParseFilePipe,
   FileTypeValidator,
   MaxFileSizeValidator,
+  UploadedFile,
+  Res,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { UseInterceptors } from '@nestjs/common';
+import { Response } from 'express';
 import { ERRORS } from '../common/errors';
 import { ProductService } from './product.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -354,5 +359,137 @@ export class ProductController {
   @HttpCode(HttpStatus.OK)
   async reindexAll() {
     return this.productService.reindexAll();
+  }
+
+  /**
+   * Get CSV import template
+   * Returns a CSV template with example headers and data
+   */
+  @Get('bulk/template')
+  @HttpCode(HttpStatus.OK)
+  async getCsvTemplate(@Res() res: Response) {
+    try {
+      const csvBuffer = this.productService.getCSVTemplate();
+      res.set({
+        'Content-Type': 'text/csv',
+        'Content-Disposition': 'attachment; filename="products-template.csv"',
+      });
+      res.send(csvBuffer);
+    } catch {
+      throw new BadRequestException('Failed to generate CSV template');
+    }
+  }
+
+  /**
+   * Bulk import products from CSV file
+   * POST /products/bulk/import
+   *
+   * @param file CSV file to import
+   * @param teamId Team ID for products
+   * @param skipOnError Skip records with errors (default: false)
+   * @returns Import result with success/failure counts
+   *
+   * @example
+   * ```
+   * POST /products/bulk/import
+   * Content-Type: multipart/form-data
+   *
+   * file: <csv-file>
+   * teamId: "507f1f77bcf86cd799439011"
+   * skipOnError: true
+   * ```
+   */
+  @Post('bulk/import')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(HttpStatus.CREATED)
+  async bulkImportCsv(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new FileTypeValidator({
+            fileType: 'text/csv|text/plain',
+            skipMagicNumbersValidation: true, // ← ajoute cette ligne
+          }),
+          new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+    @Query('teamId') teamId: string,
+    @Query('skipOnError') skipOnError?: string,
+  ) {
+    if (!teamId) {
+      throw new BadRequestException('teamId query parameter is required');
+    }
+
+    try {
+      const skip = skipOnError === 'true' || skipOnError === '1';
+      return await this.productService.bulkImportFromCSV(
+        file.buffer,
+        teamId,
+        skip,
+      );
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Bulk import failed: ${(error as any).message || 'Unknown error'}`,
+      );
+    }
+  }
+
+  /**
+   * Bulk export products to CSV file
+   * GET /products/bulk/export
+   *
+   * @param teamId Team ID to export
+   * @param includeImages Include image URLs (default: false)
+   * @param includeDiscounts Include discount info (default: true)
+   * @returns CSV file download
+   *
+   * @example
+   * ```
+   * GET /products/bulk/export?teamId=507f1f77bcf86cd799439011&includeDiscounts=true
+   * ```
+   */
+  @Get('bulk/export')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async bulkExportCsv(
+    @Query('teamId') teamId: string,
+    @Query('includeImages') includeImages?: string,
+    @Query('includeDiscounts') includeDiscounts?: string,
+    @Res() res?: Response,
+  ) {
+    if (!teamId) {
+      throw new BadRequestException('teamId query parameter is required');
+    }
+
+    try {
+      const csvBuffer = await this.productService.bulkExportToCSV(
+        teamId,
+        includeImages === 'true' || includeImages === '1',
+        includeDiscounts !== 'false' && includeDiscounts !== '0', // Default true
+      );
+
+      if (res) {
+        res.set({
+          'Content-Type': 'text/csv',
+          'Content-Disposition': `attachment; filename="products-${teamId}-${new Date().toISOString().split('T')[0]}.csv"`,
+        });
+        res.send(csvBuffer);
+      }
+
+      return csvBuffer;
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Bulk export failed: ${(error as any).message || 'Unknown error'}`,
+      );
+    }
   }
 }

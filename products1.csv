@@ -1,0 +1,9 @@
+name,description,basePrice,currency,categoryName,subcategoryName,sku,barcode,weight,stockQuantity,trackStock,lowStockThreshold,isActive,discountType,discountValue,additionalInfo,seoTitle,seoDescription,seoKeywords
+,,50000,MGA,,,,,,99,true,0,false,percentage,10,,,,
+,,10000,MGA,,,,,,0,true,0,false,,,,,,
+,,20000,MGA,,,,,,0,true,0,false,,,,,,
+,,20000,MGA,,,,,,0,true,0,false,,,,,,
+,,5000,MGA,,,,,,0,true,0,false,,,,,,
+,,12000,MGA,,,,,,0,true,0,false,,,,,,
+,,25000,MGA,,,,,,0,true,0,false,,,,,,
+,,3000,MGA,,,,,,0,true,0,false,,,,,,
