@@ -17,6 +17,7 @@ import {
   BulkUpdateDto,
 } from './dto/inventory.dto';
 import { SearchService } from '../elasticsearch/elasticsearch.service';
+import { StockLotRepository } from './stock-lot.repository'; // à créer si absent
 
 @Injectable()
 export class InventoryService {
@@ -26,6 +27,7 @@ export class InventoryService {
     private readonly inventoryRepo: InventoryRepository,
     private readonly productRepo: ProductRepository,
     private readonly searchService: SearchService,
+    private readonly stockLotRepo: StockLotRepository,
   ) {}
 
   // ── Indexation non-bloquante — n'interrompt jamais le flux principal ──
@@ -40,10 +42,26 @@ export class InventoryService {
     }
   }
 
+  // ── Génère un numéro de lot si non fourni : LOT-YYYYMMDD-XXXX ──
+  private generateLotNumber(index: number): string {
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const random = Math.random().toString(36).slice(2, 6).toUpperCase();
+    return `LOT-${date}-${random}-${index}`;
+  }
+
+  /**
+   * Entrée de stock — Réception fournisseur
+   * Saisie lot par lot : chaque lot a sa propre quantité et date de péremption.
+   * Le stock disponible du produit est incrémenté automatiquement
+   * de la somme des quantités de tous les lots reçus.
+   */
   async stockIn(
     stockInDto: StockInDto,
     userId?: string,
-  ): Promise<InventoryTransaction> {
+  ): Promise<{
+    transaction: InventoryTransaction;
+    lots: any[];
+  }> {
     const product = await this.productRepo.findById({
       id: stockInDto.productId,
     });
@@ -56,23 +74,76 @@ export class InventoryService {
       throw new BadRequestException(ERRORS.STOCK_NOT_TRACKED);
     }
 
-    const previousStock = product.stockQuantity || 0;
-    const newStock = previousStock + stockInDto.quantity;
+    if (!stockInDto.lots || stockInDto.lots.length === 0) {
+      throw new BadRequestException(
+        'Au moins un lot est requis pour une réception fournisseur',
+      );
+    }
 
+    const previousStock = product.stockQuantity || 0;
+
+    // Quantité totale reçue = somme de tous les lots
+    const totalQuantity = stockInDto.lots.reduce(
+      (sum, lot) => sum + lot.quantity,
+      0,
+    );
+
+    if (totalQuantity <= 0) {
+      throw new BadRequestException(
+        'La quantité totale reçue doit être supérieure à 0',
+      );
+    }
+
+    const newStock = previousStock + totalQuantity;
+    const receptionDate = new Date(stockInDto.receptionDate);
+
+    // ── Création d'un lot en base pour chaque entrée saisie ──
+    const createdLots = [];
+    for (let i = 0; i < stockInDto.lots.length; i++) {
+      const lotDto = stockInDto.lots[i];
+      const expirationDate = new Date(lotDto.expirationDate);
+
+      if (expirationDate <= receptionDate) {
+        throw new BadRequestException(
+          `La date de péremption du lot ${i + 1} doit être postérieure à la date de réception`,
+        );
+      }
+
+      const lot = await this.stockLotRepo.create({
+        doc: {
+          product: new Types.ObjectId(stockInDto.productId),
+          lotNumber: lotDto.lotNumber || this.generateLotNumber(i + 1),
+          quantity: lotDto.quantity,
+          initialQuantity: lotDto.quantity,
+          supplier: stockInDto.supplier,
+          receptionDate,
+          expirationDate,
+          team: product.team,
+        },
+      });
+
+      createdLots.push(lot);
+    }
+
+    // ── Transaction unique regroupant tous les lots de cette réception ──
     const transaction = await this.inventoryRepo.create({
       doc: {
         product: new Types.ObjectId(stockInDto.productId),
         type: 'in',
-        quantity: stockInDto.quantity,
+        quantity: totalQuantity,
         previousStock,
         newStock,
-        reason: stockInDto.reason,
+        reason: stockInDto.reason || 'Réception fournisseur',
         reference: stockInDto.reference,
+        supplier: stockInDto.supplier,
+        receptionDate,
+        lots: createdLots.map((lot) => lot._id),
         performedBy: userId ? new Types.ObjectId(userId) : undefined,
         team: product.team,
       },
     });
 
+    // ── Incrémentation automatique du stock disponible ──
     await this.productRepo.update({
       id: stockInDto.productId,
       update: { stockQuantity: newStock },
@@ -81,7 +152,7 @@ export class InventoryService {
     // Non-bloquant
     this.indexProductSafe(product);
 
-    return transaction;
+    return { transaction, lots: createdLots };
   }
 
   async stockOut(
