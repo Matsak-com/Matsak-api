@@ -152,7 +152,16 @@ export class InventoryService {
     // Non-bloquant
     this.indexProductSafe(product);
 
-    return { transaction, lots: createdLots };
+    const populatedTransaction = await this.inventoryRepo.findById({
+      id: transaction._id,
+      options: {
+        populate: [
+          { path: 'product', populate: { path: 'detail', select: 'name sku' } },
+        ],
+      },
+    });
+
+    return { transaction: populatedTransaction, lots: createdLots };
   }
 
   async stockOut(
@@ -294,7 +303,10 @@ export class InventoryService {
     return this.inventoryRepo.findAll({
       filter,
       options: {
-        populate: ['product', 'performedBy'],
+        populate: [
+          { path: 'product', populate: { path: 'detail', select: 'name sku' } },
+          'performedBy',
+        ],
         sort: { createdAt: -1 },
       },
     });

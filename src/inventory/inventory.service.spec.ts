@@ -26,6 +26,7 @@ describe('InventoryService', () => {
     const mockInventoryRepo = {
       create: jest.fn(),
       findAll: jest.fn(),
+      findById: jest.fn(),
     };
 
     const mockProductRepo = {
@@ -102,6 +103,7 @@ describe('InventoryService', () => {
       stockLotRepo.create.mockResolvedValue(createdLot as any);
 
       const transaction = {
+        _id: new Types.ObjectId(),
         product: mockProduct._id,
         type: 'in',
         quantity: 50,
@@ -114,6 +116,7 @@ describe('InventoryService', () => {
         team: mockProduct.team,
       };
       inventoryRepo.create.mockResolvedValue(transaction as any);
+      inventoryRepo.findById.mockResolvedValue(transaction as any);
       productRepo.update.mockResolvedValue({
         ...mockProduct,
         stockQuantity: 150,
@@ -126,6 +129,12 @@ describe('InventoryService', () => {
       });
       expect(stockLotRepo.create).toHaveBeenCalledTimes(1);
       expect(inventoryRepo.create).toHaveBeenCalled();
+      expect(inventoryRepo.findById).toHaveBeenCalledWith({
+        id: transaction._id,
+        options: expect.objectContaining({
+          populate: expect.any(Array),
+        }),
+      });
       expect(productRepo.update).toHaveBeenCalledWith({
         id: baseStockInDto.productId,
         update: { stockQuantity: 150 },
@@ -146,11 +155,20 @@ describe('InventoryService', () => {
 
       productRepo.findById.mockResolvedValue(mockProduct as any);
       stockLotRepo.create
-        .mockResolvedValueOnce({ _id: new Types.ObjectId(), quantity: 30 } as any)
-        .mockResolvedValueOnce({ _id: new Types.ObjectId(), quantity: 20 } as any);
+        .mockResolvedValueOnce({
+          _id: new Types.ObjectId(),
+          quantity: 30,
+        } as any)
+        .mockResolvedValueOnce({
+          _id: new Types.ObjectId(),
+          quantity: 20,
+        } as any);
 
       inventoryRepo.create.mockImplementation(({ doc }: any) =>
-        Promise.resolve(doc),
+        Promise.resolve({ _id: new Types.ObjectId(), ...doc }),
+      );
+      inventoryRepo.findById.mockImplementation(
+        () => inventoryRepo.create.mock.results[0].value,
       );
       productRepo.update.mockResolvedValue({
         ...mockProduct,
@@ -174,7 +192,10 @@ describe('InventoryService', () => {
         Promise.resolve({ _id: new Types.ObjectId(), ...doc }),
       );
       inventoryRepo.create.mockImplementation(({ doc }: any) =>
-        Promise.resolve(doc),
+        Promise.resolve({ _id: new Types.ObjectId(), ...doc }),
+      );
+      inventoryRepo.findById.mockImplementation(
+        () => inventoryRepo.create.mock.results[0].value,
       );
       productRepo.update.mockResolvedValue(mockProduct as any);
 
@@ -201,7 +222,10 @@ describe('InventoryService', () => {
         Promise.resolve({ _id: new Types.ObjectId(), ...doc }),
       );
       inventoryRepo.create.mockImplementation(({ doc }: any) =>
-        Promise.resolve(doc),
+        Promise.resolve({ _id: new Types.ObjectId(), ...doc }),
+      );
+      inventoryRepo.findById.mockImplementation(
+        () => inventoryRepo.create.mock.results[0].value,
       );
       productRepo.update.mockResolvedValue(mockProduct as any);
 
@@ -248,9 +272,9 @@ describe('InventoryService', () => {
         lots: [{ quantity: 0, expirationDate: '2027-01-01' }],
       };
 
-      await expect(
-        service.stockIn(dtoWithZeroQuantity as any),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.stockIn(dtoWithZeroQuantity as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException when a lot expiration date is before or equal to the reception date', async () => {
