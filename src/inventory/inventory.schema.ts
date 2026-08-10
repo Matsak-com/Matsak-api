@@ -37,12 +37,11 @@ export const StockLotSchema = SchemaFactory.createForClass(StockLot);
 // ── Transaction existante, avec référence au(x) lot(s) concerné(s) ──
 @Schema({ timestamps: true })
 export class InventoryTransaction extends Document {
-  @Prop({ type: Types.ObjectId, ref: 'Product', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'Product', required: true, index: true })
   product: Types.ObjectId;
 
-  @Prop({ required: true, enum: ['in', 'out', 'adjustment'] })
+  @Prop({ required: true, enum: ['in', 'out', 'adjustment'], index: true })
   type: string;
-
   @Prop({ required: true })
   quantity: number;
 
