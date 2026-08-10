@@ -10,7 +10,7 @@ export class ExpirationAlertCron {
 
   constructor(private readonly alertService: ExpirationAlertService) {}
 
-  @Cron('*/1 * * * *')
+  @Cron('0 8 * * *')
   async runDailyCheck() {
     const alerts = await this.alertService.getExpiringLots();
 
