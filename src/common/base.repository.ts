@@ -56,13 +56,13 @@ export class BaseRepository<T extends { deleted_at?: Date }> {
     options = { save: true },
   }: {
     doc: Partial<T>;
-    options?: { save?: boolean };
+    options?: { save?: boolean; session?: ClientSession };
   }): Promise<T> {
     const created = new this.model(doc);
     if (options.save === false) {
       return created;
     }
-    return created.save();
+    return created.save({ session: options.session });
   }
 
   async findAll({

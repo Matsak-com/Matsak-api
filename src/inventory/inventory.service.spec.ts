@@ -1,8 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { getConnectionToken } from '@nestjs/mongoose';
 import { InventoryService } from './inventory.service';
 import { InventoryRepository } from './inventory.repository';
 import { ProductRepository } from '../product/product.repository';
 import { SearchService } from '../elasticsearch/elasticsearch.service';
+import { StockLotRepository } from './stock-lot.repository';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { Types } from 'mongoose';
 
@@ -10,6 +12,12 @@ describe('InventoryService', () => {
   let service: InventoryService;
   let inventoryRepo: jest.Mocked<InventoryRepository>;
   let productRepo: jest.Mocked<ProductRepository>;
+  let stockLotRepo: jest.Mocked<StockLotRepository>;
+  let mockSession: {
+    withTransaction: jest.Mock;
+    endSession: jest.Mock;
+  };
+  let mockConnection: { startSession: jest.Mock };
 
   const mockProduct = {
     _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
@@ -24,6 +32,7 @@ describe('InventoryService', () => {
     const mockInventoryRepo = {
       create: jest.fn(),
       findAll: jest.fn(),
+      findById: jest.fn(),
     };
 
     const mockProductRepo = {
@@ -39,9 +48,28 @@ describe('InventoryService', () => {
       reindexAll: jest.fn(),
     };
 
+    const mockStockLotRepo = {
+      create: jest.fn(),
+      findAll: jest.fn(),
+    };
+
+    // ── Mock de la session Mongo transactionnelle ──
+    // withTransaction exécute simplement le callback, sans vraie transaction
+    mockSession = {
+      withTransaction: jest.fn(async (fn: () => Promise<any>) => fn()),
+      endSession: jest.fn().mockResolvedValue(undefined),
+    };
+    mockConnection = {
+      startSession: jest.fn().mockResolvedValue(mockSession),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InventoryService,
+        {
+          provide: getConnectionToken(),
+          useValue: mockConnection,
+        },
         {
           provide: InventoryRepository,
           useValue: mockInventoryRepo,
@@ -54,25 +82,48 @@ describe('InventoryService', () => {
           provide: SearchService,
           useValue: mockSearchService,
         },
+        {
+          provide: StockLotRepository,
+          useValue: mockStockLotRepo,
+        },
       ],
     }).compile();
 
     service = module.get<InventoryService>(InventoryService);
     inventoryRepo = module.get(InventoryRepository);
     productRepo = module.get(ProductRepository);
+    stockLotRepo = module.get(StockLotRepository);
   });
 
   describe('stockIn', () => {
-    it('should add stock successfully', async () => {
-      const stockInDto = {
-        productId: '507f1f77bcf86cd799439011',
-        quantity: 50,
-        reason: 'Purchase',
-        reference: 'PO-123',
-      };
+    const baseStockInDto = {
+      productId: '507f1f77bcf86cd799439011',
+      reason: 'Purchase',
+      reference: 'PO-123',
+      supplier: 'ACME Pharma',
+      receptionDate: '2026-01-01',
+      lots: [
+        {
+          quantity: 50,
+          expirationDate: '2027-01-01',
+        },
+      ],
+    };
 
+    it('should add stock successfully with a single lot', async () => {
       productRepo.findById.mockResolvedValue(mockProduct as any);
+
+      const createdLot = {
+        _id: new Types.ObjectId(),
+        product: mockProduct._id,
+        lotNumber: 'LOT-20260101-ABCD-1',
+        quantity: 50,
+        initialQuantity: 50,
+      };
+      stockLotRepo.create.mockResolvedValue(createdLot as any);
+
       const transaction = {
+        _id: new Types.ObjectId(),
         product: mockProduct._id,
         type: 'in',
         quantity: 50,
@@ -80,55 +131,202 @@ describe('InventoryService', () => {
         newStock: 150,
         reason: 'Purchase',
         reference: 'PO-123',
+        supplier: 'ACME Pharma',
+        lots: [createdLot._id],
         team: mockProduct.team,
       };
       inventoryRepo.create.mockResolvedValue(transaction as any);
+      inventoryRepo.findById.mockResolvedValue(transaction as any);
       productRepo.update.mockResolvedValue({
         ...mockProduct,
         stockQuantity: 150,
       } as any);
 
-      const result = await service.stockIn(stockInDto);
+      const result = await service.stockIn(baseStockInDto as any);
+
+      expect(mockConnection.startSession).toHaveBeenCalled();
+      expect(mockSession.withTransaction).toHaveBeenCalled();
+      expect(mockSession.endSession).toHaveBeenCalled();
 
       expect(productRepo.findById).toHaveBeenCalledWith({
-        id: stockInDto.productId,
+        id: baseStockInDto.productId,
       });
-      expect(inventoryRepo.create).toHaveBeenCalled();
+      expect(stockLotRepo.create).toHaveBeenCalledTimes(1);
+      expect(stockLotRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: { session: mockSession },
+        }),
+      );
+      expect(inventoryRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: { session: mockSession },
+        }),
+      );
+      expect(inventoryRepo.findById).toHaveBeenCalledWith({
+        id: transaction._id,
+        options: expect.objectContaining({
+          populate: expect.any(Array),
+        }),
+      });
       expect(productRepo.update).toHaveBeenCalledWith({
-        id: stockInDto.productId,
+        id: baseStockInDto.productId,
         update: { stockQuantity: 150 },
+        options: { session: mockSession },
       });
-      expect(result.quantity).toBe(50);
-      expect(result.newStock).toBe(150);
+      expect(result.transaction.newStock).toBe(150);
+      expect(result.transaction.quantity).toBe(50);
+      expect(result.lots).toHaveLength(1);
+    });
+
+    it('should sum quantities across multiple lots', async () => {
+      const multiLotDto = {
+        ...baseStockInDto,
+        lots: [
+          { quantity: 30, expirationDate: '2027-01-01' },
+          { quantity: 20, expirationDate: '2027-06-01' },
+        ],
+      };
+
+      productRepo.findById.mockResolvedValue(mockProduct as any);
+      stockLotRepo.create
+        .mockResolvedValueOnce({
+          _id: new Types.ObjectId(),
+          quantity: 30,
+        } as any)
+        .mockResolvedValueOnce({
+          _id: new Types.ObjectId(),
+          quantity: 20,
+        } as any);
+
+      inventoryRepo.create.mockImplementation(({ doc }: any) =>
+        Promise.resolve({ _id: new Types.ObjectId(), ...doc }),
+      );
+      inventoryRepo.findById.mockImplementation(
+        () => inventoryRepo.create.mock.results[0].value,
+      );
+      productRepo.update.mockResolvedValue({
+        ...mockProduct,
+        stockQuantity: 150,
+      } as any);
+
+      const result = await service.stockIn(multiLotDto as any);
+
+      expect(stockLotRepo.create).toHaveBeenCalledTimes(2);
+      expect(result.transaction.quantity).toBe(50);
+      expect(result.transaction.newStock).toBe(150);
+      expect(productRepo.update).toHaveBeenCalledWith({
+        id: multiLotDto.productId,
+        update: { stockQuantity: 150 },
+        options: { session: mockSession },
+      });
+    });
+
+    it('should generate a lot number when none is provided', async () => {
+      productRepo.findById.mockResolvedValue(mockProduct as any);
+      stockLotRepo.create.mockImplementation(({ doc }: any) =>
+        Promise.resolve({ _id: new Types.ObjectId(), ...doc }),
+      );
+      inventoryRepo.create.mockImplementation(({ doc }: any) =>
+        Promise.resolve({ _id: new Types.ObjectId(), ...doc }),
+      );
+      inventoryRepo.findById.mockImplementation(
+        () => inventoryRepo.create.mock.results[0].value,
+      );
+      productRepo.update.mockResolvedValue(mockProduct as any);
+
+      await service.stockIn(baseStockInDto as any);
+
+      const createArgs = stockLotRepo.create.mock.calls[0][0];
+      expect(createArgs.doc.lotNumber).toMatch(/^LOT-\d{8}-[A-Z0-9]{4}-1$/);
+    });
+
+    it('should use the provided lot number when given', async () => {
+      const dtoWithLotNumber = {
+        ...baseStockInDto,
+        lots: [
+          {
+            quantity: 50,
+            expirationDate: '2027-01-01',
+            lotNumber: 'CUSTOM-LOT-001',
+          },
+        ],
+      };
+
+      productRepo.findById.mockResolvedValue(mockProduct as any);
+      stockLotRepo.create.mockImplementation(({ doc }: any) =>
+        Promise.resolve({ _id: new Types.ObjectId(), ...doc }),
+      );
+      inventoryRepo.create.mockImplementation(({ doc }: any) =>
+        Promise.resolve({ _id: new Types.ObjectId(), ...doc }),
+      );
+      inventoryRepo.findById.mockImplementation(
+        () => inventoryRepo.create.mock.results[0].value,
+      );
+      productRepo.update.mockResolvedValue(mockProduct as any);
+
+      await service.stockIn(dtoWithLotNumber as any);
+
+      const createArgs = stockLotRepo.create.mock.calls[0][0];
+      expect(createArgs.doc.lotNumber).toBe('CUSTOM-LOT-001');
     });
 
     it('should throw NotFoundException when product not found', async () => {
-      const stockInDto = {
-        productId: '507f1f77bcf86cd799439011',
-        quantity: 50,
-      };
-
       productRepo.findById.mockResolvedValue(null);
 
-      await expect(service.stockIn(stockInDto)).rejects.toThrow(
+      await expect(service.stockIn(baseStockInDto as any)).rejects.toThrow(
         NotFoundException,
       );
     });
 
     it('should throw BadRequestException when stock tracking is disabled', async () => {
-      const stockInDto = {
-        productId: '507f1f77bcf86cd799439011',
-        quantity: 50,
-      };
-
       productRepo.findById.mockResolvedValue({
         ...mockProduct,
         trackStock: false,
       } as any);
 
-      await expect(service.stockIn(stockInDto)).rejects.toThrow(
+      await expect(service.stockIn(baseStockInDto as any)).rejects.toThrow(
         BadRequestException,
       );
+    });
+
+    it('should throw BadRequestException when no lots are provided', async () => {
+      productRepo.findById.mockResolvedValue(mockProduct as any);
+
+      const dtoWithoutLots = { ...baseStockInDto, lots: [] };
+
+      await expect(service.stockIn(dtoWithoutLots as any)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException when total quantity is 0 or less', async () => {
+      productRepo.findById.mockResolvedValue(mockProduct as any);
+
+      const dtoWithZeroQuantity = {
+        ...baseStockInDto,
+        lots: [{ quantity: 0, expirationDate: '2027-01-01' }],
+      };
+
+      await expect(service.stockIn(dtoWithZeroQuantity as any)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException when a lot expiration date is before or equal to the reception date', async () => {
+      productRepo.findById.mockResolvedValue(mockProduct as any);
+
+      const dtoWithBadExpiration = {
+        ...baseStockInDto,
+        receptionDate: '2027-01-01',
+        lots: [{ quantity: 50, expirationDate: '2026-01-01' }],
+      };
+
+      await expect(
+        service.stockIn(dtoWithBadExpiration as any),
+      ).rejects.toThrow(BadRequestException);
+
+      // La validation des dates doit échouer AVANT l'ouverture de la session
+      expect(mockConnection.startSession).not.toHaveBeenCalled();
     });
   });
 
@@ -161,11 +359,17 @@ describe('InventoryService', () => {
       expect(productRepo.findById).toHaveBeenCalledWith({
         id: stockOutDto.productId,
       });
-      expect(inventoryRepo.create).toHaveBeenCalled();
+      expect(inventoryRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: { session: mockSession },
+        }),
+      );
       expect(productRepo.update).toHaveBeenCalledWith({
         id: stockOutDto.productId,
         update: { stockQuantity: 70 },
+        options: { session: mockSession },
       });
+      expect(mockSession.endSession).toHaveBeenCalled();
       expect(result.quantity).toBe(30);
       expect(result.newStock).toBe(70);
     });
@@ -181,6 +385,9 @@ describe('InventoryService', () => {
       await expect(service.stockOut(stockOutDto)).rejects.toThrow(
         BadRequestException,
       );
+
+      // L'insuffisance de stock est vérifiée avant l'ouverture de la session
+      expect(mockConnection.startSession).not.toHaveBeenCalled();
     });
   });
 
@@ -213,10 +420,15 @@ describe('InventoryService', () => {
       expect(productRepo.findById).toHaveBeenCalledWith({
         id: adjustmentDto.productId,
       });
-      expect(inventoryRepo.create).toHaveBeenCalled();
+      expect(inventoryRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: { session: mockSession },
+        }),
+      );
       expect(productRepo.update).toHaveBeenCalledWith({
         id: adjustmentDto.productId,
         update: { stockQuantity: 80 },
+        options: { session: mockSession },
       });
       expect(result.newStock).toBe(80);
     });

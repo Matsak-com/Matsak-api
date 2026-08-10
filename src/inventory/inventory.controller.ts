@@ -11,6 +11,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
+import { ExpirationAlertService } from './expiration-alert.service'; // ← ajouté
 import {
   StockInDto,
   StockOutDto,
@@ -18,11 +19,15 @@ import {
   QueryInventoryDto,
   BulkUpdateDto,
 } from './dto/inventory.dto';
+import { ExpirationAlertLevel } from './dto/expiration-alert.dto'; // ← ajouté
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('inventory')
 export class InventoryController {
-  constructor(private readonly inventoryService: InventoryService) {}
+  constructor(
+    private readonly inventoryService: InventoryService,
+    private readonly expirationAlertService: ExpirationAlertService, // ← ajouté
+  ) {}
 
   @Post('stock-in')
   @UseGuards(JwtAuthGuard)
@@ -73,5 +78,23 @@ export class InventoryController {
   @HttpCode(HttpStatus.OK)
   async bulkUpdateStock(@Body() bulkUpdateDto: BulkUpdateDto) {
     return this.inventoryService.bulkUpdateStock(bulkUpdateDto);
+  }
+
+  // ── Alertes de péremption ── ↓ ajouté
+
+  @Get('expiration-alerts')
+  @UseGuards(JwtAuthGuard)
+  async getExpirationAlerts(@Query('teamId') teamId?: string) {
+    return this.expirationAlertService.getGroupedAlerts(teamId);
+  }
+
+  @Get('expiration-alerts/:level')
+  @UseGuards(JwtAuthGuard)
+  async getExpirationAlertsByLevel(
+    @Param('level') level: ExpirationAlertLevel,
+    @Query('teamId') teamId?: string,
+  ) {
+    const all = await this.expirationAlertService.getExpiringLots(teamId);
+    return all.filter((a) => a.level === level);
   }
 }
