@@ -17,7 +17,7 @@ import {
   BulkUpdateDto,
 } from './dto/inventory.dto';
 import { SearchService } from '../elasticsearch/elasticsearch.service';
-import { StockLotRepository } from './stock-lot.repository'; // à créer si absent
+import { StockLotRepository } from './stock-lot.repository';
 
 @Injectable()
 export class InventoryService {
