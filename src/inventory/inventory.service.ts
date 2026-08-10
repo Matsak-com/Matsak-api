@@ -42,7 +42,7 @@ export class InventoryService {
     }
   }
 
-  // ── Génère un numéro de lot si non fourni : LOT-YYYYMMDD-XXXX ──
+  // ── Génère un numéro de lot si non fourni : LOT-YYYYMMDD-XXXX-<index> ──
   private generateLotNumber(index: number): string {
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const random = Math.random().toString(36).slice(2, 6).toUpperCase();
