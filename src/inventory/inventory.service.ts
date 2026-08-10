@@ -18,7 +18,7 @@ import {
   BulkUpdateDto,
 } from './dto/inventory.dto';
 import { SearchService } from '../elasticsearch/elasticsearch.service';
-import { StockLotRepository } from './stock-lot.repository';
+import { StockLotRepository } from './stock-lot.repository'; // à créer si absent
 
 @Injectable()
 export class InventoryService {
@@ -44,7 +44,7 @@ export class InventoryService {
     }
   }
 
-  // ── Génère un numéro de lot si non fourni : LOT-YYYYMMDD-XXXX-<index> ──
+  // ── Génère un numéro de lot si non fourni : LOT-YYYYMMDD-XXXX ──
   private generateLotNumber(index: number): string {
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const random = Math.random().toString(36).slice(2, 6).toUpperCase();

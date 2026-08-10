@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { getConnectionToken } from '@nestjs/mongoose';
 import { InventoryService } from './inventory.service';
 import { InventoryRepository } from './inventory.repository';
 import { ProductRepository } from '../product/product.repository';
@@ -12,6 +13,11 @@ describe('InventoryService', () => {
   let inventoryRepo: jest.Mocked<InventoryRepository>;
   let productRepo: jest.Mocked<ProductRepository>;
   let stockLotRepo: jest.Mocked<StockLotRepository>;
+  let mockSession: {
+    withTransaction: jest.Mock;
+    endSession: jest.Mock;
+  };
+  let mockConnection: { startSession: jest.Mock };
 
   const mockProduct = {
     _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
@@ -47,9 +53,23 @@ describe('InventoryService', () => {
       findAll: jest.fn(),
     };
 
+    // ── Mock de la session Mongo transactionnelle ──
+    // withTransaction exécute simplement le callback, sans vraie transaction
+    mockSession = {
+      withTransaction: jest.fn(async (fn: () => Promise<any>) => fn()),
+      endSession: jest.fn().mockResolvedValue(undefined),
+    };
+    mockConnection = {
+      startSession: jest.fn().mockResolvedValue(mockSession),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InventoryService,
+        {
+          provide: getConnectionToken(),
+          useValue: mockConnection,
+        },
         {
           provide: InventoryRepository,
           useValue: mockInventoryRepo,
@@ -124,11 +144,24 @@ describe('InventoryService', () => {
 
       const result = await service.stockIn(baseStockInDto as any);
 
+      expect(mockConnection.startSession).toHaveBeenCalled();
+      expect(mockSession.withTransaction).toHaveBeenCalled();
+      expect(mockSession.endSession).toHaveBeenCalled();
+
       expect(productRepo.findById).toHaveBeenCalledWith({
         id: baseStockInDto.productId,
       });
       expect(stockLotRepo.create).toHaveBeenCalledTimes(1);
-      expect(inventoryRepo.create).toHaveBeenCalled();
+      expect(stockLotRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: { session: mockSession },
+        }),
+      );
+      expect(inventoryRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: { session: mockSession },
+        }),
+      );
       expect(inventoryRepo.findById).toHaveBeenCalledWith({
         id: transaction._id,
         options: expect.objectContaining({
@@ -138,6 +171,7 @@ describe('InventoryService', () => {
       expect(productRepo.update).toHaveBeenCalledWith({
         id: baseStockInDto.productId,
         update: { stockQuantity: 150 },
+        options: { session: mockSession },
       });
       expect(result.transaction.newStock).toBe(150);
       expect(result.transaction.quantity).toBe(50);
@@ -183,6 +217,7 @@ describe('InventoryService', () => {
       expect(productRepo.update).toHaveBeenCalledWith({
         id: multiLotDto.productId,
         update: { stockQuantity: 150 },
+        options: { session: mockSession },
       });
     });
 
@@ -289,6 +324,9 @@ describe('InventoryService', () => {
       await expect(
         service.stockIn(dtoWithBadExpiration as any),
       ).rejects.toThrow(BadRequestException);
+
+      // La validation des dates doit échouer AVANT l'ouverture de la session
+      expect(mockConnection.startSession).not.toHaveBeenCalled();
     });
   });
 
@@ -321,11 +359,17 @@ describe('InventoryService', () => {
       expect(productRepo.findById).toHaveBeenCalledWith({
         id: stockOutDto.productId,
       });
-      expect(inventoryRepo.create).toHaveBeenCalled();
+      expect(inventoryRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: { session: mockSession },
+        }),
+      );
       expect(productRepo.update).toHaveBeenCalledWith({
         id: stockOutDto.productId,
         update: { stockQuantity: 70 },
+        options: { session: mockSession },
       });
+      expect(mockSession.endSession).toHaveBeenCalled();
       expect(result.quantity).toBe(30);
       expect(result.newStock).toBe(70);
     });
@@ -341,6 +385,9 @@ describe('InventoryService', () => {
       await expect(service.stockOut(stockOutDto)).rejects.toThrow(
         BadRequestException,
       );
+
+      // L'insuffisance de stock est vérifiée avant l'ouverture de la session
+      expect(mockConnection.startSession).not.toHaveBeenCalled();
     });
   });
 
@@ -373,10 +420,15 @@ describe('InventoryService', () => {
       expect(productRepo.findById).toHaveBeenCalledWith({
         id: adjustmentDto.productId,
       });
-      expect(inventoryRepo.create).toHaveBeenCalled();
+      expect(inventoryRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: { session: mockSession },
+        }),
+      );
       expect(productRepo.update).toHaveBeenCalledWith({
         id: adjustmentDto.productId,
         update: { stockQuantity: 80 },
+        options: { session: mockSession },
       });
       expect(result.newStock).toBe(80);
     });
